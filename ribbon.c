@@ -815,9 +815,16 @@ ribbon_move_client(struct client_ctx *cc, int flags)
 	if (dst == NULL) {
 		if (src->nwin == 1)
 			return;
-		dst = ribbon_col_new(rb,
-		    (flags & CWM_LEFT) ? TAILQ_PREV(src, ribbon_col_q, entry) :
-		    src);
+		dst = ribbon_col_new(rb, src);
+		/*
+		 * ribbon_col_new() inserts after; going left off the first
+		 * column has to land before it, not at the far end of the
+		 * ribbon.
+		 */
+		if (flags & CWM_LEFT) {
+			TAILQ_REMOVE(&rb->colq, dst, entry);
+			TAILQ_INSERT_BEFORE(src, dst, entry);
+		}
 		dst->preset = src->preset;
 	}
 
