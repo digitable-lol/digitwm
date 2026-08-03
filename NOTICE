@@ -1,0 +1,62 @@
+# Происхождение и лицензии / Provenance and licences
+
+## Откуда взят код / Where the code comes from
+
+digitwm — форк **cwm (calmwm)**, оконного менеджера из базовой системы OpenBSD,
+через переносимую сборку https://github.com/leahneukirchen/cwm. История
+апстрима сохранена в этом репозитории целиком (1146 коммитов на момент форка,
+базовый коммит `a343cc9`), чтобы авторство читалось из `git log`, а не только
+из этого файла.
+
+digitwm is a fork of **cwm (calmwm)**, the window manager from the OpenBSD base
+system, taken through the portable build at
+https://github.com/leahneukirchen/cwm. The upstream history is preserved here in
+full (1146 commits at the time of the fork, base commit `a343cc9`) so that
+authorship is readable from `git log`, not only from this file.
+
+## Лицензии / Licences
+
+**ISC** — 17 из 18 файлов `.c` и `.h`. Формула стоит в шапке каждого файла;
+отдельного файла лицензии в апстриме нет, поэтому `LICENSE` в этом репозитории
+воспроизводит её дословно и перечисляет всех правообладателей.
+
+**BSD-3-Clause** — единственное исключение: `queue.h`. Это `sys/queue.h` из
+OpenBSD, копирайт The Regents of the University of California, 1991, 1993.
+Условия BSD-3 совместимы с ISC; файл не изменяется без крайней необходимости,
+чтобы оставаться синхронным с апстримом.
+
+**ISC** covers 17 of the 18 `.c` and `.h` files, with the notice in each file
+header. Upstream ships no separate licence file, so `LICENSE` here reproduces
+the notice verbatim and lists every copyright holder.
+
+**BSD-3-Clause** covers the single exception, `queue.h`, which is `sys/queue.h`
+from OpenBSD, copyright The Regents of the University of California, 1991, 1993.
+BSD-3 is compatible with ISC.
+
+## Чего здесь нет намеренно / Deliberate omissions
+
+**Ни одной строки из papersway.** Он даёт похожий скроллируемый тайлинг, но
+распространяется под GPL-3.0-or-later: любое заимствование оттуда автоматически
+сдвинуло бы digitwm на GPL-3+, закрыв и путь патчей обратно в cwm, и
+разрешительную лицензию как таковую. Идеи наблюдать можно, код — нельзя.
+
+**Ни одной строки из sdorfehs и ratpoison** — по той же причине, они под
+GPL-2.0-or-later. Первая редакция спецификации предлагала форкнуть sdorfehs;
+решение отменено именно из-за лицензии, см. `docs/` в репозитории портала.
+
+**Not a single line from papersway** (GPL-3.0-or-later) or from
+sdorfehs/ratpoison (GPL-2.0-or-later). Borrowing from either would relicense
+digitwm and close both the permissive licence and the path of patches back to
+upstream cwm. Watching the ideas is fine; copying the code is not.
+
+## Вклад Digitable / Digitable's contribution
+
+Новый код Digitable выходит под той же ISC — чтобы файл лицензии оставался
+одним на весь репозиторий, а патчи могли уходить в апстрим без препятствий.
+Правила раскладки дополнительно описаны исполняемыми спецификациями FTS в
+`fts/`; они не исполняются внутри оконного менеджера и нужны только сборке.
+
+New code by Digitable is released under the same ISC licence, so that one
+licence covers the whole repository and patches can flow upstream unimpeded.
+Layout rules are additionally described by executable FTS specifications in
+`fts/`; they never run inside the window manager and are used by CI only.
