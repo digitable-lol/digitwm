@@ -1,0 +1,36 @@
+#!/bin/sh
+# Digitable Session — ваш автозапуск.
+#
+# Этот файл создаётся один раз и больше никогда не переписывается: ни
+# обновлением сессии, ни повторным запуском install.sh. Всё, что вы сюда
+# добавите, останется.
+#
+# Запускается из digitwm-session ДО оконного менеджера и в фоне. Значит:
+# каждая долгоживущая программа должна уходить в фон сама (&), иначе она
+# задержит появление рабочего стола.
+
+# Раскладка клавиатуры и переключение — X11 не угадывает её за вас.
+# command -v setxkbmap >/dev/null 2>&1 && \
+#   setxkbmap -layout us,ru -option grp:alt_shift_toggle
+
+# Композитор. Оконный менеджер им не является и анимаций не рисует; если
+# нужны прозрачность и тени — запускайте picom отдельно и верните
+# opacity = 0.9 в ~/.config/digitwm/alacritty.toml.
+# command -v picom >/dev/null 2>&1 && picom --daemon
+
+# Обои вместо однотонного фона.
+# command -v feh >/dev/null 2>&1 && feh --bg-fill "$HOME/.local/share/digitwm/wallpaper.jpg"
+
+# Панель. У cwm панели нет вовсе, а собственная панель digitwm — открытый
+# вопрос спецификации. Пока подойдёт любая внешняя.
+# command -v polybar >/dev/null 2>&1 && polybar --reload main &
+
+# Гашение экрана и энергосбережение.
+# command -v xset >/dev/null 2>&1 && xset s 600 dpms 900 1200 1800
+
+# Агент сети, буфер обмена, уведомления — что нужно именно вам.
+# command -v nm-applet >/dev/null 2>&1 && nm-applet &
+# command -v dunst >/dev/null 2>&1 && dunst &
+
+# Digit запускается отдельно, из digitwm-session. Отключить его на этот
+# вход можно переменной DIGITWM_NO_DIGIT=1 в окружении сессии.

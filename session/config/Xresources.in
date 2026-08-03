@@ -1,0 +1,40 @@
+! Digitable Session — ресурсы X.
+!
+! Нужны приложениям, которые не читают ничьих конфигов и берут цвета из
+! базы ресурсов: xterm, xmessage, xclock, старые Motif-программы. Без этого
+! файла они остаются чёрно-белыми посреди оформленного рабочего стола.
+!
+! Цвета подставляет session/install.sh из focus-palettes.json — той же
+! палитры, что у vim, alacritty, tmux и bat.
+
+*background:            @@BACKGROUND@@
+*foreground:            @@FOREGROUND@@
+*cursorColor:           @@ACCENT@@
+
+*color0:                @@TERMINAL_BLACK@@
+*color1:                @@RED@@
+*color2:                @@GREEN@@
+*color3:                @@YELLOW@@
+*color4:                @@BLUE@@
+*color5:                @@PURPLE@@
+*color6:                @@ACCENT@@
+*color7:                @@MUTED@@
+*color8:                @@TERMINAL_BRIGHT_BLACK@@
+*color9:                @@RED@@
+*color10:               @@GREEN@@
+*color11:               @@YELLOW@@
+*color12:               @@BLUE@@
+*color13:               @@PURPLE@@
+*color14:               @@ACCENT_SOFT@@
+*color15:               @@FOREGROUND@@
+
+XTerm*faceName:         @@FONT_FAMILY@@
+XTerm*faceSize:         @@FONT_SIZE@@
+XTerm*termName:         xterm-256color
+XTerm*saveLines:        50000
+XTerm*metaSendsEscape:  true
+XTerm*selectToClipboard: true
+
+Xmessage*background:    @@SURFACE@@
+Xmessage*foreground:    @@FOREGROUND@@
+Xmessage*Buttons:       Ok

@@ -1,0 +1,55 @@
+# Digitable Session — Alacritty.
+#
+# Терминал выбран не по вкусу: в dotfiles владельца лежит .alacritty.toml, а
+# в toolchain.json Workbench у alacritty есть готовая тема. Совпадение двух
+# источников и решило.
+#
+# Цветов здесь нет ни одного. Они целиком в файле, который генерирует
+# Workbench из focus-palettes.json, и подключаются одной строкой import.
+# Дублировать палитру в этом файле нельзя: разъедется на второй же правке.
+
+import = ["@@ALACRITTY_THEME@@"]
+
+[window]
+dynamic_padding = false
+dynamic_title = true
+# ОТЛИЧИЕ от dotfiles: там opacity = 0.9. Под голым X11 без композитора
+# прозрачности не будет вообще — рисовать её некому, digitwm компози́тором не
+# является и не станет. Значение 1.0 честнее: оно совпадает с тем, что видно
+# на экране. Если у вас запущен picom или compton — поставьте 0.9 обратно.
+opacity = 1.0
+
+[window.padding]
+x = 18
+y = 14
+
+[scrolling]
+history = 50000
+multiplier = 3
+
+[font]
+size = @@FONT_SIZE@@
+
+[font.normal]
+family = "@@FONT_FAMILY@@"
+style = "Regular"
+
+[font.bold]
+family = "@@FONT_FAMILY@@"
+style = "Bold"
+
+[font.italic]
+family = "@@FONT_FAMILY@@"
+style = "Italic"
+
+[cursor]
+style = { shape = "Block", blinking = "Off" }
+
+[keyboard]
+bindings = [
+  # Vim-совместимо: терминал не перехватывает Ctrl+hjkl и F-клавиши,
+  # они уходят в приложение.
+  { key = "Equals", mods = "Control", action = "IncreaseFontSize" },
+  { key = "Minus", mods = "Control", action = "DecreaseFontSize" },
+  { key = "Key0", mods = "Control", action = "ResetFontSize" },
+]
