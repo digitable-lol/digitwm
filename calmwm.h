@@ -675,6 +675,9 @@ void			 menuq_add(struct menu_q *, void *, const char *, ...)
 			    __attribute__((__format__ (printf, 3, 4)));
 void			 menuq_clear(struct menu_q *);
 
+int			 probe_is_command(const char *);
+int			 probe_run(const char *);
+
 int			 parse_config(const char *, struct conf *);
 
 void			 conf_autogroup(struct conf *, int, const char *,
