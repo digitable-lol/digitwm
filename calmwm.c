@@ -56,6 +56,7 @@ main(int argc, char **argv)
 {
 	char		*display_name = NULL;
 	char		*fallback;
+	char		*command = NULL;
 	int		 ch, xfd, nflag = 0;
 	struct pollfd	 pfd[1];
 
@@ -67,11 +68,26 @@ main(int argc, char **argv)
 
 	fallback = u_argv(argv);
 	Conf.wm_argv = u_argv(argv);
-	while ((ch = getopt(argc, argv, "c:d:nv")) != -1) {
+	while ((ch = getopt(argc, argv, "c:C:d:nv")) != -1) {
 		switch (ch) {
 		case 'c':
+			/*
+			 * Upstream cwm spells the config file -c, and that
+			 * keeps working.  A control command is recognised by
+			 * its verb, so the form the specification asks for -
+			 * digitwm -c "layout-probe ..." - works too, and -C
+			 * is there when the distinction should not be left
+			 * to a guess.
+			 */
+			if (probe_is_command(optarg)) {
+				command = optarg;
+				break;
+			}
 			free(Conf.conf_file);
 			Conf.conf_file = xstrdup(optarg);
+			break;
+		case 'C':
+			command = optarg;
 			break;
 		case 'd':
 			display_name = optarg;
@@ -88,6 +104,14 @@ main(int argc, char **argv)
 	}
 	argc -= optind;
 	argv += optind;
+
+	/*
+	 * A probe answers out of the layout model alone: no display is
+	 * opened and no window is touched, so CI can ask what the layout
+	 * would do without an X server to ask it on.
+	 */
+	if (command != NULL)
+		return probe_run(command);
 
 	if (signal(SIGCHLD, sighdlr) == SIG_ERR ||
 	    signal(SIGHUP, sighdlr) == SIG_ERR ||
@@ -233,7 +257,7 @@ usage(void)
 {
 	extern char	*__progname;
 
-	(void)fprintf(stderr, "usage: %s [-nv] [-c file] [-d display]\n",
-	    __progname);
+	(void)fprintf(stderr, "usage: %s [-nv] [-c file] [-C command] "
+	    "[-d display]\n", __progname);
 	exit(1);
 }

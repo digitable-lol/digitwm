@@ -25,6 +25,7 @@
 .Nm cwm
 .Op Fl nv
 .Op Fl c Ar file
+.Op Fl C Ar command
 .Op Fl d Ar display
 .Sh DESCRIPTION
 .Nm
@@ -46,6 +47,51 @@ Any error messages from lines in the configuration file will be sent to
 however,
 .Nm
 will continue to process the rest of the configuration file.
+.Pp
+If
+.Ar file
+instead reads as a control command - that is, if it begins with the word
+.Cm layout-probe
+- it is run as one, so that the form
+.Nm Fl c Cm \*qlayout-probe ...\*q
+works as well as
+.Fl C .
+.It Fl C Ar command
+Run a control command and exit, without opening a display or touching any
+window.
+The only command is
+.Cm layout-probe ,
+which reports what the layout would decide for the arguments given and is
+there so that continuous integration can compare the layout of a live
+.Nm
+against the reference implementation generated from the FTS models.
+.Pp
+The first argument names the utility, either by its plain name or by the
+name the FTS model carries, in guillemets:
+.Cm scroll-offset ,
+.Cm column-width ,
+.Cm window-height ,
+.Cm insertion ,
+.Cm focus-after-close ,
+.Cm output-change ,
+or
+.Cm layout .
+The rest are the fields, either as
+.Cm key Ns = Ns Ar value
+pairs or as one flat JSON object.
+.Pp
+The scalar utilities answer with a single line,
+.Dq Li ok Ar utility value ;
+.Cm layout
+answers with one line per record and a final
+.Dq Li end .
+Both write to standard output; errors name the field or utility at fault on
+standard error and exit nonzero.
+.Pp
+For example:
+.Bd -literal -offset indent
+$ cwm -C \*qlayout-probe layout viewport=1280x800 columns=1,1,1\*q
+.Ed
 .It Fl d Ar display
 Specify the display to use.
 .It Fl n
