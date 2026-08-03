@@ -379,6 +379,42 @@ kbfunc_client_toggle_fullscreen(void *ctx, struct cargs *cargs)
 }
 
 void
+kbfunc_ribbon_focus(void *ctx, struct cargs *cargs)
+{
+	ribbon_focus_col(ctx, cargs->flag);
+}
+
+void
+kbfunc_ribbon_focus_win(void *ctx, struct cargs *cargs)
+{
+	ribbon_focus_win(ctx, cargs->flag);
+}
+
+void
+kbfunc_ribbon_move(void *ctx, struct cargs *cargs)
+{
+	ribbon_move_client(ctx, cargs->flag);
+}
+
+void
+kbfunc_ribbon_width(void *ctx, struct cargs *cargs)
+{
+	ribbon_width(ctx, cargs->flag);
+}
+
+void
+kbfunc_ribbon_center(void *ctx, struct cargs *cargs)
+{
+	ribbon_center(ctx);
+}
+
+void
+kbfunc_ribbon_float(void *ctx, struct cargs *cargs)
+{
+	ribbon_float_toggle(ctx);
+}
+
+void
 kbfunc_client_toggle_maximize(void *ctx, struct cargs *cargs)
 {
 	client_toggle_maximize(ctx);

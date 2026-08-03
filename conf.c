@@ -131,6 +131,19 @@ static const struct {
 	{ FUNC_CC(window-resize-left-big, client_resize, (CWM_LEFT_BIG)) },
 	{ FUNC_CC(window-menu-label, client_menu_label, 0) },
 
+	{ FUNC_CC(ribbon-move-left, ribbon_move, (CWM_LEFT)) },
+	{ FUNC_CC(ribbon-move-right, ribbon_move, (CWM_RIGHT)) },
+	{ FUNC_CC(ribbon-width-cycle, ribbon_width, (CWM_CENTER)) },
+	{ FUNC_CC(ribbon-width-grow, ribbon_width, (CWM_RIGHT)) },
+	{ FUNC_CC(ribbon-width-shrink, ribbon_width, (CWM_LEFT)) },
+	{ FUNC_CC(ribbon-float-toggle, ribbon_float, 0) },
+
+	{ FUNC_SC(ribbon-focus-left, ribbon_focus, (CWM_LEFT)) },
+	{ FUNC_SC(ribbon-focus-right, ribbon_focus, (CWM_RIGHT)) },
+	{ FUNC_SC(ribbon-focus-up, ribbon_focus_win, (CWM_UP)) },
+	{ FUNC_SC(ribbon-focus-down, ribbon_focus_win, (CWM_DOWN)) },
+	{ FUNC_SC(ribbon-center, ribbon_center, 0) },
+
 	{ FUNC_SC(window-cycle, client_cycle, (CWM_CYCLE_FORWARD)) },
 	{ FUNC_SC(window-rcycle, client_cycle, (CWM_CYCLE_REVERSE)) },
 	{ FUNC_SC(window-cycle-ingroup, client_cycle,
@@ -259,6 +272,21 @@ static const struct {
 	{ "MS-j",	"window-move-down-big" },
 	{ "MS-k",	"window-move-up-big" },
 	{ "MS-l",	"window-move-right-big" },
+	/*
+	 * The ribbon takes Mod4, which upstream cwm leaves entirely free, so
+	 * that every cwm binding a user already knows keeps working.
+	 */
+	{ "4-h",	"ribbon-focus-left" },
+	{ "4-l",	"ribbon-focus-right" },
+	{ "4-k",	"ribbon-focus-up" },
+	{ "4-j",	"ribbon-focus-down" },
+	{ "4S-h",	"ribbon-move-left" },
+	{ "4S-l",	"ribbon-move-right" },
+	{ "4-r",	"ribbon-width-cycle" },
+	{ "4-equal",	"ribbon-width-grow" },
+	{ "4-minus",	"ribbon-width-shrink" },
+	{ "4-c",	"ribbon-center" },
+	{ "4-f",	"ribbon-float-toggle" },
 	{ "CM-h",	"window-resize-left" },
 	{ "CM-j",	"window-resize-down" },
 	{ "CM-k",	"window-resize-up" },

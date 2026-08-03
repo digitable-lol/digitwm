@@ -74,6 +74,8 @@ typedef struct {
 %token	FONTNAME STICKY GAP
 %token	AUTOGROUP COMMAND IGNORE WM
 %token	YES NO BORDERWIDTH MOVEAMOUNT HTILE VTILE
+%token	RIBBON RIBBONHIDE RIBBONGAP RIBBONWIDTHS
+%token	RIBBONMINWIDTH RIBBONMINHEIGHT
 %token	COLOR SNAPDIST
 %token	ACTIVEBORDER INACTIVEBORDER URGENCYBORDER
 %token	GROUPBORDER UNGROUPBORDER
@@ -148,6 +150,46 @@ main		: FONTNAME STRING		{
 				YYERROR;
 			}
 			conf->vtile = $2;
+		}
+		| RIBBON yesno {
+			conf->ribbon = $2;
+		}
+		| RIBBONHIDE yesno {
+			conf->ribbonhide = $2;
+		}
+		| RIBBONGAP NUMBER {
+			if ($2 < 0 || $2 > INT_MAX) {
+				yyerror("invalid ribbongap");
+				YYERROR;
+			}
+			conf->ribbongap = $2;
+		}
+		| RIBBONMINWIDTH NUMBER {
+			if ($2 < 1 || $2 > INT_MAX) {
+				yyerror("invalid ribbonminwidth");
+				YYERROR;
+			}
+			conf->ribbonminw = $2;
+		}
+		| RIBBONMINHEIGHT NUMBER {
+			if ($2 < 1 || $2 > INT_MAX) {
+				yyerror("invalid ribbonminheight");
+				YYERROR;
+			}
+			conf->ribbonminh = $2;
+		}
+		| RIBBONWIDTHS NUMBER NUMBER NUMBER NUMBER {
+			if ($2 < 1 || $2 > 100 ||
+			    $3 < 1 || $3 > 100 ||
+			    $4 < 1 || $4 > 100 ||
+			    $5 < 1 || $5 > 100) {
+				yyerror("invalid ribbonwidths");
+				YYERROR;
+			}
+			conf->ribbonwidth[0] = $2;
+			conf->ribbonwidth[1] = $3;
+			conf->ribbonwidth[2] = $4;
+			conf->ribbonwidth[3] = $5;
 		}
 		| MOVEAMOUNT NUMBER {
 			if ($2 < 0 || $2 > INT_MAX) {
@@ -350,6 +392,12 @@ lookup(char *s)
 		{ "menufg",		MENUFG},
 		{ "moveamount",		MOVEAMOUNT},
 		{ "no",			NO},
+		{ "ribbon",		RIBBON},
+		{ "ribbongap",		RIBBONGAP},
+		{ "ribbonhide",		RIBBONHIDE},
+		{ "ribbonminheight",	RIBBONMINHEIGHT},
+		{ "ribbonminwidth",	RIBBONMINWIDTH},
+		{ "ribbonwidths",	RIBBONWIDTHS},
 		{ "selfont", 		FONTSELCOLOR},
 		{ "snapdist",		SNAPDIST},
 		{ "sticky",		STICKY},

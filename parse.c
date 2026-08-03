@@ -176,20 +176,26 @@ extern int yydebug;
     MOVEAMOUNT = 272,              /* MOVEAMOUNT  */
     HTILE = 273,                   /* HTILE  */
     VTILE = 274,                   /* VTILE  */
-    COLOR = 275,                   /* COLOR  */
-    SNAPDIST = 276,                /* SNAPDIST  */
-    ACTIVEBORDER = 277,            /* ACTIVEBORDER  */
-    INACTIVEBORDER = 278,          /* INACTIVEBORDER  */
-    URGENCYBORDER = 279,           /* URGENCYBORDER  */
-    GROUPBORDER = 280,             /* GROUPBORDER  */
-    UNGROUPBORDER = 281,           /* UNGROUPBORDER  */
-    MENUBG = 282,                  /* MENUBG  */
-    MENUFG = 283,                  /* MENUFG  */
-    FONTCOLOR = 284,               /* FONTCOLOR  */
-    FONTSELCOLOR = 285,            /* FONTSELCOLOR  */
-    ERROR = 286,                   /* ERROR  */
-    STRING = 287,                  /* STRING  */
-    NUMBER = 288                   /* NUMBER  */
+    RIBBON = 275,                  /* RIBBON  */
+    RIBBONHIDE = 276,              /* RIBBONHIDE  */
+    RIBBONGAP = 277,               /* RIBBONGAP  */
+    RIBBONWIDTHS = 278,            /* RIBBONWIDTHS  */
+    RIBBONMINWIDTH = 279,          /* RIBBONMINWIDTH  */
+    RIBBONMINHEIGHT = 280,         /* RIBBONMINHEIGHT  */
+    COLOR = 281,                   /* COLOR  */
+    SNAPDIST = 282,                /* SNAPDIST  */
+    ACTIVEBORDER = 283,            /* ACTIVEBORDER  */
+    INACTIVEBORDER = 284,          /* INACTIVEBORDER  */
+    URGENCYBORDER = 285,           /* URGENCYBORDER  */
+    GROUPBORDER = 286,             /* GROUPBORDER  */
+    UNGROUPBORDER = 287,           /* UNGROUPBORDER  */
+    MENUBG = 288,                  /* MENUBG  */
+    MENUFG = 289,                  /* MENUFG  */
+    FONTCOLOR = 290,               /* FONTCOLOR  */
+    FONTSELCOLOR = 291,            /* FONTSELCOLOR  */
+    ERROR = 292,                   /* ERROR  */
+    STRING = 293,                  /* STRING  */
+    NUMBER = 294                   /* NUMBER  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -215,20 +221,26 @@ extern int yydebug;
 #define MOVEAMOUNT 272
 #define HTILE 273
 #define VTILE 274
-#define COLOR 275
-#define SNAPDIST 276
-#define ACTIVEBORDER 277
-#define INACTIVEBORDER 278
-#define URGENCYBORDER 279
-#define GROUPBORDER 280
-#define UNGROUPBORDER 281
-#define MENUBG 282
-#define MENUFG 283
-#define FONTCOLOR 284
-#define FONTSELCOLOR 285
-#define ERROR 286
-#define STRING 287
-#define NUMBER 288
+#define RIBBON 275
+#define RIBBONHIDE 276
+#define RIBBONGAP 277
+#define RIBBONWIDTHS 278
+#define RIBBONMINWIDTH 279
+#define RIBBONMINHEIGHT 280
+#define COLOR 281
+#define SNAPDIST 282
+#define ACTIVEBORDER 283
+#define INACTIVEBORDER 284
+#define URGENCYBORDER 285
+#define GROUPBORDER 286
+#define UNGROUPBORDER 287
+#define MENUBG 288
+#define MENUFG 289
+#define FONTCOLOR 290
+#define FONTSELCOLOR 291
+#define ERROR 292
+#define STRING 293
+#define NUMBER 294
 
 /* Value type.  */
 
@@ -264,30 +276,36 @@ enum yysymbol_kind_t
   YYSYMBOL_MOVEAMOUNT = 17,                /* MOVEAMOUNT  */
   YYSYMBOL_HTILE = 18,                     /* HTILE  */
   YYSYMBOL_VTILE = 19,                     /* VTILE  */
-  YYSYMBOL_COLOR = 20,                     /* COLOR  */
-  YYSYMBOL_SNAPDIST = 21,                  /* SNAPDIST  */
-  YYSYMBOL_ACTIVEBORDER = 22,              /* ACTIVEBORDER  */
-  YYSYMBOL_INACTIVEBORDER = 23,            /* INACTIVEBORDER  */
-  YYSYMBOL_URGENCYBORDER = 24,             /* URGENCYBORDER  */
-  YYSYMBOL_GROUPBORDER = 25,               /* GROUPBORDER  */
-  YYSYMBOL_UNGROUPBORDER = 26,             /* UNGROUPBORDER  */
-  YYSYMBOL_MENUBG = 27,                    /* MENUBG  */
-  YYSYMBOL_MENUFG = 28,                    /* MENUFG  */
-  YYSYMBOL_FONTCOLOR = 29,                 /* FONTCOLOR  */
-  YYSYMBOL_FONTSELCOLOR = 30,              /* FONTSELCOLOR  */
-  YYSYMBOL_ERROR = 31,                     /* ERROR  */
-  YYSYMBOL_STRING = 32,                    /* STRING  */
-  YYSYMBOL_NUMBER = 33,                    /* NUMBER  */
-  YYSYMBOL_34_n_ = 34,                     /* '\n'  */
-  YYSYMBOL_35_ = 35,                       /* ','  */
-  YYSYMBOL_YYACCEPT = 36,                  /* $accept  */
-  YYSYMBOL_grammar = 37,                   /* grammar  */
-  YYSYMBOL_string = 38,                    /* string  */
-  YYSYMBOL_numberstring = 39,              /* numberstring  */
-  YYSYMBOL_yesno = 40,                     /* yesno  */
-  YYSYMBOL_main = 41,                      /* main  */
-  YYSYMBOL_color = 42,                     /* color  */
-  YYSYMBOL_colors = 43                     /* colors  */
+  YYSYMBOL_RIBBON = 20,                    /* RIBBON  */
+  YYSYMBOL_RIBBONHIDE = 21,                /* RIBBONHIDE  */
+  YYSYMBOL_RIBBONGAP = 22,                 /* RIBBONGAP  */
+  YYSYMBOL_RIBBONWIDTHS = 23,              /* RIBBONWIDTHS  */
+  YYSYMBOL_RIBBONMINWIDTH = 24,            /* RIBBONMINWIDTH  */
+  YYSYMBOL_RIBBONMINHEIGHT = 25,           /* RIBBONMINHEIGHT  */
+  YYSYMBOL_COLOR = 26,                     /* COLOR  */
+  YYSYMBOL_SNAPDIST = 27,                  /* SNAPDIST  */
+  YYSYMBOL_ACTIVEBORDER = 28,              /* ACTIVEBORDER  */
+  YYSYMBOL_INACTIVEBORDER = 29,            /* INACTIVEBORDER  */
+  YYSYMBOL_URGENCYBORDER = 30,             /* URGENCYBORDER  */
+  YYSYMBOL_GROUPBORDER = 31,               /* GROUPBORDER  */
+  YYSYMBOL_UNGROUPBORDER = 32,             /* UNGROUPBORDER  */
+  YYSYMBOL_MENUBG = 33,                    /* MENUBG  */
+  YYSYMBOL_MENUFG = 34,                    /* MENUFG  */
+  YYSYMBOL_FONTCOLOR = 35,                 /* FONTCOLOR  */
+  YYSYMBOL_FONTSELCOLOR = 36,              /* FONTSELCOLOR  */
+  YYSYMBOL_ERROR = 37,                     /* ERROR  */
+  YYSYMBOL_STRING = 38,                    /* STRING  */
+  YYSYMBOL_NUMBER = 39,                    /* NUMBER  */
+  YYSYMBOL_40_n_ = 40,                     /* '\n'  */
+  YYSYMBOL_41_ = 41,                       /* ','  */
+  YYSYMBOL_YYACCEPT = 42,                  /* $accept  */
+  YYSYMBOL_grammar = 43,                   /* grammar  */
+  YYSYMBOL_string = 44,                    /* string  */
+  YYSYMBOL_numberstring = 45,              /* numberstring  */
+  YYSYMBOL_yesno = 46,                     /* yesno  */
+  YYSYMBOL_main = 47,                      /* main  */
+  YYSYMBOL_color = 48,                     /* color  */
+  YYSYMBOL_colors = 49                     /* colors  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
@@ -615,19 +633,19 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  2
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   73
+#define YYLAST   92
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  36
+#define YYNTOKENS  42
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  8
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  39
+#define YYNRULES  45
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  78
+#define YYNSTATES  93
 
 /* YYMAXUTOK -- Last valid token kind.  */
-#define YYMAXUTOK   288
+#define YYMAXUTOK   294
 
 
 /* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
@@ -642,10 +660,10 @@ union yyalloc
 static const yytype_int8 yytranslate[] =
 {
        0,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-      34,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+      40,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,    35,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,    41,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -669,17 +687,19 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
       15,    16,    17,    18,    19,    20,    21,    22,    23,    24,
-      25,    26,    27,    28,    29,    30,    31,    32,    33
+      25,    26,    27,    28,    29,    30,    31,    32,    33,    34,
+      35,    36,    37,    38,    39
 };
 
 #if YYDEBUG
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,    89,    89,    90,    91,    92,    93,    96,   106,   109,
-     117,   120,   121,   124,   128,   131,   138,   145,   152,   159,
-     166,   177,   188,   197,   208,   212,   225,   235,   243,   253,
-     263,   266,   270,   274,   278,   282,   286,   290,   294,   298
+       0,    91,    91,    92,    93,    94,    95,    98,   108,   111,
+     119,   122,   123,   126,   130,   133,   140,   147,   154,   157,
+     160,   167,   174,   181,   194,   201,   208,   219,   230,   239,
+     250,   254,   267,   277,   285,   295,   305,   308,   312,   316,
+     320,   324,   328,   332,   336,   340
 };
 #endif
 
@@ -698,11 +718,12 @@ static const char *const yytname[] =
   "\"end of file\"", "error", "\"invalid token\"", "BINDKEY", "UNBINDKEY",
   "BINDMOUSE", "UNBINDMOUSE", "FONTNAME", "STICKY", "GAP", "AUTOGROUP",
   "COMMAND", "IGNORE", "WM", "YES", "NO", "BORDERWIDTH", "MOVEAMOUNT",
-  "HTILE", "VTILE", "COLOR", "SNAPDIST", "ACTIVEBORDER", "INACTIVEBORDER",
-  "URGENCYBORDER", "GROUPBORDER", "UNGROUPBORDER", "MENUBG", "MENUFG",
-  "FONTCOLOR", "FONTSELCOLOR", "ERROR", "STRING", "NUMBER", "'\\n'", "','",
-  "$accept", "grammar", "string", "numberstring", "yesno", "main", "color",
-  "colors", YY_NULLPTR
+  "HTILE", "VTILE", "RIBBON", "RIBBONHIDE", "RIBBONGAP", "RIBBONWIDTHS",
+  "RIBBONMINWIDTH", "RIBBONMINHEIGHT", "COLOR", "SNAPDIST", "ACTIVEBORDER",
+  "INACTIVEBORDER", "URGENCYBORDER", "GROUPBORDER", "UNGROUPBORDER",
+  "MENUBG", "MENUFG", "FONTCOLOR", "FONTSELCOLOR", "ERROR", "STRING",
+  "NUMBER", "'\\n'", "','", "$accept", "grammar", "string", "numberstring",
+  "yesno", "main", "color", "colors", YY_NULLPTR
 };
 
 static const char *
@@ -712,7 +733,7 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
-#define YYPACT_NINF (-33)
+#define YYPACT_NINF (-39)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -726,14 +747,16 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-     -33,     0,   -33,   -32,     6,     6,     6,     6,   -17,    26,
-     -10,     9,    11,    12,    13,    14,    15,    16,    17,     3,
-      18,   -33,    19,    20,   -33,   -33,   -33,    23,   -33,    23,
-     -33,   -33,   -33,   -33,   -33,    24,    27,    23,   -33,    23,
-     -33,   -33,   -33,   -33,    28,    29,    31,    32,    33,    34,
-      35,    36,    37,   -33,   -33,   -33,   -33,   -33,    38,    38,
-      25,    21,    38,    38,   -33,   -33,   -33,   -33,   -33,   -33,
-     -33,   -33,   -33,   -33,    39,    41,   -33,   -33
+     -39,     0,   -39,   -38,   -24,   -24,   -24,   -24,    -1,    18,
+      11,    12,     1,    14,    16,    17,    19,    20,    21,    18,
+      18,    22,    23,    25,    26,    13,    27,   -39,    28,    29,
+     -39,   -39,   -39,    32,   -39,    32,   -39,   -39,   -39,   -39,
+     -39,    33,    35,    32,   -39,    32,   -39,   -39,   -39,   -39,
+     -39,   -39,   -39,    36,   -39,   -39,    38,    39,    40,    41,
+      42,    43,    44,    45,    46,   -39,   -39,   -39,   -39,   -39,
+      47,    47,    48,    30,    47,    47,    49,   -39,   -39,   -39,
+     -39,   -39,   -39,   -39,   -39,   -39,   -39,    50,    52,    53,
+     -39,   -39,   -39
 };
 
 /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -743,24 +766,26 @@ static const yytype_int8 yydefact[] =
 {
        2,     0,     1,     0,     0,     0,     0,     0,     0,     0,
        0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
-       0,     3,     0,     0,     6,    10,     9,     0,    27,     0,
-      29,    13,    11,    12,    14,     0,     0,     0,    24,     0,
-      15,    18,    16,    17,     0,     0,     0,     0,     0,     0,
-       0,     0,     0,    30,    19,     4,     5,     8,    26,    28,
-       0,    22,    20,    21,    31,    32,    33,    34,    35,    36,
-      37,    38,    39,     7,     0,     0,    25,    23
+       0,     0,     0,     0,     0,     0,     0,     3,     0,     0,
+       6,    10,     9,     0,    33,     0,    35,    13,    11,    12,
+      14,     0,     0,     0,    30,     0,    15,    24,    16,    17,
+      18,    19,    20,     0,    21,    22,     0,     0,     0,     0,
+       0,     0,     0,     0,     0,    36,    25,     4,     5,     8,
+      32,    34,     0,    28,    26,    27,     0,    37,    38,    39,
+      40,    41,    42,    43,    44,    45,     7,     0,     0,     0,
+      31,    29,    23
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -33,   -33,   -15,    30,   -33,   -33,   -33,   -33
+     -39,   -39,    -7,    24,    15,   -39,   -39,   -39
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-       0,     1,    58,    27,    34,    22,    23,    53
+       0,     1,    70,    33,    40,    28,    29,    65
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -768,49 +793,56 @@ static const yytype_int8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-       2,     3,    24,     4,     5,     6,     7,     8,     9,    10,
-      11,    12,    13,    14,    59,    31,    15,    16,    17,    18,
-      19,    20,    62,    35,    63,    44,    45,    46,    47,    48,
-      49,    50,    51,    52,    21,    28,    29,    30,    25,    26,
-      32,    33,    36,    37,    38,    39,     0,    40,    41,    42,
-      43,    54,     0,    55,    56,    57,    75,    60,    74,    61,
-      64,    65,     0,    66,    67,    68,    69,    70,    71,    72,
-      73,     0,    76,    77
+       2,     3,    30,     4,     5,     6,     7,     8,     9,    10,
+      11,    12,    13,    14,    31,    32,    15,    16,    17,    18,
+      19,    20,    21,    22,    23,    24,    25,    26,    71,    34,
+      35,    36,    38,    39,    50,    51,    74,    37,    75,    43,
+      27,    56,    57,    58,    59,    60,    61,    62,    63,    64,
+      41,    42,    44,     0,    45,     0,    46,     0,    47,    48,
+      49,    52,    53,     0,    54,    55,    66,     0,    67,    68,
+      69,    88,    72,    73,     0,    76,    77,    78,    79,    80,
+      81,    82,    83,    84,    85,    86,     0,    87,    89,    90,
+      91,     0,    92
 };
 
 static const yytype_int8 yycheck[] =
 {
-       0,     1,    34,     3,     4,     5,     6,     7,     8,     9,
-      10,    11,    12,    13,    29,    32,    16,    17,    18,    19,
-      20,    21,    37,    33,    39,    22,    23,    24,    25,    26,
-      27,    28,    29,    30,    34,     5,     6,     7,    32,    33,
-      14,    15,    33,    32,    32,    32,    -1,    33,    33,    33,
-      33,    33,    -1,    34,    34,    32,    35,    33,    33,    32,
-      32,    32,    -1,    32,    32,    32,    32,    32,    32,    32,
-      32,    -1,    33,    32
+       0,     1,    40,     3,     4,     5,     6,     7,     8,     9,
+      10,    11,    12,    13,    38,    39,    16,    17,    18,    19,
+      20,    21,    22,    23,    24,    25,    26,    27,    35,     5,
+       6,     7,    14,    15,    19,    20,    43,    38,    45,    38,
+      40,    28,    29,    30,    31,    32,    33,    34,    35,    36,
+      39,    39,    38,    -1,    38,    -1,    39,    -1,    39,    39,
+      39,    39,    39,    -1,    39,    39,    39,    -1,    40,    40,
+      38,    41,    39,    38,    -1,    39,    38,    38,    38,    38,
+      38,    38,    38,    38,    38,    38,    -1,    39,    39,    39,
+      38,    -1,    39
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
    state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
-       0,    37,     0,     1,     3,     4,     5,     6,     7,     8,
+       0,    43,     0,     1,     3,     4,     5,     6,     7,     8,
        9,    10,    11,    12,    13,    16,    17,    18,    19,    20,
-      21,    34,    41,    42,    34,    32,    33,    39,    39,    39,
-      39,    32,    14,    15,    40,    33,    33,    32,    32,    32,
-      33,    33,    33,    33,    22,    23,    24,    25,    26,    27,
-      28,    29,    30,    43,    33,    34,    34,    32,    38,    38,
-      33,    32,    38,    38,    32,    32,    32,    32,    32,    32,
-      32,    32,    32,    32,    33,    35,    33,    32
+      21,    22,    23,    24,    25,    26,    27,    40,    47,    48,
+      40,    38,    39,    45,    45,    45,    45,    38,    14,    15,
+      46,    39,    39,    38,    38,    38,    39,    39,    39,    39,
+      46,    46,    39,    39,    39,    39,    28,    29,    30,    31,
+      32,    33,    34,    35,    36,    49,    39,    40,    40,    38,
+      44,    44,    39,    38,    44,    44,    39,    38,    38,    38,
+      38,    38,    38,    38,    38,    38,    38,    39,    41,    39,
+      39,    38,    39
 };
 
 /* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    36,    37,    37,    37,    37,    37,    38,    38,    39,
-      39,    40,    40,    41,    41,    41,    41,    41,    41,    41,
-      41,    41,    41,    41,    41,    41,    41,    41,    41,    41,
-      42,    43,    43,    43,    43,    43,    43,    43,    43,    43
+       0,    42,    43,    43,    43,    43,    43,    44,    44,    45,
+      45,    46,    46,    47,    47,    47,    47,    47,    47,    47,
+      47,    47,    47,    47,    47,    47,    47,    47,    47,    47,
+      47,    47,    47,    47,    47,    47,    48,    49,    49,    49,
+      49,    49,    49,    49,    49,    49
 };
 
 /* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
@@ -818,8 +850,9 @@ static const yytype_int8 yyr2[] =
 {
        0,     2,     0,     2,     3,     3,     3,     2,     1,     1,
        1,     1,     1,     2,     2,     2,     2,     2,     2,     2,
-       3,     3,     3,     5,     2,     5,     3,     2,     3,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2
+       2,     2,     2,     5,     2,     2,     3,     3,     3,     5,
+       2,     5,     3,     2,     3,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2
 };
 
 
@@ -1283,13 +1316,13 @@ yyreduce:
   switch (yyn)
     {
   case 6: /* grammar: grammar error '\n'  */
-#line 93 "parse.y"
+#line 95 "parse.y"
                                                 { file->errors++; }
-#line 1289 "y.tab.c"
+#line 1322 "y.tab.c"
     break;
 
   case 7: /* string: string STRING  */
-#line 96 "parse.y"
+#line 98 "parse.y"
                                                 {
 			if (asprintf(&(yyval.v.string), "%s %s", (yyvsp[-1].v.string), (yyvsp[0].v.string)) == -1) {
 				free((yyvsp[-1].v.string));
@@ -1300,11 +1333,11 @@ yyreduce:
 			free((yyvsp[-1].v.string));
 			free((yyvsp[0].v.string));
 		}
-#line 1304 "y.tab.c"
+#line 1337 "y.tab.c"
     break;
 
   case 9: /* numberstring: NUMBER  */
-#line 109 "parse.y"
+#line 111 "parse.y"
                                                         {
 			char	*s;
 			if (asprintf(&s, "%lld", (yyvsp[0].v.number)) == -1) {
@@ -1313,40 +1346,40 @@ yyreduce:
 			}
 			(yyval.v.string) = s;
 		}
-#line 1317 "y.tab.c"
+#line 1350 "y.tab.c"
     break;
 
   case 11: /* yesno: YES  */
-#line 120 "parse.y"
+#line 122 "parse.y"
                                                 { (yyval.v.number) = 1; }
-#line 1323 "y.tab.c"
+#line 1356 "y.tab.c"
     break;
 
   case 12: /* yesno: NO  */
-#line 121 "parse.y"
+#line 123 "parse.y"
                                                 { (yyval.v.number) = 0; }
-#line 1329 "y.tab.c"
+#line 1362 "y.tab.c"
     break;
 
   case 13: /* main: FONTNAME STRING  */
-#line 124 "parse.y"
+#line 126 "parse.y"
                                                 {
 			free(conf->font);
 			conf->font = (yyvsp[0].v.string);
 		}
-#line 1338 "y.tab.c"
+#line 1371 "y.tab.c"
     break;
 
   case 14: /* main: STICKY yesno  */
-#line 128 "parse.y"
+#line 130 "parse.y"
                                {
 			conf->stickygroups = (yyvsp[0].v.number);
 		}
-#line 1346 "y.tab.c"
+#line 1379 "y.tab.c"
     break;
 
   case 15: /* main: BORDERWIDTH NUMBER  */
-#line 131 "parse.y"
+#line 133 "parse.y"
                                      {
 			if ((yyvsp[0].v.number) < 0 || (yyvsp[0].v.number) > INT_MAX) {
 				yyerror("invalid borderwidth");
@@ -1354,11 +1387,11 @@ yyreduce:
 			}
 			conf->bwidth = (yyvsp[0].v.number);
 		}
-#line 1358 "y.tab.c"
+#line 1391 "y.tab.c"
     break;
 
   case 16: /* main: HTILE NUMBER  */
-#line 138 "parse.y"
+#line 140 "parse.y"
                                {
 			if ((yyvsp[0].v.number) < 0 || (yyvsp[0].v.number) > 99) {
 				yyerror("invalid htile percent");
@@ -1366,11 +1399,11 @@ yyreduce:
 			}
 			conf->htile = (yyvsp[0].v.number);
 		}
-#line 1370 "y.tab.c"
+#line 1403 "y.tab.c"
     break;
 
   case 17: /* main: VTILE NUMBER  */
-#line 145 "parse.y"
+#line 147 "parse.y"
                                {
 			if ((yyvsp[0].v.number) < 0 || (yyvsp[0].v.number) > 99) {
 				yyerror("invalid vtile percent");
@@ -1378,11 +1411,81 @@ yyreduce:
 			}
 			conf->vtile = (yyvsp[0].v.number);
 		}
-#line 1382 "y.tab.c"
+#line 1415 "y.tab.c"
     break;
 
-  case 18: /* main: MOVEAMOUNT NUMBER  */
-#line 152 "parse.y"
+  case 18: /* main: RIBBON yesno  */
+#line 154 "parse.y"
+                               {
+			conf->ribbon = (yyvsp[0].v.number);
+		}
+#line 1423 "y.tab.c"
+    break;
+
+  case 19: /* main: RIBBONHIDE yesno  */
+#line 157 "parse.y"
+                                   {
+			conf->ribbonhide = (yyvsp[0].v.number);
+		}
+#line 1431 "y.tab.c"
+    break;
+
+  case 20: /* main: RIBBONGAP NUMBER  */
+#line 160 "parse.y"
+                                   {
+			if ((yyvsp[0].v.number) < 0 || (yyvsp[0].v.number) > INT_MAX) {
+				yyerror("invalid ribbongap");
+				YYERROR;
+			}
+			conf->ribbongap = (yyvsp[0].v.number);
+		}
+#line 1443 "y.tab.c"
+    break;
+
+  case 21: /* main: RIBBONMINWIDTH NUMBER  */
+#line 167 "parse.y"
+                                        {
+			if ((yyvsp[0].v.number) < 1 || (yyvsp[0].v.number) > INT_MAX) {
+				yyerror("invalid ribbonminwidth");
+				YYERROR;
+			}
+			conf->ribbonminw = (yyvsp[0].v.number);
+		}
+#line 1455 "y.tab.c"
+    break;
+
+  case 22: /* main: RIBBONMINHEIGHT NUMBER  */
+#line 174 "parse.y"
+                                         {
+			if ((yyvsp[0].v.number) < 1 || (yyvsp[0].v.number) > INT_MAX) {
+				yyerror("invalid ribbonminheight");
+				YYERROR;
+			}
+			conf->ribbonminh = (yyvsp[0].v.number);
+		}
+#line 1467 "y.tab.c"
+    break;
+
+  case 23: /* main: RIBBONWIDTHS NUMBER NUMBER NUMBER NUMBER  */
+#line 181 "parse.y"
+                                                           {
+			if ((yyvsp[-3].v.number) < 1 || (yyvsp[-3].v.number) > 100 ||
+			    (yyvsp[-2].v.number) < 1 || (yyvsp[-2].v.number) > 100 ||
+			    (yyvsp[-1].v.number) < 1 || (yyvsp[-1].v.number) > 100 ||
+			    (yyvsp[0].v.number) < 1 || (yyvsp[0].v.number) > 100) {
+				yyerror("invalid ribbonwidths");
+				YYERROR;
+			}
+			conf->ribbonwidth[0] = (yyvsp[-3].v.number);
+			conf->ribbonwidth[1] = (yyvsp[-2].v.number);
+			conf->ribbonwidth[2] = (yyvsp[-1].v.number);
+			conf->ribbonwidth[3] = (yyvsp[0].v.number);
+		}
+#line 1485 "y.tab.c"
+    break;
+
+  case 24: /* main: MOVEAMOUNT NUMBER  */
+#line 194 "parse.y"
                                     {
 			if ((yyvsp[0].v.number) < 0 || (yyvsp[0].v.number) > INT_MAX) {
 				yyerror("invalid movemount");
@@ -1390,11 +1493,11 @@ yyreduce:
 			}
 			conf->mamount = (yyvsp[0].v.number);
 		}
-#line 1394 "y.tab.c"
+#line 1497 "y.tab.c"
     break;
 
-  case 19: /* main: SNAPDIST NUMBER  */
-#line 159 "parse.y"
+  case 25: /* main: SNAPDIST NUMBER  */
+#line 201 "parse.y"
                                   {
 			if ((yyvsp[0].v.number) < 0 || (yyvsp[0].v.number) > INT_MAX) {
 				yyerror("invalid snapdist");
@@ -1402,11 +1505,11 @@ yyreduce:
 			}
 			conf->snapdist = (yyvsp[0].v.number);
 		}
-#line 1406 "y.tab.c"
+#line 1509 "y.tab.c"
     break;
 
-  case 20: /* main: COMMAND STRING string  */
-#line 166 "parse.y"
+  case 26: /* main: COMMAND STRING string  */
+#line 208 "parse.y"
                                                 {
 			if (strlen((yyvsp[0].v.string)) >= PATH_MAX) {
 				yyerror("%s command path too long", (yyvsp[-1].v.string));
@@ -1418,11 +1521,11 @@ yyreduce:
 			free((yyvsp[-1].v.string));
 			free((yyvsp[0].v.string));
 		}
-#line 1422 "y.tab.c"
+#line 1525 "y.tab.c"
     break;
 
-  case 21: /* main: WM STRING string  */
-#line 177 "parse.y"
+  case 27: /* main: WM STRING string  */
+#line 219 "parse.y"
                                         {
 			if (strlen((yyvsp[0].v.string)) >= PATH_MAX) {
 				yyerror("%s wm path too long", (yyvsp[-1].v.string));
@@ -1434,11 +1537,11 @@ yyreduce:
 			free((yyvsp[-1].v.string));
 			free((yyvsp[0].v.string));
 		}
-#line 1438 "y.tab.c"
+#line 1541 "y.tab.c"
     break;
 
-  case 22: /* main: AUTOGROUP NUMBER STRING  */
-#line 188 "parse.y"
+  case 28: /* main: AUTOGROUP NUMBER STRING  */
+#line 230 "parse.y"
                                                 {
 			if ((yyvsp[-1].v.number) < 0 || (yyvsp[-1].v.number) > 9) {
 				yyerror("invalid autogroup");
@@ -1448,11 +1551,11 @@ yyreduce:
 			conf_autogroup(conf, (yyvsp[-1].v.number), NULL, (yyvsp[0].v.string));
 			free((yyvsp[0].v.string));
 		}
-#line 1452 "y.tab.c"
+#line 1555 "y.tab.c"
     break;
 
-  case 23: /* main: AUTOGROUP NUMBER STRING ',' STRING  */
-#line 197 "parse.y"
+  case 29: /* main: AUTOGROUP NUMBER STRING ',' STRING  */
+#line 239 "parse.y"
                                                      {
 			if ((yyvsp[-3].v.number) < 0 || (yyvsp[-3].v.number) > 9) {
 				yyerror("invalid autogroup");
@@ -1464,20 +1567,20 @@ yyreduce:
 			free((yyvsp[-2].v.string));
 			free((yyvsp[0].v.string));
 		}
-#line 1468 "y.tab.c"
+#line 1571 "y.tab.c"
     break;
 
-  case 24: /* main: IGNORE STRING  */
-#line 208 "parse.y"
+  case 30: /* main: IGNORE STRING  */
+#line 250 "parse.y"
                                 {
 			conf_ignore(conf, (yyvsp[0].v.string));
 			free((yyvsp[0].v.string));
 		}
-#line 1477 "y.tab.c"
+#line 1580 "y.tab.c"
     break;
 
-  case 25: /* main: GAP NUMBER NUMBER NUMBER NUMBER  */
-#line 212 "parse.y"
+  case 31: /* main: GAP NUMBER NUMBER NUMBER NUMBER  */
+#line 254 "parse.y"
                                                   {
 			if ((yyvsp[-3].v.number) < 0 || (yyvsp[-3].v.number) > INT_MAX ||
 			    (yyvsp[-2].v.number) < 0 || (yyvsp[-2].v.number) > INT_MAX ||
@@ -1491,11 +1594,11 @@ yyreduce:
 			conf->gap.left = (yyvsp[-1].v.number);
 			conf->gap.right = (yyvsp[0].v.number);
 		}
-#line 1495 "y.tab.c"
+#line 1598 "y.tab.c"
     break;
 
-  case 26: /* main: BINDKEY numberstring string  */
-#line 225 "parse.y"
+  case 32: /* main: BINDKEY numberstring string  */
+#line 267 "parse.y"
                                               {
 			if (!conf_bind_key(conf, (yyvsp[-1].v.string), (yyvsp[0].v.string))) {
 				yyerror("invalid bind-key: %s %s", (yyvsp[-1].v.string), (yyvsp[0].v.string));
@@ -1506,11 +1609,11 @@ yyreduce:
 			free((yyvsp[-1].v.string));
 			free((yyvsp[0].v.string));
 		}
-#line 1510 "y.tab.c"
+#line 1613 "y.tab.c"
     break;
 
-  case 27: /* main: UNBINDKEY numberstring  */
-#line 235 "parse.y"
+  case 33: /* main: UNBINDKEY numberstring  */
+#line 277 "parse.y"
                                          {
 			if (!conf_bind_key(conf, (yyvsp[0].v.string), NULL)) {
 				yyerror("invalid unbind-key: %s", (yyvsp[0].v.string));
@@ -1519,11 +1622,11 @@ yyreduce:
 			}
 			free((yyvsp[0].v.string));
 		}
-#line 1523 "y.tab.c"
+#line 1626 "y.tab.c"
     break;
 
-  case 28: /* main: BINDMOUSE numberstring string  */
-#line 243 "parse.y"
+  case 34: /* main: BINDMOUSE numberstring string  */
+#line 285 "parse.y"
                                                 {
 			if (!conf_bind_mouse(conf, (yyvsp[-1].v.string), (yyvsp[0].v.string))) {
 				yyerror("invalid bind-mouse: %s %s", (yyvsp[-1].v.string), (yyvsp[0].v.string));
@@ -1534,11 +1637,11 @@ yyreduce:
 			free((yyvsp[-1].v.string));
 			free((yyvsp[0].v.string));
 		}
-#line 1538 "y.tab.c"
+#line 1641 "y.tab.c"
     break;
 
-  case 29: /* main: UNBINDMOUSE numberstring  */
-#line 253 "parse.y"
+  case 35: /* main: UNBINDMOUSE numberstring  */
+#line 295 "parse.y"
                                            {
 			if (!conf_bind_mouse(conf, (yyvsp[0].v.string), NULL)) {
 				yyerror("invalid unbind-mouse: %s", (yyvsp[0].v.string));
@@ -1547,92 +1650,92 @@ yyreduce:
 			}
 			free((yyvsp[0].v.string));
 		}
-#line 1551 "y.tab.c"
+#line 1654 "y.tab.c"
     break;
 
-  case 31: /* colors: ACTIVEBORDER STRING  */
-#line 266 "parse.y"
+  case 37: /* colors: ACTIVEBORDER STRING  */
+#line 308 "parse.y"
                                       {
 			free(conf->color[CWM_COLOR_BORDER_ACTIVE]);
 			conf->color[CWM_COLOR_BORDER_ACTIVE] = (yyvsp[0].v.string);
 		}
-#line 1560 "y.tab.c"
+#line 1663 "y.tab.c"
     break;
 
-  case 32: /* colors: INACTIVEBORDER STRING  */
-#line 270 "parse.y"
+  case 38: /* colors: INACTIVEBORDER STRING  */
+#line 312 "parse.y"
                                         {
 			free(conf->color[CWM_COLOR_BORDER_INACTIVE]);
 			conf->color[CWM_COLOR_BORDER_INACTIVE] = (yyvsp[0].v.string);
 		}
-#line 1569 "y.tab.c"
+#line 1672 "y.tab.c"
     break;
 
-  case 33: /* colors: URGENCYBORDER STRING  */
-#line 274 "parse.y"
+  case 39: /* colors: URGENCYBORDER STRING  */
+#line 316 "parse.y"
                                        {
 			free(conf->color[CWM_COLOR_BORDER_URGENCY]);
 			conf->color[CWM_COLOR_BORDER_URGENCY] = (yyvsp[0].v.string);
 		}
-#line 1578 "y.tab.c"
+#line 1681 "y.tab.c"
     break;
 
-  case 34: /* colors: GROUPBORDER STRING  */
-#line 278 "parse.y"
+  case 40: /* colors: GROUPBORDER STRING  */
+#line 320 "parse.y"
                                      {
 			free(conf->color[CWM_COLOR_BORDER_GROUP]);
 			conf->color[CWM_COLOR_BORDER_GROUP] = (yyvsp[0].v.string);
 		}
-#line 1587 "y.tab.c"
+#line 1690 "y.tab.c"
     break;
 
-  case 35: /* colors: UNGROUPBORDER STRING  */
-#line 282 "parse.y"
+  case 41: /* colors: UNGROUPBORDER STRING  */
+#line 324 "parse.y"
                                        {
 			free(conf->color[CWM_COLOR_BORDER_UNGROUP]);
 			conf->color[CWM_COLOR_BORDER_UNGROUP] = (yyvsp[0].v.string);
 		}
-#line 1596 "y.tab.c"
+#line 1699 "y.tab.c"
     break;
 
-  case 36: /* colors: MENUBG STRING  */
-#line 286 "parse.y"
+  case 42: /* colors: MENUBG STRING  */
+#line 328 "parse.y"
                                 {
 			free(conf->color[CWM_COLOR_MENU_BG]);
 			conf->color[CWM_COLOR_MENU_BG] = (yyvsp[0].v.string);
 		}
-#line 1605 "y.tab.c"
+#line 1708 "y.tab.c"
     break;
 
-  case 37: /* colors: MENUFG STRING  */
-#line 290 "parse.y"
+  case 43: /* colors: MENUFG STRING  */
+#line 332 "parse.y"
                                 {
 			free(conf->color[CWM_COLOR_MENU_FG]);
 			conf->color[CWM_COLOR_MENU_FG] = (yyvsp[0].v.string);
 		}
-#line 1614 "y.tab.c"
+#line 1717 "y.tab.c"
     break;
 
-  case 38: /* colors: FONTCOLOR STRING  */
-#line 294 "parse.y"
+  case 44: /* colors: FONTCOLOR STRING  */
+#line 336 "parse.y"
                                    {
 			free(conf->color[CWM_COLOR_MENU_FONT]);
 			conf->color[CWM_COLOR_MENU_FONT] = (yyvsp[0].v.string);
 		}
-#line 1623 "y.tab.c"
+#line 1726 "y.tab.c"
     break;
 
-  case 39: /* colors: FONTSELCOLOR STRING  */
-#line 298 "parse.y"
+  case 45: /* colors: FONTSELCOLOR STRING  */
+#line 340 "parse.y"
                                       {
 			free(conf->color[CWM_COLOR_MENU_FONT_SEL]);
 			conf->color[CWM_COLOR_MENU_FONT_SEL] = (yyvsp[0].v.string);
 		}
-#line 1632 "y.tab.c"
+#line 1735 "y.tab.c"
     break;
 
 
-#line 1636 "y.tab.c"
+#line 1739 "y.tab.c"
 
       default: break;
     }
@@ -1825,7 +1928,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 303 "parse.y"
+#line 345 "parse.y"
 
 
 struct keywords {
@@ -1876,6 +1979,12 @@ lookup(char *s)
 		{ "menufg",		MENUFG},
 		{ "moveamount",		MOVEAMOUNT},
 		{ "no",			NO},
+		{ "ribbon",		RIBBON},
+		{ "ribbongap",		RIBBONGAP},
+		{ "ribbonhide",		RIBBONHIDE},
+		{ "ribbonminheight",	RIBBONMINHEIGHT},
+		{ "ribbonminwidth",	RIBBONMINWIDTH},
+		{ "ribbonwidths",	RIBBONWIDTHS},
 		{ "selfont", 		FONTSELCOLOR},
 		{ "snapdist",		SNAPDIST},
 		{ "sticky",		STICKY},
