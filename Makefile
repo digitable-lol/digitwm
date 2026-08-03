@@ -26,6 +26,10 @@ MANPREFIX?=	${PREFIX}/share/man
 
 all: ${PROG}
 
+# Every object sees the layout model through calmwm.h; without this a stale
+# object silently disagrees with the rest about the size of struct conf.
+${OBJS}: calmwm.h queue.h
+
 clean:
 	rm -f ${OBJS} ${PROG} parse.c
 

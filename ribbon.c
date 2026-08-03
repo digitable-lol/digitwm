@@ -431,10 +431,17 @@ ribbon_place(struct ribbon *rb)
 			cc->rbgeom.w = col->w;
 			cc->rbgeom.h = h;
 
-			cc->geom.x = rb->view.x + col->x - rb->offset;
-			cc->geom.y = rb->view.y + y;
-			cc->geom.w = MAX(1, col->w - (cc->bwidth * 2));
-			cc->geom.h = MAX(1, h - (cc->bwidth * 2));
+			/*
+			 * A frozen or fullscreen window keeps the geometry it
+			 * was given; it still holds its slot in the column, so
+			 * the rest of the stack does not shuffle under it.
+			 */
+			if (!(cc->flags & (CLIENT_FREEZE | CLIENT_FULLSCREEN))) {
+				cc->geom.x = rb->view.x + col->x - rb->offset;
+				cc->geom.y = rb->view.y + y;
+				cc->geom.w = MAX(1, col->w - (cc->bwidth * 2));
+				cc->geom.h = MAX(1, h - (cc->bwidth * 2));
+			}
 
 			y += h + Conf.ribbongap;
 			i++;
@@ -484,13 +491,26 @@ ribbon_sync_one(struct ribbon *rb)
 			if (show && Conf.ribbonhide)
 				show = ribbon_col_visible(rb, col);
 
+			/*
+			 * Only ever un-hide what the ribbon itself parked.  A
+			 * window hidden because its group is hidden is not
+			 * ours to bring back.
+			 */
 			if (!show) {
-				if (!(cc->flags & CLIENT_HIDDEN))
+				if (!(cc->flags & CLIENT_HIDDEN)) {
 					client_hide(cc);
+					cc->flags |= CLIENT_RIBBON_PARKED;
+				}
 				continue;
 			}
-			if (cc->flags & CLIENT_HIDDEN)
-				client_show(cc);
+			if (cc->flags & CLIENT_RIBBON_PARKED) {
+				if (cc->flags & CLIENT_HIDDEN)
+					client_show(cc);
+				cc->flags &= ~CLIENT_RIBBON_PARKED;
+			}
+			if (cc->flags & (CLIENT_HIDDEN | CLIENT_FREEZE |
+			    CLIENT_FULLSCREEN))
+				continue;
 
 			client_resize(cc, 0);
 		}

@@ -46,6 +46,7 @@ screen_init(int which)
 	TAILQ_INIT(&sc->clientq);
 	TAILQ_INIT(&sc->regionq);
 	TAILQ_INIT(&sc->groupq);
+	ribbon_screen_init(sc);
 
 	sc->which = which;
 	sc->rootwin = RootWindow(X_Dpy, sc->which);
@@ -62,6 +63,7 @@ screen_init(int which)
 	conf_group(sc);
 	sc->group_last = sc->group_active;
 	screen_update_geometry(sc);
+	ribbon_screen_update(sc);
 
 	xu_ewmh_net_desktop_names(sc);
 	xu_ewmh_net_number_of_desktops(sc);
@@ -185,12 +187,14 @@ screen_update_geometry(struct screen_ctx *sc)
 
 	while ((rc = TAILQ_FIRST(&sc->regionq)) != NULL) {
 		TAILQ_REMOVE(&sc->regionq, rc, entry);
+		free(rc->name);
 		free(rc);
 	}
 
 	if (Conf.xrandr) {
 		XRRScreenResources *sr;
 		XRRCrtcInfo *ci;
+		XRROutputInfo *oi;
 		int i;
 
 		sr = XRRGetScreenResources(X_Dpy, sc->rootwin);
@@ -210,6 +214,22 @@ screen_update_geometry(struct screen_ctx *sc)
 			rc->view.w = ci->width;
 			rc->view.h = ci->height;
 			rc->work = screen_apply_gap(sc, rc->view);
+
+			/*
+			 * Name the region after its output.  The name is what
+			 * survives unplugging and replugging a monitor; the
+			 * CRTC index is not, and the ribbon is bound by name.
+			 */
+			rc->name = NULL;
+			if ((oi = XRRGetOutputInfo(X_Dpy, sr,
+			    ci->outputs[0])) != NULL) {
+				if (oi->name != NULL)
+					rc->name = xstrdup(oi->name);
+				XRRFreeOutputInfo(oi);
+			}
+			if (rc->name == NULL)
+				xasprintf(&rc->name, "crtc%d", i);
+
 			TAILQ_INSERT_TAIL(&sc->regionq, rc, entry);
 
 			XRRFreeCrtcInfo(ci);
@@ -218,6 +238,7 @@ screen_update_geometry(struct screen_ctx *sc)
 	} else {
 		rc = xmalloc(sizeof(*rc));
 		rc->num = 0;
+		rc->name = xstrdup("default");
 		rc->view.x = 0;
 		rc->view.y = 0;
 		rc->view.w = DisplayWidth(X_Dpy, sc->which);
@@ -251,6 +272,9 @@ screen_assert_clients_within(struct screen_ctx *sc)
 
 	TAILQ_FOREACH(cc, &sc->clientq, entry) {
 		if (cc->sc != sc)
+			continue;
+		/* A window on the ribbon is off-screen on purpose. */
+		if (cc->flags & CLIENT_RIBBON)
 			continue;
 		top = cc->geom.y;
 		left = cc->geom.x;
