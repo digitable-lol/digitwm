@@ -1,12 +1,3 @@
-ISC License
-
-digitwm is a fork of cwm (calmwm), the window manager from OpenBSD.
-
-The upstream code keeps its original copyright and licence. The ISC notice
-below is reproduced verbatim from the upstream sources, where it appears in
-the header of every .c and .h file except queue.h — see NOTICE for that one
-exception and for the full list of copyright holders.
-
 Copyright (c) 2004 Marius Aamodt Eriksen <marius@monkey.org>
 Copyright (c) 2004,2005 Marius Aamodt Eriksen <marius@monkey.org>
 Copyright (c) 2004 Andy Adamson <dros@monkey.org>

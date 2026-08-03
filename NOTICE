@@ -60,3 +60,15 @@ New code by Digitable is released under the same ISC licence, so that one
 licence covers the whole repository and patches can flow upstream unimpeded.
 Layout rules are additionally described by executable FTS specifications in
 `fts/`; they never run inside the window manager and are used by CI only.
+
+## Почему LICENSE выглядит именно так / Why LICENSE looks the way it does
+
+Файл `LICENSE` содержит только дословный текст ISC и список правообладателей,
+без единой пояснительной строки. Это сделано намеренно: детекторы лицензий
+(GitHub licensee, SPDX-сканеры, корпоративные проверки) опознают лицензию
+сравнением с эталоном, и любая приписка сверху превращает её в
+«не определена». Всё, что нужно объяснить, объясняется здесь.
+
+`LICENSE` holds nothing but the verbatim ISC text and the copyright lines.
+That is deliberate: licence detectors match against a reference text, and any
+preamble turns a well-known licence into "unrecognised". Explanations live here.
