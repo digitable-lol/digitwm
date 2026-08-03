@@ -182,6 +182,10 @@ struct client_ctx {
 #define CLIENT_ACTIVE			0x2000
 #define CLIENT_SKIP_PAGER		0x4000
 #define CLIENT_SKIP_TASKBAR		0x8000
+#define CLIENT_TRANSIENT		0x10000
+#define CLIENT_TYPE_DIALOG		0x20000
+#define CLIENT_TYPE_DOCK		0x40000
+#define CLIENT_RIBBON			0x80000
 
 #define CLIENT_SKIP_CYCLE		(CLIENT_HIDDEN | CLIENT_IGNORE | \
 					 CLIENT_SKIP_TASKBAR | CLIENT_SKIP_PAGER)
@@ -405,6 +409,15 @@ enum ewmh {
 	_NET_WM_STATE_SKIP_PAGER,
 	_NET_WM_STATE_SKIP_TASKBAR,
 	_CWM_WM_STATE_FREEZE,
+	_NET_WM_WINDOW_TYPE,
+	_NET_WM_WINDOW_TYPE_DESKTOP,
+	_NET_WM_WINDOW_TYPE_DOCK,
+	_NET_WM_WINDOW_TYPE_TOOLBAR,
+	_NET_WM_WINDOW_TYPE_MENU,
+	_NET_WM_WINDOW_TYPE_UTILITY,
+	_NET_WM_WINDOW_TYPE_SPLASH,
+	_NET_WM_WINDOW_TYPE_DIALOG,
+	_NET_WM_WINDOW_TYPE_NORMAL,
 	EWMH_NITEMS
 };
 enum net_wm_state {
@@ -459,6 +472,7 @@ void			 client_toggle_sticky(struct client_ctx *);
 void			 client_toggle_vmaximize(struct client_ctx *);
 void			 client_transient(struct client_ctx *);
 void			 client_urgency(struct client_ctx *);
+void			 client_wm_type(struct client_ctx *);
 void 			 client_vtile(struct client_ctx *);
 void			 client_wm_hints(struct client_ctx *);
 
