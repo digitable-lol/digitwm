@@ -1,0 +1,21 @@
+[
+	{ "name": "треть на широком мониторе", "viewport-width": 1280, "preset": 0, "gap": 8, "min-width": 120 },
+	{ "name": "половина на широком мониторе", "viewport-width": 1280, "preset": 1, "gap": 8, "min-width": 120 },
+	{ "name": "две трети на широком мониторе", "viewport-width": 1280, "preset": 2, "gap": 8, "min-width": 120 },
+	{ "name": "весь вьюпорт на широком мониторе", "viewport-width": 1280, "preset": 3, "gap": 8, "min-width": 120 },
+	{ "name": "треть делится нацело", "viewport-width": 1208, "preset": 0, "gap": 8, "min-width": 120 },
+	{ "name": "две трети делятся нацело", "viewport-width": 1208, "preset": 2, "gap": 8, "min-width": 120 },
+	{ "name": "номер пресета меньше нуля", "viewport-width": 1280, "preset": -1, "gap": 8, "min-width": 120 },
+	{ "name": "номер пресета за концом набора", "viewport-width": 1280, "preset": 7, "gap": 8, "min-width": 120 },
+	{ "name": "четыре килопикселя", "viewport-width": 3840, "preset": 0, "gap": 8, "min-width": 120 },
+	{ "name": "зазора нет", "viewport-width": 1280, "preset": 0, "gap": 0, "min-width": 120 },
+	{ "name": "зазор больше вьюпорта", "viewport-width": 100, "preset": 0, "gap": 240, "min-width": 0 },
+	{ "name": "узкий вьюпорт: побеждает минимум", "viewport-width": 200, "preset": 0, "gap": 8, "min-width": 120 },
+	{ "name": "узкий вьюпорт: половина ещё держится", "viewport-width": 260, "preset": 1, "gap": 8, "min-width": 120 },
+	{ "name": "узкий вьюпорт: две трети ещё держатся", "viewport-width": 200, "preset": 2, "gap": 8, "min-width": 120 },
+	{ "name": "вьюпорт уже минимума", "viewport-width": 100, "preset": 3, "gap": 8, "min-width": 120 },
+	{ "name": "минимума нет", "viewport-width": 1280, "preset": 0, "gap": 8, "min-width": 0 },
+	{ "name": "минимум больше любого пресета", "viewport-width": 1280, "preset": 2, "gap": 8, "min-width": 1000 },
+	{ "name": "минимум ровно на границе трети", "viewport-width": 1208, "preset": 0, "gap": 8, "min-width": 396 },
+	{ "name": "минимум на пиксель выше границы трети", "viewport-width": 1208, "preset": 0, "gap": 8, "min-width": 397 }
+]

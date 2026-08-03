@@ -1,0 +1,12 @@
+[
+	{ "name": "пустая лента", "viewport-width": 1280, "offset": 0, "ribbon-length": 0 },
+	{ "name": "лента короче вьюпорта", "viewport-width": 1280, "offset": 300, "ribbon-length": 900 },
+	{ "name": "лента ровно во вьюпорт", "viewport-width": 1280, "offset": 0, "ribbon-length": 1280 },
+	{ "name": "монитор стал шире, смещение за концом", "viewport-width": 1920, "offset": 1700, "ribbon-length": 3000 },
+	{ "name": "монитор стал уже, смещение в границах", "viewport-width": 800, "offset": 500, "ribbon-length": 3000 },
+	{ "name": "смещение ровно на пределе", "viewport-width": 1280, "offset": 1720, "ribbon-length": 3000 },
+	{ "name": "смещение на пиксель за пределом", "viewport-width": 1280, "offset": 1721, "ribbon-length": 3000 },
+	{ "name": "смещение в нуле", "viewport-width": 1280, "offset": 0, "ribbon-length": 3000 },
+	{ "name": "смещение в середине", "viewport-width": 1280, "offset": 860, "ribbon-length": 3000 },
+	{ "name": "лента на пиксель длиннее вьюпорта", "viewport-width": 1280, "offset": 5, "ribbon-length": 1281 }
+]
