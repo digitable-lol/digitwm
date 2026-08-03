@@ -1,0 +1,21 @@
+# Запись сессии для менеджера входа: GDM, SDDM, LightDM.
+# Ставится в ~/.local/share/xsessions/ либо, с флагом --system, в
+# /usr/share/xsessions/.
+#
+# Type=Application, а не XSession: реестр freedesktop знает только
+# Application, Link и Directory, и desktop-file-validate на XSession ругается.
+# Все сессии, которые ставит система (gnome, xfce), объявлены Application —
+# менеджеры входа отличают сессию по каталогу, а не по типу.
+#
+# Ключа DesktopNames здесь намеренно нет: он существует только чтобы
+# выставить XDG_CURRENT_DESKTOP, а digitwm-session выставляет её сам. Меньше
+# ключей — меньше расхождений между версиями менеджеров входа.
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Digitable Session (digitwm)
+Comment=Лента окон на X11, редактор, терминал и Digit в оформлении Digitable
+Exec=@@PREFIX@@/bin/digitwm-session
+TryExec=@@PREFIX@@/bin/digitwm-session
+Icon=preferences-desktop
+Keywords=window manager;tiling;x11;digitable;

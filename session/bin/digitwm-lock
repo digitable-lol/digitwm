@@ -1,0 +1,37 @@
+#!/bin/sh
+# Digitable Session — блокировка экрана.
+#
+# cwm по умолчанию зовёт xlock, которого на большинстве Linux-систем нет, и
+# сочетание клавиш молча ничего не делает. Здесь перебираются известные
+# блокировщики, а если не найден ни один — об этом говорится вслух, потому
+# что «экран не заблокировался, и я об этом не узнал» хуже, чем ошибка.
+#
+# Сессия не ставит блокировщик за вас: их четыре штуки с разными моделями
+# безопасности, и выбор из них — не то решение, которое стоит принимать
+# чужим установщиком.
+
+set -u
+
+for locker in xsecurelock xss-lock i3lock swaylock slock xtrlock xlock; do
+    if command -v "$locker" >/dev/null 2>&1; then
+        case "$locker" in
+            i3lock) exec i3lock -c 000000 ;;
+            xlock)  exec xlock -mode blank ;;
+            *)      exec "$locker" ;;
+        esac
+    fi
+done
+
+MESSAGE='Блокировщик экрана не установлен.
+Поставьте один из: xsecurelock, i3lock, slock, xlock —
+и Mod4+x заработает без правки конфигурации.'
+
+if command -v xmessage >/dev/null 2>&1; then
+    printf '%s\n' "$MESSAGE" | xmessage -center -file - 2>/dev/null && exit 0
+fi
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send "digitwm" "$MESSAGE" 2>/dev/null && exit 0
+fi
+
+printf '%s\n' "$MESSAGE" >&2
+exit 1

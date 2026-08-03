@@ -1,0 +1,645 @@
+" ============================================================================
+" Digitable Session — Vim.
+"
+" Раскладка и повадки взяты из github.com/the-homeless-god/dotfiles,
+" цвета — из генератора тем Digitable Workbench
+" (products/workbench/scripts/targets/vim.mjs). Своей цветовой схемы здесь
+" нет и быть не должно: colorscheme приезжает файлом в ~/.vim/colors.
+"
+" Файл ставится как ~/.config/digitwm/vimrc и подключается из ~/.vimrc одной
+" строкой в помеченном блоке. Никакие настройки пользователя он не удаляет:
+" всё, что было в ~/.vimrc, продолжает работать до и после блока.
+"
+" Отличия от исходных dotfiles — сознательные, каждое подписано словом
+" ОТЛИЧИЕ. Их четырнадцать; все перечислены в session/docs/KEYS.md.
+" ============================================================================
+
+if exists('g:digitable_session_vimrc')
+  finish
+endif
+let g:digitable_session_vimrc = 1
+
+set nocompatible
+
+" ----------------------------------------------------------------------------
+" Тир плагинов
+" ----------------------------------------------------------------------------
+" Лёгкий тир (по умолчанию) не требует ни компилятора, ни node, ни python —
+" ставится везде, где есть git. Тяжёлый включается строкой
+"   let g:digitable_heavy = 1
+" в ~/.vimrc ДО подключения этого файла; в нём coc.nvim (нужен node),
+" prettier, vim-go, markdown-preview и ale. ОТЛИЧИЕ 1: в dotfiles тяжёлые
+" плагины стоят безусловно, включая YouCompleteMe с ./install.py — на чистой
+" машине это превращает «поставил и работает» в «поставил и полчаса ждёшь,
+" а потом ошибка сборки».
+let g:digitable_heavy = get(g:, 'digitable_heavy', 0)
+
+" Показывать which-key при старте — привычка из dotfiles («Показываем хоткеи
+" при старте»). Отключается: let g:digitable_show_keys_on_start = 0
+let g:digitable_show_keys_on_start = get(g:, 'digitable_show_keys_on_start', 1)
+
+let s:is_nvim = has('nvim')
+if s:is_nvim
+  let s:plug_file = stdpath('data') . '/site/autoload/plug.vim'
+  let s:plug_dir = stdpath('data') . '/plugged'
+else
+  let s:plug_file = expand('~/.vim/autoload/plug.vim')
+  let s:plug_dir = expand('~/.vim/plugged')
+endif
+
+" ОТЛИЧИЕ 2: plug#begin вызывается только если vim-plug реально установлен.
+" В dotfiles его отсутствие даёт стену ошибок при каждом старте vim.
+if filereadable(s:plug_file)
+  call plug#begin(s:plug_dir)
+
+  " --- вид и статус
+  Plug 'vim-airline/vim-airline'
+  Plug 'ryanoasis/vim-devicons'
+  Plug 'ap/vim-css-color'
+  Plug 'junegunn/goyo.vim'
+
+  " --- файлы, поиск, навигация
+  Plug 'preservim/nerdtree'
+  Plug 'Xuyuanp/nerdtree-git-plugin'
+  Plug 'PhilRunninger/nerdtree-buffer-ops'
+  Plug 'junegunn/fzf'
+  Plug 'junegunn/fzf.vim'
+  Plug 'jremmen/vim-ripgrep'
+  Plug 'ptzz/lf.vim'
+  Plug 'voldikss/vim-floaterm'
+  Plug 'jeetsukumaran/vim-buffergator'
+  Plug 'rbgrouleff/bclose.vim'
+
+  " --- git
+  Plug 'tpope/vim-fugitive'
+  Plug 'airblade/vim-gitgutter'
+
+  " --- редактирование
+  Plug 'mg979/vim-visual-multi', {'branch': 'master'}
+  Plug 'mbbill/undotree'
+  Plug 'sheerun/vim-polyglot'
+  Plug 'roman/golden-ratio'
+  Plug 'liuchengxu/vim-which-key'
+
+  " --- сессии
+  Plug 'tpope/vim-obsession'
+  Plug 'dhruvasagar/vim-prosession'
+  Plug 'tmux-plugins/vim-tmux'
+
+  " --- сниппеты: UltiSnips требует +python3, иначе просто не ставим
+  if has('python3')
+    Plug 'SirVer/ultisnips'
+    Plug 'honza/vim-snippets'
+  endif
+
+  if g:digitable_heavy
+    Plug 'neoclide/coc.nvim', {'branch': 'release'}
+    Plug 'dense-analysis/ale'
+    Plug 'prettier/vim-prettier', {'do': 'npm install'}
+    Plug 'fatih/vim-go', {'do': ':GoUpdateBinaries'}
+    Plug 'liuchengxu/vista.vim'
+    Plug 'iamcco/markdown-preview.nvim', {'do': 'cd app && npx --yes yarn install'}
+  endif
+
+  call plug#end()
+endif
+
+" ----------------------------------------------------------------------------
+" Цвет: только из Workbench
+" ----------------------------------------------------------------------------
+syntax enable
+if has('termguicolors')
+  set termguicolors
+endif
+
+" Палитру подставляет install.sh. silent! — чтобы отсутствие файла темы не
+" ломало старт: без него vim ругается на каждый запуск.
+" ОТЛИЧИЕ 3: в dotfiles стоит colorscheme dracula_pro. Dracula Pro — платная
+" тема, её нельзя ни класть в репозиторий, ни ставить установщиком за
+" пользователя. Здесь её место занимает Digitable Focus.
+silent! colorscheme @@VIM_COLORSCHEME@@
+
+" ----------------------------------------------------------------------------
+" Базовые настройки
+" ----------------------------------------------------------------------------
+filetype plugin indent on
+
+set encoding=utf-8
+set fileencoding=utf-8
+set fileformats=unix,dos,mac
+
+set number
+set relativenumber
+set cursorline
+set signcolumn=yes
+set cmdheight=2
+set showtabline=2          " ОТЛИЧИЕ 4: в dotfiles написано set tabline=2 —
+                           " tabline это строка формата, а не число; строка
+                           " молча не работала.
+set laststatus=2
+set title
+set scrolloff=5
+set sidescrolloff=5
+set list
+set listchars=tab:→\ ,trail:·,extends:›,precedes:‹,nbsp:␣
+set fillchars+=vert:│
+
+set mouse=a
+if !s:is_nvim && has('mouse_xterm')
+  set ttymouse=xterm2
+endif
+
+set hidden                 " ОТЛИЧИЕ 5: в dotfiles рядом стоят set hidden и
+                           " set nohidden с bufhidden=wipe. Побеждал nohidden,
+                           " и переключение буферов (gb, gbp) теряло правки.
+set splitright
+set splitbelow
+set equalalways
+set winminheight=0
+set winminwidth=0
+
+set expandtab
+set tabstop=2
+set shiftwidth=2
+set softtabstop=2
+set autoindent
+set smartindent
+set copyindent
+set preserveindent
+set shiftround
+set smarttab
+
+set ignorecase
+set smartcase
+set incsearch
+set hlsearch
+set wrapscan
+set showmatch
+set matchtime=2
+set matchpairs+=<:>
+
+set nobackup
+set noswapfile
+set autoread
+set confirm
+set autowrite
+set autowriteall
+set history=1000
+set undolevels=1000
+set undofile
+set updatetime=300
+set shortmess+=c
+set timeoutlen=500
+set completeopt=menu,menuone,preview,noselect,noinsert
+set clipboard^=unnamedplus,unnamed
+set spelllang=en,ru
+set ttyfast
+set lazyredraw
+
+" ОТЛИЧИЕ 6: в dotfiles стоит set paste. Он глобально выключает маппинги
+" вставки, автоотступ и сниппеты — то есть половину того, что настроено ниже.
+" Вместо него — обычная вставка из системного буфера (clipboard выше).
+
+" Каталоги undo создаём сами, иначе undofile молча не работает.
+if s:is_nvim
+  let s:undodir = stdpath('state') . '/undo'
+else
+  let s:undodir = expand('~/.vim/undo')
+endif
+if !isdirectory(s:undodir)
+  call mkdir(s:undodir, 'p', 0700)
+endif
+let &undodir = s:undodir
+
+" Свёртка: как в dotfiles — по отступу, развёрнуто по умолчанию.
+set foldmethod=indent
+set foldnestmax=10
+set nofoldenable
+set foldlevel=2
+
+if !s:is_nvim
+  set termwinsize=10x0     " ОТЛИЧИЕ 7: в dotfiles написано
+                           " set termwinsize = "10*0" — с пробелами вокруг =
+                           " и звёздочкой это неверный синтаксис, vim ругался.
+endif
+
+" ----------------------------------------------------------------------------
+" Лидер
+" ----------------------------------------------------------------------------
+let g:mapleader = "\\"
+let g:maplocalleader = ','
+
+" ----------------------------------------------------------------------------
+" Настройки плагинов
+" ----------------------------------------------------------------------------
+let g:airline_powerline_fonts = 1
+let g:airline#extensions#tabline#enabled = 1
+let g:airline#extensions#tabline#formatter = 'unique_tail'
+let g:airline#extensions#tabline#show_buffers = 0
+let g:airline#extensions#tabline#show_tabs = 1
+let g:airline#extensions#tabline#show_tab_nr = 1
+let g:airline#extensions#tabline#tab_nr_type = 1
+let g:airline#extensions#tabline#buffer_idx_mode = 1
+let g:airline#extensions#tabline#fnamemod = ':t'
+let g:airline#extensions#tabline#left_sep = ' '
+let g:airline#extensions#tabline#left_alt_sep = '|'
+let g:airline#extensions#tabline#right_sep = ' '
+let g:airline#extensions#tabline#right_alt_sep = '|'
+let g:airline#extensions#tabline#tab_min_count = 2
+let g:airline#extensions#obsession#enabled = 1
+let g:airline#extensions#branch#enabled = 1
+let g:airline_section_c = '%{expand("%:p:h")} %#__accent_bold#%{expand("%:t")}%#__restore__#'
+
+let g:gitgutter_enabled = 1
+let g:gitgutter_sign_added = '+'
+let g:gitgutter_sign_modified = '~'
+let g:gitgutter_sign_removed = '-'
+
+" NERDTree как проводник справа — ровно как в dotfiles.
+let g:NERDTreeWinPos = 'right'
+let g:NERDTreeWinSize = 40
+let g:NERDTreeShowHidden = 1
+let g:NERDTreeMinimalUI = 1
+let g:NERDTreeStatusline = ''
+let g:NERDTreeHijackNetrw = 0
+
+let g:netrw_keepdir = 0
+let g:netrw_winsize = 15
+let g:netrw_altv = 1
+let g:netrw_banner = 0
+let g:netrw_browse_split = 2
+let g:netrw_liststyle = 3
+let g:netrw_list_hide = '.*\.swp$'
+let g:lf_replace_netrw = 0
+
+let g:floaterm_width = 0.8
+let g:floaterm_height = 0.3
+let g:floaterm_position = 'top'
+let g:floaterm_title = ''
+let g:floaterm_borderchars = '─│─│╭╮╯╰'
+let g:floaterm_autoclose = 0
+let g:floaterm_autoinsert = 1
+let g:floaterm_wintype = 'float'
+let g:floaterm_rootmarkers = ['.git', '.svn', '.hg', '.project', '.root']
+let g:floaterm_opener = 'edit'
+let g:floaterm_winblend = 0
+let g:floaterm_autohide = 0
+let g:floaterm_scrollback = 10000
+let g:floaterm_keymap_toggle = '<F12>'
+let g:floaterm_keymap_next = '<F9>'
+let g:floaterm_keymap_prev = '<F8>'
+let g:floaterm_keymap_new = '<F7>'
+let g:floaterm_keymap_kill = '<C-c>'
+
+let g:golden_ratio_autocommand = 0
+let g:golden_ratio_default_split_ratio = 0.5
+
+let g:VM_maps = {}
+let g:VM_maps['Find Under'] = '<C-d>'
+let g:VM_maps['Find Subword Under'] = '<C-d>'
+
+let g:webdevicons_enable = 1
+let g:webdevicons_enable_nerdtree = 1
+let g:webdevicons_enable_airline_tabline = 1
+let g:webdevicons_enable_airline_statusline = 1
+let g:WebDevIconsUnicodeDecorateFolderNodes = 1
+
+let g:prosession_dir = s:is_nvim ? stdpath('state') . '/session/' : expand('~/.vim/session/')
+let g:prosession_on_startup = 1
+
+if has('python3')
+  let g:UltiSnipsExpandTrigger = '<tab>'
+  let g:UltiSnipsJumpForwardTrigger = '<c-b>'
+  let g:UltiSnipsJumpBackwardTrigger = '<c-z>'
+  let g:UltiSnipsEditSplit = 'vertical'
+endif
+
+let g:which_key_timeout = 100
+let g:which_key_display_names = {'<CR>': '↵', '<TAB>': '⇆', ' ': 'SPC'}
+let g:which_key_sep = '→'
+let g:which_key_centered = 1
+let g:which_key_use_floating_win = 1
+let g:which_key_floating_relative_win = 1
+let g:which_key_disable_default_offset = 1
+let g:which_key_map = {}
+let g:which_key_map['<Space>'] = ['za', 'свернуть/развернуть']
+
+if g:digitable_heavy
+  let g:coc_global_extensions = [
+        \ 'coc-tsserver', 'coc-json', 'coc-html', 'coc-css',
+        \ 'coc-pyright', 'coc-go', 'coc-rust-analyzer', 'coc-clangd',
+        \ 'coc-snippets', 'coc-pairs', 'coc-highlight', 'coc-git']
+  let g:ale_linters = {'c': ['clang', 'cppcheck']}
+  let g:ale_fixers = {'c': ['clang-format']}
+  let g:ale_completion_enabled = 0
+  let g:ale_fix_on_save = 1
+  let g:ale_sign_priority = 50
+  let g:prettier#autoformat = 1
+  let g:prettier#autoformat_require_pragma = 0
+  let g:prettier#quick_fix = 1
+  let g:vista_sidebar_position = 'right'
+  let g:vista_sidebar_width = 40
+  let g:vista_close_on_jump = 1
+  let g:vista_default_executive = 'coc'
+  let g:vista#renderer#enable_icon = 1
+  let g:vista_icon_indent = ['╰─▸ ', '├─▸ ']
+  let g:mkdp_auto_start = 0
+  let g:mkdp_auto_close = 1
+  let g:mkdp_filetypes = ['markdown']
+endif
+
+" ----------------------------------------------------------------------------
+" Умные обёртки: работают и с LSP, и без него
+" ----------------------------------------------------------------------------
+" ОТЛИЧИЕ 8: в dotfiles gd, K, \f и контекстное меню жёстко зовут CoC. Без
+" установленного CoC они падают. Здесь каждая функция сначала спрашивает,
+" есть ли CoC, и если нет — делает то же самое встроенными средствами.
+
+function! s:HasCoc() abort
+  return exists('*CocAction') && get(g:, 'coc_service_initialized', 0)
+endfunction
+
+function! DigitableHover() abort
+  if s:HasCoc() && CocAction('hasProvider', 'hover')
+    call CocActionAsync('doHover')
+  else
+    call feedkeys('K', 'in')
+  endif
+endfunction
+
+function! DigitableGoto(kind) abort
+  if s:HasCoc()
+    call CocActionAsync(a:kind)
+  elseif a:kind ==# 'jumpDefinition'
+    normal! gd
+  else
+    normal! gD
+  endif
+endfunction
+
+function! DigitableFormat() abort
+  if s:HasCoc()
+    call CocAction('format')
+  elseif exists(':Prettier') == 2
+    Prettier
+  else
+    let l:view = winsaveview()
+    normal! gg=G
+    call winrestview(l:view)
+  endif
+endfunction
+
+function! DigitableRename() abort
+  if s:HasCoc()
+    call CocActionAsync('rename')
+  else
+    echohl WarningMsg | echo 'Переименование символа требует LSP: let g:digitable_heavy = 1' | echohl None
+  endif
+endfunction
+
+" Терминал: floaterm, если есть, иначе встроенный :terminal.
+function! DigitableTerm(cmd) abort
+  if exists(':FloatermNew') == 2
+    execute 'FloatermNew --width=0.8 --height=0.8 ' . a:cmd
+  elseif has('terminal') || s:is_nvim
+    execute 'botright terminal ' . a:cmd
+  else
+    execute '!' . a:cmd
+  endif
+endfunction
+
+" ----------------------------------------------------------------------------
+" Клавиши — как в dotfiles
+" ----------------------------------------------------------------------------
+
+" Окна и терминал
+nnoremap <silent> <Leader>ot :call DigitableTerm('')<CR>
+nnoremap <silent> <Leader>u  :PlugUpdate<CR>
+nnoremap <silent> <Leader>v  :vsplit<CR>
+nnoremap <silent> <Leader>h  :split<CR>
+nnoremap <silent> <Leader>w  :w<CR>
+nnoremap <silent> <Leader>x  :x<CR>
+nnoremap <silent> <Leader>q  :qa<CR>
+nnoremap <silent> <Leader><F2> :map<CR>
+nnoremap <silent> <Leader>.  <C-x><C-f>
+nnoremap <silent> <Leader>R  :source @@VIMRC_TARGET@@<CR>
+
+" Файлы и поиск
+nnoremap <silent> <Leader>e  :NERDTreeToggle<CR>
+nnoremap <silent> <Leader>E  :NERDTreeFind<CR>
+nnoremap <silent> <Leader>dd :Explore %:p:h<CR>
+nnoremap <silent> <Leader>da :Explore .<CR>
+nnoremap <silent> <Leader>lf :call DigitableTerm('lf')<CR>
+nnoremap <silent> <Leader>l  :call DigitableTerm('lf')<CR>
+nnoremap <silent> <Leader>g  :call DigitableTerm('rgfzf.sh')<CR>
+nnoremap <silent> <Leader>P  :call DigitableTerm('rgfzf.sh')<CR>
+nnoremap <silent> <Leader>sf :call DigitableTerm('rgfzf.sh')<CR>
+nnoremap <silent> <Leader>o  :let $FZF_DEFAULT_COMMAND = "fd -H -t f -E .git"<CR>:Files<CR>
+nnoremap <silent> <Leader>p  :Commands<CR>
+nnoremap <silent> <Leader>b  :BuffergatorToggle<CR>
+nnoremap <silent> <Leader>ut :UndotreeToggle<CR>
+
+" Редактирование
+nnoremap <silent> <Leader>f  :call DigitableFormat()<CR>
+nnoremap <silent> <Leader>ca :%y+<CR>
+vnoremap <silent> <Leader>c  "+y
+nnoremap <silent> <Leader>cf ggdG
+nnoremap <silent> <Leader>rn :call DigitableRename()<CR>
+nnoremap <silent> K          :call DigitableHover()<CR>
+vnoremap <space> @=((foldclosed(line('.')) < 0) ? 'zc' : 'zo')<CR>
+nnoremap <space> za
+
+" Вкладки и буферы
+nnoremap <silent> <Leader>nt :tabnew<CR>
+nnoremap <silent> <Leader>mt :tab split<CR>
+nnoremap <Leader>1 1gt
+nnoremap <Leader>2 2gt
+nnoremap <Leader>3 3gt
+nnoremap <Leader>4 4gt
+nnoremap <Leader>5 5gt
+nnoremap <Leader>6 6gt
+nnoremap <Leader>7 7gt
+nnoremap <Leader>8 8gt
+nnoremap <Leader>9 9gt
+nnoremap <Leader>0 :tablast<CR>
+nnoremap gb  :bnext<CR>
+nnoremap gbp :bprevious<CR>
+nnoremap gbd :bdelete<CR>
+nnoremap gtn :tabnext<CR>
+nnoremap gtp :tabprevious<CR>
+nnoremap gtd :tabclose<CR>
+
+" Git — те же четыре сочетания, что в dotfiles
+nnoremap <silent> <Leader>gg :Git<CR>
+nnoremap <silent> <Leader>gc :Git commit<CR>
+nnoremap <silent> <Leader>gp :Git push<CR>
+nnoremap <silent> <Leader>gl :Git pull<CR>
+
+" Переходы по коду
+nnoremap <silent> gd :call DigitableGoto('jumpDefinition')<CR>
+nnoremap <silent> gy :call DigitableGoto('jumpTypeDefinition')<CR>
+nnoremap <silent> gi :call DigitableGoto('jumpImplementation')<CR>
+nnoremap <silent> gr :call DigitableGoto('jumpReferences')<CR>
+nnoremap <silent> <C-o> <C-o>zz
+nnoremap <silent> <C-i> <C-i>zz
+
+" Навигация между окнами — Ctrl+hjkl. ОТЛИЧИЕ 9: в dotfiles ниже по файлу
+" <C-h> переопределён на :%s///g, и переход в левое окно переставал работать.
+" Замена вынесена на \sr, <C-h> остаётся навигацией, как обещает шапка dotfiles.
+nnoremap <silent> <C-h> <C-w>h
+nnoremap <silent> <C-j> <C-w>j
+nnoremap <silent> <C-k> <C-w>k
+nnoremap <silent> <C-l> <C-w>l
+nnoremap <Leader>sr :%s///g<Left><Left><Left>
+nnoremap <Leader>sc :%s///gc<Left><Left><Left>
+
+" Размер окон — Alt+hjkl
+nnoremap <M-l> :vertical resize -5<CR>
+nnoremap <M-h> :vertical resize +5<CR>
+nnoremap <M-j> :resize -5<CR>
+nnoremap <M-k> :resize +5<CR>
+
+" Курсор на 10 позиций — Shift+hjkl
+nnoremap <S-l> 10l
+nnoremap <S-h> 10h
+nnoremap <S-j> 10j
+nnoremap <S-k> 10k
+
+" Сдвиг выделения с сохранением выделения
+vnoremap < <gv
+vnoremap > >gv
+
+" Привычки из редакторов с мышью
+nnoremap <C-s> :w<CR>
+inoremap <C-s> <Esc>:w<CR>
+nnoremap <C-z> u
+inoremap <C-z> <Esc>ui
+nnoremap <C-a> ggVG
+vnoremap <C-c> "+y
+vnoremap <C-x> "+d
+inoremap <C-v> <Esc>"+pa
+nnoremap <C-p> :Files<CR>
+nnoremap <C-f> :Rg<CR>
+nnoremap <C-b> :Buffers<CR>
+nnoremap <silent> <Esc><Esc> :nohlsearch<CR>
+" ОТЛИЧИЕ 10: <C-r> в dotfiles занят под :%s///gc — это стоило redo. Здесь
+" <C-r> остаётся штатным redo, повтор с подтверждением живёт на \sc.
+
+" Диагностика (появляется вместе с тяжёлым тиром)
+if g:digitable_heavy
+  nmap <silent> [g <Plug>(coc-diagnostic-prev)
+  nmap <silent> ]g <Plug>(coc-diagnostic-next)
+  xmap <Leader>a  <Plug>(coc-codeaction-selected)
+  nmap <Leader>a  <Plug>(coc-codeaction-selected)
+endif
+
+" Автоскобки — как в dotfiles. При тяжёлом тире их делает coc-pairs,
+" поэтому здесь они только в лёгком, иначе скобки удваиваются.
+" ОТЛИЧИЕ 11: в dotfiles включены оба сразу.
+if !g:digitable_heavy
+  inoremap ( ()<Left>
+  inoremap [ []<Left>
+  inoremap { {}<Left>
+endif
+
+" Табуляция в автодополнении
+inoremap <expr> <Tab>   pumvisible() ? "\<C-n>" : "\<Tab>"
+inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
+
+" ----------------------------------------------------------------------------
+" Контекстное меню — «лучшая фича из лучших», сохранена целиком
+" ----------------------------------------------------------------------------
+function! s:DigitableContextMenu() abort
+  if &buftype !=# '' || !buflisted(bufnr('%'))
+    return
+  endif
+  if !has('popupwin')
+    echohl WarningMsg | echo 'Контекстное меню требует vim с +popupwin' | echohl None
+    return
+  endif
+  let l:menu = []
+  call add(l:menu, ['Перейти к определению (gd)', "call DigitableGoto('jumpDefinition')"])
+  call add(l:menu, ['Перейти к типу (gy)', "call DigitableGoto('jumpTypeDefinition')"])
+  call add(l:menu, ['Перейти к реализации (gi)', "call DigitableGoto('jumpImplementation')"])
+  call add(l:menu, ['Показать ссылки (gr)', "call DigitableGoto('jumpReferences')"])
+  call add(l:menu, ['Показать документацию (K)', 'call DigitableHover()'])
+  call add(l:menu, ['-', ''])
+  call add(l:menu, ['Открыть справа', 'vsplit'])
+  call add(l:menu, ['Открыть снизу', 'split'])
+  call add(l:menu, ['Открыть в новой вкладке', 'tab split'])
+  call add(l:menu, ['-', ''])
+  call add(l:menu, ['Переименовать символ', 'call DigitableRename()'])
+  call add(l:menu, ['Форматировать', 'call DigitableFormat()'])
+  let s:context_menu = l:menu
+  call popup_menu(map(copy(l:menu), 'v:val[0]'), #{
+        \ line: 'cursor+1',
+        \ col: 'cursor',
+        \ callback: function('s:DigitableContextChoice')
+        \ })
+endfunction
+
+function! s:DigitableContextChoice(id, choice) abort
+  if a:choice <= 0 || s:context_menu[a:choice - 1][0] ==# '-'
+    return
+  endif
+  try
+    execute s:context_menu[a:choice - 1][1]
+  catch
+    echohl ErrorMsg | echo 'Ошибка при выполнении команды: ' . v:exception | echohl None
+  endtry
+endfunction
+
+nnoremap <silent> <RightMouse>  :call <SID>DigitableContextMenu()<CR>
+vnoremap <silent> <RightMouse>  :<C-u>call <SID>DigitableContextMenu()<CR>
+nnoremap <silent> <Leader>m     :call <SID>DigitableContextMenu()<CR>
+vnoremap <silent> <Leader>m     :<C-u>call <SID>DigitableContextMenu()<CR>
+
+" ----------------------------------------------------------------------------
+" Автокоманды
+" ----------------------------------------------------------------------------
+augroup digitable_session
+  autocmd!
+  " Терминал открывается сразу в режиме вставки — как в dotfiles.
+  if s:is_nvim
+    autocmd TermOpen * startinsert
+  else
+    autocmd TerminalOpen * startinsert
+  endif
+  " Подсветка при копировании.
+  if exists('##TextYankPost')
+    autocmd TextYankPost * silent! call DigitableFlashYank()
+  endif
+  " netrw: q и x не закрывают проводник — привычка из dotfiles.
+  autocmd FileType netrw nnoremap <buffer> <silent> q :echo "Закрыть проводник: :Nclose"<CR>
+  autocmd FileType netrw nnoremap <buffer> <silent> x :echo "Закрыть проводник: :Nclose"<CR>
+  autocmd FileType netrw setlocal bufhidden=hide
+  if g:digitable_show_keys_on_start
+    autocmd VimEnter * call DigitableShowKeys()
+  endif
+augroup END
+
+function! DigitableFlashYank() abort
+  if s:is_nvim
+    lua vim.highlight.on_yank({higroup = 'IncSearch', timeout = 700})
+  endif
+endfunction
+
+function! DigitableShowKeys() abort
+  if exists(':WhichKey') == 2
+    call which_key#register('\', 'g:which_key_map')
+    WhichKey '\'
+  endif
+endfunction
+
+if exists(':WhichKey') == 2
+  call which_key#register('\', 'g:which_key_map')
+  nnoremap <silent> <Leader> :<C-u>WhichKey '\'<CR>
+  vnoremap <silent> <Leader> :<C-u>WhichKeyVisual '\'<CR>
+endif
+
+" ОТЛИЧИЕ 12: в dotfiles which_key#register вызывается четыре раза и
+" маппинг лидера ставится трижды — здесь один раз, поведение то же.
+" ОТЛИЧИЕ 13: убран autocmd VimEnter * silent! — команда без аргументов
+" ничего не делала и мешала читать файл.
+" ОТЛИЧИЕ 14: set number! (переключатель) заменён на set number — в dotfiles
+" он выключал нумерацию, которую строкой выше включили.

@@ -1,0 +1,129 @@
+# Digitable Session — zsh.
+#
+# Алиасы и повадки — из github.com/the-homeless-god/dotfiles (configs/.zshrc).
+# Цвета — из Workbench: подсветка ввода, приглашение starship, темы fzf, eza
+# и bat приезжают сгенерированными файлами, здесь только строки подключения.
+#
+# Файл подключается из ~/.zshrc одной строкой в помеченном блоке и ничего в
+# нём не удаляет. Каждый блок ниже проверяет, что инструмент установлен:
+# сессия должна работать и на машине, где стоит половина набора.
+
+# --- Оболочка ---------------------------------------------------------------
+setopt AUTO_CD
+setopt EXTENDED_HISTORY
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_REDUCE_BLANKS
+setopt SHARE_HISTORY
+setopt INTERACTIVE_COMMENTS
+HISTSIZE=100000
+SAVEHIST=100000
+HISTFILE="${HISTFILE:-$HOME/.zsh_history}"
+
+# emacs-раскладка и переход по словам Shift+стрелки — как в dotfiles.
+bindkey -e
+bindkey "^[[1;2C" forward-word
+bindkey "^[[1;2D" backward-word
+
+# --- Приглашение ------------------------------------------------------------
+# ОТЛИЧИЕ от dotfiles: там oh-my-zsh + powerlevel10k. Здесь starship —
+# так решено в toolchain.json Workbench, где у starship прямо записано
+# replaces: powerlevel10k, oh-my-zsh. Одна зависимость вместо фреймворка,
+# и тема для него генерируется из той же палитры.
+# Кому нужен p10k — в Workbench есть и его тема, тогда уберите эти три строки.
+if command -v starship >/dev/null 2>&1; then
+  [ -r "@@STARSHIP_THEME@@" ] && export STARSHIP_CONFIG="@@STARSHIP_THEME@@"
+  eval "$(starship init zsh)"
+fi
+
+# --- Цвета Digitable Focus --------------------------------------------------
+[ -r "@@ZSH_THEME@@" ] && source "@@ZSH_THEME@@"
+[ -r "@@FZF_THEME@@" ] && source "@@FZF_THEME@@"
+[ -r "@@EZA_THEME@@" ] && source "@@EZA_THEME@@"
+export BAT_THEME="@@BAT_THEME@@"
+
+# Подсветка ввода: файл темы задаёт стили, но сам подсветчик — отдельный
+# пакет, и грузить его надо ПОСЛЕ стилей.
+for _dt_zsh_hl in \
+  /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+  /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+  /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+  /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+  "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"; do
+  if [ -r "$_dt_zsh_hl" ]; then
+    source "$_dt_zsh_hl"
+    break
+  fi
+done
+unset _dt_zsh_hl
+
+# --- Инструменты ------------------------------------------------------------
+command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh)"
+command -v mcfly >/dev/null 2>&1 && eval "$(mcfly init zsh)"
+command -v fnm   >/dev/null 2>&1 && eval "$(fnm env --use-on-cd 2>/dev/null)"
+
+# ~/.local/bin — туда официальный установщик Digit кладёт команду digit,
+# туда же install.sh кладёт скрипты сессии.
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
+export EDITOR="${EDITOR:-vim}"
+export VISUAL="$EDITOR"
+export PAGER="${PAGER:-less}"
+
+# --- Алиасы из dotfiles -----------------------------------------------------
+# Каждый заменяет команду только если замена реально установлена: иначе
+# `ls` перестал бы работать на машине без eza, а это не улучшение.
+command -v eza   >/dev/null 2>&1 && alias ls='eza -a --icons --color=always --group-directories-first -la'
+command -v dust  >/dev/null 2>&1 && alias du='dust'
+command -v duf   >/dev/null 2>&1 && alias df='duf'
+command -v rg    >/dev/null 2>&1 && alias grep='rg'
+command -v procs >/dev/null 2>&1 && alias ps='procs'
+command -v gping >/dev/null 2>&1 && alias ping='gping'
+command -v podman >/dev/null 2>&1 && alias docker='podman'
+command -v podman-compose >/dev/null 2>&1 && alias docker-compose='podman-compose'
+command -v zoxide >/dev/null 2>&1 && alias cd='z'
+command -v lazygit >/dev/null 2>&1 && alias lg='lazygit'
+
+# В Debian и Ubuntu bat называется batcat, а fd — fdfind. Развилка написана
+# через if, а не через `a && ! b && c`: zsh не разбирает отрицание в середине
+# списка && и молча отказывается читать весь файл целиком.
+if command -v bat >/dev/null 2>&1; then
+  alias cat='bat -pp'
+elif command -v batcat >/dev/null 2>&1; then
+  alias cat='batcat -pp'
+  alias bat='batcat'
+fi
+
+if command -v fd >/dev/null 2>&1; then
+  alias find='fd'
+elif command -v fdfind >/dev/null 2>&1; then
+  alias find='fdfind'
+  alias fd='fdfind'
+fi
+
+alias projects='cd "$HOME/projects"'
+alias downloads='cd "$HOME/downloads"'
+alias space='du -h --max-depth=1 / 2>/dev/null | sort -hr'
+alias dev='digitwm-dev-session'
+alias digitwm-keys='${PAGER:-less} "@@KEYS_DOC@@"'
+
+# Git — те же сокращения, что в dotfiles.
+alias gcm='git checkout master'
+alias git_sync_master='BRANCH=$(git branch --show-current); git checkout master && git pull && git checkout "$BRANCH"'
+alias git_squash='git reset $(git merge-base master $(git branch --show-current))'
+alias git_show_conflicts='git merge-tree $(git merge-base HEAD origin/master) origin/master HEAD'
+alias grb='BRANCH=$(git branch --show-current); git checkout master && git branch -D "$BRANCH" && git fetch --all && git checkout "$BRANCH" && git pull'
+
+# rgfzf.sh из dotfiles: ripgrep + fzf + bat в предпросмотре. Тот же скрипт
+# зовёт vim по \g, \P и \sf.
+if command -v rg >/dev/null 2>&1 && command -v fzf >/dev/null 2>&1; then
+  alias rgf='rgfzf.sh'
+fi
+
+# --- Digit ------------------------------------------------------------------
+# Агент запускается сам вместе с сессией; отсюда — просто быстрый доступ.
+if command -v digit >/dev/null 2>&1; then
+  alias d='digit'
+fi

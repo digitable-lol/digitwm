@@ -61,6 +61,31 @@ licence covers the whole repository and patches can flow upstream unimpeded.
 Layout rules are additionally described by executable FTS specifications in
 `fts/`; they never run inside the window manager and are used by CI only.
 
+## Сессия не вносит сюда чужой код / The session vendors nothing
+
+Каталог `session/` настраивает окружение вокруг оконного менеджера: vim,
+neovim, tmux, alacritty, zsh, fzf, bat и остальной набор. **Ни один из этих
+инструментов в репозиторий не кладётся — ни исходниками, ни бинарниками, ни
+вендорингом.** Они распространяются под своими лицензиями (GPL, Apache, MIT,
+BSD в разных редакциях), и внесение их сюда превратило бы репозиторий с одной
+строкой в `LICENSE` в смесь лицензий: патчи перестали бы уходить в апстрим
+cwm, а проект стал бы дистрибутивом, который спецификация `DGT-OS` уже
+отклонила. Всё стороннее ставится пакетным менеджером целевой системы.
+
+Своего в `session/` только конфигурация, шаблоны и скрипты установки и
+проверки — под той же ISC. Цветовые схемы не дублируются: они генерируются
+Digitable Workbench из `focus-palettes.json` и подключаются ссылкой на
+установленный файл. Причина и подробности — в `session/README.md`.
+
+The `session/` directory configures the environment around the window manager.
+**None of those tools is vendored here — not as sources, not as binaries.**
+They ship under their own licences; bringing them in would turn a
+single-licence repository into a licence mixture, close the path of patches
+back to upstream cwm, and make this a distribution, which `DGT-OS` has already
+rejected. Third-party software is installed by the target system's package
+manager. Only configuration, templates and the install/verify scripts live
+here, under the same ISC.
+
 ## Почему LICENSE выглядит именно так / Why LICENSE looks the way it does
 
 Файл `LICENSE` содержит только дословный текст ISC и список правообладателей,

@@ -1,0 +1,69 @@
+#!/bin/sh
+# Digitable Session — рабочая сессия tmux.
+#
+# Повторяет configs/tmux.sh из dotfiles владельца: те же шесть окон с теми
+# же именами. Отличия два, оба ради повторного запуска:
+#
+#   1. Сессия создаётся через `new-session -A`: второй запуск подключается к
+#      уже существующей, а не плодит вторую. В оригинале повторный запуск
+#      создавал окна поверх старых.
+#   2. Каждая команда выполняется, только если инструмент установлен —
+#      иначе окно открывалось с сообщением «command not found».
+#
+# Вызывается алиасом `dev`, префиксом tmux + D или Mod4+Shift+Return.
+
+set -u
+
+SESSION="${DIGITWM_DEV_SESSION:-work}"
+PROJECTS="${DIGITWM_PROJECTS_DIR:-$HOME/projects}"
+DOWNLOADS="${DIGITWM_DOWNLOADS_DIR:-$HOME/downloads}"
+
+if ! command -v tmux >/dev/null 2>&1; then
+    printf 'digitwm-dev-session: tmux не установлен.\n' >&2
+    exit 1
+fi
+
+[ -d "$PROJECTS" ] || PROJECTS="$HOME"
+[ -d "$DOWNLOADS" ] || DOWNLOADS="$HOME"
+
+# Уже есть — просто подключаемся, ничего не пересобирая.
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+    exec tmux attach-session -t "$SESSION"
+fi
+
+# Команда окна: подставляем, только если инструмент на месте.
+runnable() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+tmux new-session -d -s "$SESSION" -n development -c "$PROJECTS"
+runnable vim && tmux send-keys -t "$SESSION:development" 'vim .' C-m
+
+tmux new-window -t "$SESSION" -n infos -c "$PROJECTS"
+if runnable dust; then
+    tmux send-keys -t "$SESSION:infos" 'dust' C-m
+fi
+tmux split-window -h -t "$SESSION:infos" -c "$PROJECTS"
+if runnable duf; then
+    tmux send-keys -t "$SESSION:infos" 'duf' C-m
+fi
+
+tmux new-window -t "$SESSION" -n net -c "$PROJECTS"
+if runnable gping; then
+    tmux send-keys -t "$SESSION:net" 'gping digitable.life' C-m
+fi
+
+tmux new-window -t "$SESSION" -n downloads -c "$DOWNLOADS"
+
+tmux new-window -t "$SESSION" -n containers -c "$PROJECTS"
+if runnable podman; then
+    tmux send-keys -t "$SESSION:containers" 'podman ps -a' C-m
+fi
+
+tmux new-window -t "$SESSION" -n digit -c "$HOME"
+if runnable digit; then
+    tmux send-keys -t "$SESSION:digit" 'digit' C-m
+fi
+
+tmux select-window -t "$SESSION:development"
+exec tmux attach-session -t "$SESSION"

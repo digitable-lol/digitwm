@@ -1,0 +1,78 @@
+# Digitable Session — tmux.
+#
+# Мультиплексор взят tmux, а не zellij: в dotfiles владельца лежит
+# .config/tmux/.tmux.conf и tmux.sh с готовой раскладкой окон, а zellij там
+# не появляется ни разу. Тема Digitable Focus есть для обоих, так что выбор
+# решили привычки, а не наличие темы.
+#
+# Тема подключается файлом из Workbench. Своих цветов здесь нет.
+
+# --- Привычки из dotfiles ---------------------------------------------------
+set -s escape-time 0
+set -g base-index 1
+setw -g pane-base-index 1
+set -g renumber-windows on
+set -g history-limit 50000
+set -g mouse on
+set -g focus-events on
+set -g set-clipboard on
+
+# 24 бита цвета: без этого статусная строка Digitable Focus выглядит плоско.
+set -g default-terminal "tmux-256color"
+set -ag terminal-overrides ",xterm-256color:RGB"
+set -ag terminal-overrides ",alacritty:RGB"
+
+# Префикс остаётся C-b — в dotfiles он не переопределён, и менять чужую
+# мышечную память ради красоты незачем.
+
+# --- Тема Digitable Focus ---------------------------------------------------
+# ОТЛИЧИЕ от dotfiles: там статусную строку рисует плагин dracula/tmux через
+# tpm. Здесь её рисует сгенерированный файл Workbench — тот же источник, что
+# у vim, alacritty и bat, поэтому цвета сходятся сами.
+# if-shell — чтобы отсутствие файла не ломало запуск tmux целиком.
+if-shell '[ -f "@@TMUX_THEME@@" ]' 'source-file "@@TMUX_THEME@@"'
+
+# --- Панели и окна ----------------------------------------------------------
+# Разделение в ту же сторону, что и в vim (splitright/splitbelow),
+# и с сохранением текущего каталога.
+bind | split-window -h -c "#{pane_current_path}"
+bind - split-window -v -c "#{pane_current_path}"
+bind c new-window -c "#{pane_current_path}"
+
+# hjkl по панелям — та же логика, что Ctrl+hjkl в vim и Mod4+hjkl в digitwm.
+bind h select-pane -L
+bind j select-pane -D
+bind k select-pane -U
+bind l select-pane -R
+
+# Размер панели — Shift+hjkl, повторяемо (-r).
+bind -r H resize-pane -L 5
+bind -r J resize-pane -D 5
+bind -r K resize-pane -U 5
+bind -r L resize-pane -R 5
+
+bind r source-file "@@TMUX_CONF_TARGET@@" \; display-message "tmux.conf перечитан"
+bind Escape copy-mode
+setw -g mode-keys vi
+bind -T copy-mode-vi v send -X begin-selection
+bind -T copy-mode-vi y send -X copy-selection-and-cancel
+
+# --- Рабочая сессия ---------------------------------------------------------
+# Раскладка повторяет configs/tmux.sh из dotfiles: development, infos,
+# browser, downloads, containers. Запускается как `dev` (алиас в zshrc) или
+# Mod4+Shift+Return из digitwm.
+bind D run-shell "@@PREFIX@@/bin/digitwm-dev-session"
+
+# --- Плагины ----------------------------------------------------------------
+# В dotfiles подключены tpm и восемь плагинов (resurrect, continuum, yank,
+# open, copycat, tilit, tilish, transient-status). Здесь их нет намеренно:
+# tpm при первом запуске тянет восемь чужих репозиториев из сети, и установка
+# сессии перестала бы быть воспроизводимой и работающей офлайн. Если они
+# нужны — поставьте tpm сами и раскомментируйте блок, тема с ним уживается:
+#
+# set -g @plugin 'tmux-plugins/tpm'
+# set -g @plugin 'tmux-plugins/tmux-resurrect'
+# set -g @plugin 'tmux-plugins/tmux-continuum'
+# set -g @plugin 'tmux-plugins/tmux-yank'
+# set -g @continuum-restore 'on'
+# run '~/.tmux/plugins/tpm/tpm'

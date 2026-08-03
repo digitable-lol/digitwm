@@ -1,0 +1,173 @@
+# Digitable Session — конфигурация оконного менеджера.
+#
+# ЭТО ШАБЛОН. Рабочий файл собирает session/install.sh: он подставляет вместо
+# меток шаблона цвета из products/workbench/themes/focus-palettes.json и
+# абсолютные пути. Правьте этот файл и запускайте install.sh заново; правка
+# готового ~/.config/digitwm/cwmrc будет перезаписана (с бэкапом).
+#
+# Здесь только те ключевые слова, которые понимает cwm СЕГОДНЯ (cwmrc(5)).
+# Ленты в digitwm ещё нет: ни одного ribbon-ключевого слова спецификация
+# DGT-WM не назвала, а придумывать их за неё — значит гарантировать
+# несовместимость. Раскладка ниже — это то, что реально работает.
+#
+# Важно про запуск программ: cwm выполняет строку через execvp БЕЗ оболочки
+# (util.c, u_exec). Значит здесь не работают ни ~, ни $HOME, ни конвейеры,
+# ни &&. Поэтому пути абсолютные и подставляются установщиком.
+
+# Начинаем с чистого листа: раскладка ниже полная и самодостаточная.
+unbind-key all
+unbind-mouse all
+
+# --- Общий вид -------------------------------------------------------------
+
+fontname "@@FONT@@"
+borderwidth 2
+moveamount 8
+snapdist 12
+htile 50
+vtile 40
+gap 0 0 0 0
+
+# Новое окно не попадает в текущую группу автоматически: группа — это
+# осознанный выбор, а не побочный эффект того, где вы были.
+sticky no
+
+#@palette-begin
+# Палитра Digitable Focus @@PALETTE@@. Строки между маркерами установщик
+# удаляет целиком, если палитра не найдена, — тогда остаются цвета cwm.
+color activeborder   "@@ACCENT@@"
+color inactiveborder "@@BORDER@@"
+color urgencyborder  "@@RED@@"
+color groupborder    "@@GREEN@@"
+color ungroupborder  "@@ORANGE@@"
+color menubg         "@@SURFACE@@"
+color menufg         "@@ACCENT@@"
+color font           "@@FOREGROUND@@"
+color selfont        "@@BACKGROUND@@"
+#@palette-end
+
+# --- Программы меню --------------------------------------------------------
+# Имена term и lock особые: их берут функции terminal и lock.
+
+command term    "@@TERMINAL@@"
+command lock    "@@PREFIX@@/bin/digitwm-lock"
+command digit   "@@PREFIX@@/bin/digitwm-digit"
+command editor  "@@TERMINAL_EXEC@@ vim"
+command files   "@@TERMINAL_EXEC@@ lf"
+command monitor "@@TERMINAL_EXEC@@ btop"
+command git     "@@TERMINAL_EXEC@@ lazygit"
+
+# --- Место Digit -----------------------------------------------------------
+# Группа 0 в cwmrc(5) значит «ни в какой группе», то есть окно видно на всех
+# рабочих столах. Для агента это ровно то, что нужно: он рядом с работой, а
+# не вместо неё. Совпадение имени и класса задаёт session/bin/digitwm-digit.
+# Когда появится лента, эта строка станет закреплением за колонкой 0.
+autogroup 0 "digit,Digit"
+
+# --- Клавиши ---------------------------------------------------------------
+# Всё висит на Mod4 (клавиша Super/Windows) и только на нём. Причина простая:
+# в конфигурации vim из dotfiles уже заняты Ctrl+hjkl (переход между окнами),
+# Alt+hjkl (размер окон), Shift+hjkl (курсор на 10 позиций) и F7–F12
+# (floaterm). Если бы оконный менеджер взял те же сочетания, он перехватывал
+# бы их у редактора — и «конфетка» превратилась бы в драку за клавиатуру.
+
+# Фокус. В сегодняшнем cwm это перебор окон; когда появится лента, h/l станут
+# движением по колонкам, j/k — по стопке внутри колонки.
+bind-key 4-h            window-rcycle
+bind-key 4-l            window-cycle
+bind-key 4-k            window-rcycle-ingroup
+bind-key 4-j            window-cycle-ingroup
+bind-key 4-Tab          window-cycle
+bind-key 4S-Tab         window-rcycle
+
+# Перенос окна.
+bind-key 4S-h           window-move-left-big
+bind-key 4S-l           window-move-right-big
+bind-key 4S-k           window-move-up-big
+bind-key 4S-j           window-move-down-big
+
+# Размер окна.
+bind-key 4C-h           window-resize-left-big
+bind-key 4C-l           window-resize-right-big
+bind-key 4C-k           window-resize-up-big
+bind-key 4C-j           window-resize-down-big
+
+# Раскладка по краям — ручная замена ленте, пока ленты нет.
+bind-key 4-Left         window-snap-left
+bind-key 4-Right        window-snap-right
+bind-key 4-Up           window-snap-up
+bind-key 4-Down         window-snap-down
+bind-key 4-c            window-snap-center
+bind-key 4-v            window-vtile
+bind-key 4-s            window-htile
+
+# Состояние окна.
+bind-key 4-f            window-fullscreen
+bind-key 4-m            window-maximize
+bind-key 4-q            window-close
+bind-key 4-w            window-hide
+bind-key 4-r            window-raise
+bind-key 4-d            window-lower
+bind-key 4-t            window-freeze
+bind-key 4-y            window-stick
+bind-key 4-n            window-menu-label
+
+# Группы как рабочие столы.
+bind-key 4-1            group-only-1
+bind-key 4-2            group-only-2
+bind-key 4-3            group-only-3
+bind-key 4-4            group-only-4
+bind-key 4-5            group-only-5
+bind-key 4-6            group-only-6
+bind-key 4-7            group-only-7
+bind-key 4-8            group-only-8
+bind-key 4-9            group-only-9
+bind-key 4S-1           window-movetogroup-1
+bind-key 4S-2           window-movetogroup-2
+bind-key 4S-3           window-movetogroup-3
+bind-key 4S-4           window-movetogroup-4
+bind-key 4S-5           window-movetogroup-5
+bind-key 4S-6           window-movetogroup-6
+bind-key 4S-7           window-movetogroup-7
+bind-key 4S-8           window-movetogroup-8
+bind-key 4S-9           window-movetogroup-9
+bind-key 4-0            group-toggle-all
+bind-key 4-a            group-last
+bind-key 4-bracketright group-cycle
+bind-key 4-bracketleft  group-rcycle
+bind-key 4-g            window-group
+
+# Меню.
+bind-key 4-space        menu-exec
+bind-key 4-p            menu-cmd
+bind-key 4-slash        menu-window
+bind-key 4-comma        menu-group
+bind-key 4-period       menu-ssh
+
+# Сессия.
+bind-key 4CS-r          restart
+bind-key 4CS-q          quit
+bind-key 4-x            lock
+
+# Запуск.
+bind-key 4-Return       terminal
+bind-key 4S-Return      "@@TERMINAL_EXEC@@ tmux new-session -A -s work"
+bind-key 4-e            "@@TERMINAL_EXEC@@ vim"
+bind-key 4-b            "@@TERMINAL_EXEC@@ btop"
+bind-key 4-o            "@@TERMINAL_EXEC@@ lf"
+bind-key 4-grave        "@@PREFIX@@/bin/digitwm-digit"
+
+# --- Мышь ------------------------------------------------------------------
+# Владелец мышью пользуется (в vim стоит mouse=a и контекстное меню на правой
+# кнопке), поэтому мышь остаётся рабочей, а не декоративной.
+# Без модификатора — это корневое окно, привычные меню cwm.
+bind-mouse 1            menu-window
+bind-mouse 2            menu-group
+bind-mouse 3            menu-cmd
+# С Alt — привычка cwm: тащить и растягивать окно из любой точки.
+bind-mouse M-1          window-move
+bind-mouse M-3          window-resize
+# С Mod4 — то же самое, если Alt уже занят приложением.
+bind-mouse 4-1          window-move
+bind-mouse 4-2          window-lower
+bind-mouse 4-3          window-resize

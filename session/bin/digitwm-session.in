@@ -1,0 +1,97 @@
+#!/bin/sh
+# Digitable Session — точка входа X11-сессии.
+#
+# Этот скрипт запускает менеджер входа (через session/digitwm.desktop) или
+# ~/.xinitrc. Он готовит окружение, поднимает автозапуск и Digit, а последней
+# строкой отдаёт управление оконному менеджеру — тот обязан быть на переднем
+# плане, иначе сессия завершится сразу.
+#
+# cwm автозапуска не имеет вовсе: в cwmrc(5) нет ни одной директивы, которая
+# что-то запускает при старте. Поэтому автозапуск живёт здесь, а не в конфиге
+# оконного менеджера.
+
+set -u
+
+CONFIG_DIR="@@CONFIG_DIR@@"
+PREFIX="@@PREFIX@@"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/digitwm"
+
+mkdir -p "$STATE_DIR" 2>/dev/null || true
+LOG="$STATE_DIR/session.log"
+
+log() {
+    printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$LOG" 2>/dev/null || true
+}
+
+: >"$LOG" 2>/dev/null || true
+log "сессия стартует, DISPLAY=${DISPLAY:-нет}"
+
+if [ -z "${DISPLAY:-}" ]; then
+    printf 'digitwm-session: нет DISPLAY — этот скрипт запускается внутри X11.\n' >&2
+    printf 'Из консоли: startx %s/bin/digitwm-session\n' "$PREFIX" >&2
+    exit 1
+fi
+
+export PATH="$PREFIX/bin:$HOME/.local/bin:$PATH"
+export XDG_CURRENT_DESKTOP=digitwm
+export XDG_SESSION_DESKTOP=digitwm
+export DIGITWM_SESSION=1
+export DIGITWM_PALETTE="@@PALETTE@@"
+
+# --- Ресурсы X --------------------------------------------------------------
+if [ -r "$CONFIG_DIR/Xresources" ] && command -v xrdb >/dev/null 2>&1; then
+    xrdb -merge "$CONFIG_DIR/Xresources" >>"$LOG" 2>&1 || log "xrdb не отработал"
+fi
+
+# Фон рабочего стола — цвет фона палитры. Обоев сессия не ставит: картинка в
+# репозитории оконного менеджера — это лишние мегабайты и чужая лицензия.
+if [ -n "@@BACKGROUND@@" ] && command -v xsetroot >/dev/null 2>&1; then
+    xsetroot -solid "@@BACKGROUND@@" >>"$LOG" 2>&1 || log "xsetroot не отработал"
+fi
+
+# Повтор клавиш и курсор — мелочь, которую иначе приходится настраивать руками.
+command -v xset >/dev/null 2>&1 && xset r rate 250 40 >>"$LOG" 2>&1
+command -v xsetroot >/dev/null 2>&1 && xsetroot -cursor_name left_ptr >>"$LOG" 2>&1
+
+# --- Пользовательский автозапуск -------------------------------------------
+# Свой файл, который обновление сессии не трогает никогда.
+if [ -x "$CONFIG_DIR/autostart" ]; then
+    log "автозапуск: $CONFIG_DIR/autostart"
+    "$CONFIG_DIR/autostart" >>"$LOG" 2>&1 &
+fi
+
+# --- Digit ------------------------------------------------------------------
+# Агент поднимается вместе с сессией и занимает предопределённое место —
+# см. session/README.md, раздел «Место Digit».
+if [ "${DIGITWM_NO_DIGIT:-0}" != "1" ]; then
+    log "запускаем Digit"
+    "$PREFIX/bin/digitwm-digit" >>"$LOG" 2>&1 &
+fi
+
+# --- Оконный менеджер -------------------------------------------------------
+# Имя исполняемого файла: собранный из этого репозитория бинарник пока
+# называется cwm (см. Makefile, PROG=cwm). Ищем сначала digitwm — на случай,
+# когда переименование состоится.
+WM=""
+for candidate in digitwm cwm; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+        WM="$candidate"
+        break
+    fi
+done
+
+if [ -z "$WM" ]; then
+    log "оконный менеджер не найден"
+    printf 'digitwm-session: не найден ни digitwm, ни cwm в PATH.\n' >&2
+    printf 'Соберите его: make && make install (см. корневой Makefile).\n' >&2
+    exit 1
+fi
+
+log "запускаем $WM с конфигом $CONFIG_DIR/cwmrc"
+
+# ВНИМАНИЕ. Флаг -c у cwm сегодня значит «взять этот файл конфигурации»
+# (calmwm.c, getopt "c:d:nv"). В спецификации DGT-WM-13 тот же -c
+# зарезервирован под команды управляющего сокета (digitwm -c "layout-probe ...").
+# Когда это произойдёт, строку ниже придётся править — здесь она помечена,
+# чтобы поиск по слову layout-probe её находил.
+exec "$WM" -c "$CONFIG_DIR/cwmrc"
