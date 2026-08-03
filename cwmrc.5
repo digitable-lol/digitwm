@@ -198,6 +198,37 @@ when drawing borders and cycling through windows.
 Set a default size for the keyboard movement bindings,
 in pixels.
 The default is 1.
+.It Ic ribbon Ic yes Ns \&| Ns Ic no
+Put the ribbon in charge of the layout.
+New windows are placed in columns on an endless horizontal ribbon, of
+which the screen shows a stretch; opening a window shifts the ribbon
+instead of squeezing its neighbours.
+Windows that ask not to be tiled - dialogs, transients, docks - stay
+floating regardless.
+The default is yes.
+.It Ic ribbongap Ar pixels
+Space left between neighbouring columns, and between windows stacked in
+one column.
+It doubles as the margin kept between the focused column and the edge of
+the screen when the ribbon scrolls.
+The default is 8.
+.It Ic ribbonhide Ic yes Ns \&| Ns Ic no
+Unmap the windows the viewport does not show, rather than leaving them
+mapped at a negative coordinate.
+Unmapping stops clients drawing off-screen; leaving them mapped keeps
+their contents ready for the moment they scroll back in.
+The default is no.
+.It Ic ribbonminheight Ar pixels
+Shortest a window in a column may become.
+The default is 60.
+.It Ic ribbonminwidth Ar pixels
+Narrowest a column may become.
+The default is 120.
+.It Ic ribbonwidths Ar first second third fourth
+The four column widths, in percent of the screen, that
+.Ic ribbon-width-cycle
+steps through.
+The default is 33 50 67 100.
 .It Ic snapdist Ar pixels
 Minimum distance to snap-to adjacent edge, in pixels.
 The default is 0.
@@ -333,6 +364,34 @@ and resized to
 .Ar vtile
 (default half) of the horizontal screen space.
 Other windows in its group share remaining screen space.
+.It ribbon-focus-left
+Move focus to the column left of the current one, pulling the viewport
+along so that the column is wholly visible.
+.It ribbon-focus-right
+Move focus to the column right of the current one, pulling the viewport
+along so that the column is wholly visible.
+.It ribbon-focus-up
+Move focus up the stack of the current column.
+.It ribbon-focus-down
+Move focus down the stack of the current column.
+.It ribbon-move-left
+Carry the current window into the column on its left, creating one at the
+end of the ribbon if there is none.
+.It ribbon-move-right
+Carry the current window into the column on its right, creating one at the
+end of the ribbon if there is none.
+.It ribbon-width-cycle
+Step the current column through the widths of
+.Ic ribbonwidths .
+.It ribbon-width-grow
+Widen the current column by one preset.
+.It ribbon-width-shrink
+Narrow the current column by one preset.
+.It ribbon-center
+Put the current column in the middle of the screen.
+.It ribbon-float-toggle
+Take the current window off the ribbon, or put a floating window onto it
+as a new column.
 .It window-move
 Move current window.
 .It window-resize
