@@ -7,11 +7,11 @@ PREFIX?=	/usr/local
 
 SRCS=		calmwm.c screen.c xmalloc.c client.c menu.c \
 		search.c util.c xutil.c conf.c xevents.c group.c \
-		kbfunc.c parse.y
+		kbfunc.c ribbon.c parse.y
 
 OBJS=		calmwm.o screen.o xmalloc.o client.o menu.o \
 		search.o util.o xutil.o conf.o xevents.o group.o \
-		kbfunc.o strlcpy.o strlcat.o parse.o \
+		kbfunc.o ribbon.o strlcpy.o strlcat.o parse.o \
 		strtonum.o reallocarray.o
 		
 PKG_CONFIG?=	pkg-config

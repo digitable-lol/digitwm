@@ -116,6 +116,8 @@ enum color {
 	CWM_COLOR_NITEMS
 };
 
+struct ribbon_col;
+
 struct geom {
 	int		 x;
 	int		 y;
@@ -138,8 +140,11 @@ TAILQ_HEAD(ignore_q, winname);
 
 struct client_ctx {
 	TAILQ_ENTRY(client_ctx)	 entry;
+	TAILQ_ENTRY(client_ctx)	 rbentry; /* stack of the holding column */
 	struct screen_ctx	*sc;
 	struct group_ctx	*gc;
+	struct ribbon_col	*rbcol; /* column holding it, NULL if floating */
+	struct geom		 rbgeom; /* geometry in ribbon coordinates */
 	Window			 win;
 	Colormap		 colormap;
 	int			 bwidth; /* border width */
@@ -222,10 +227,58 @@ TAILQ_HEAD(autogroup_q, autogroup);
 struct region_ctx {
 	TAILQ_ENTRY(region_ctx)	 entry;
 	int			 num;
+	char			*name; /* RandR output name, stable over hotplug */
 	struct geom		 view; /* viewable area */
 	struct geom		 work; /* workable area, gap-applied */
 };
 TAILQ_HEAD(region_q, region_ctx);
+
+/*
+ * The ribbon: an endless row of columns, of which the viewport shows a
+ * stretch.  A column keeps its own width and an ordered stack of windows;
+ * the ribbon keeps the order of columns and one number, the offset of the
+ * viewport along it.  Opening a window never changes the ribbon geometry of
+ * any window already there - it only ever appends to the row.
+ */
+#define RIBBON_NPRESET		4
+
+/* Return codes of the insertion policy; the order is part of the model. */
+#define RIBBON_PLACE_COLUMN	0	/* a fresh column, right of focus */
+#define RIBBON_PLACE_STACK	1	/* down the focused column */
+#define RIBBON_PLACE_FLOAT	2	/* not the ribbon's business */
+#define RIBBON_PLACE_FULL	3	/* fullscreen */
+
+/* Configuration rule fed to the insertion policy. */
+#define RIBBON_RULE_NONE	0
+#define RIBBON_RULE_STACK	1
+#define RIBBON_RULE_FLOAT	2
+
+TAILQ_HEAD(rb_client_q, client_ctx);
+
+struct ribbon_col {
+	TAILQ_ENTRY(ribbon_col)	 entry;
+	struct ribbon		*rb;
+	struct rb_client_q	 winq;
+	struct client_ctx	*focus; /* last focused window of the stack */
+	int			 nwin;
+	int			 preset; /* index into Conf.ribbonwidth */
+	int			 x;	/* left edge along the ribbon */
+	int			 w;	/* width in pixels */
+};
+TAILQ_HEAD(ribbon_col_q, ribbon_col);
+
+struct ribbon {
+	TAILQ_ENTRY(ribbon)	 entry;
+	struct screen_ctx	*sc;
+	struct ribbon_col_q	 colq;
+	struct ribbon_col	*focus;
+	char			*output; /* RandR output this ribbon belongs to */
+	struct geom		 view;	/* viewport, gap applied */
+	int			 offset; /* viewport offset along the ribbon */
+	int			 len;	/* total ribbon length in pixels */
+	int			 active; /* the output is currently attached */
+};
+TAILQ_HEAD(ribbon_q, ribbon);
 
 struct screen_ctx {
 	TAILQ_ENTRY(screen_ctx)	 entry;
@@ -239,6 +292,7 @@ struct screen_ctx {
 	struct gap		 gap;
 	struct client_q		 clientq;
 	struct region_q		 regionq;
+	struct ribbon_q		 ribbonq;
 	struct group_q		 groupq;
 	struct group_ctx	*group_active;
 	struct group_ctx	*group_last;
@@ -321,6 +375,12 @@ struct conf {
 	int			 snapdist;
 	int			 htile;
 	int			 vtile;
+	int			 ribbon;	/* ribbon layout in charge */
+	int			 ribbonhide;	/* unmap what the viewport hides */
+	int			 ribbongap;	/* between columns and windows */
+	int			 ribbonminw;	/* narrowest a column may get */
+	int			 ribbonminh;	/* shortest a window may get */
+	int			 ribbonwidth[RIBBON_NPRESET]; /* percent presets */
 	struct gap		 gap;
 	char			*color[CWM_COLOR_NITEMS];
 	char			*font;
@@ -512,6 +572,41 @@ void			 search_print_cmd(struct menu *, int);
 void			 search_print_group(struct menu *, int);
 void			 search_print_text(struct menu *, int);
 void			 search_print_wm(struct menu *, int);
+
+int			 ribbon_policy_offset(int, int, int, int, int, int);
+int			 ribbon_policy_width(int, int, int, int);
+int			 ribbon_policy_height(int, int, int, int, int);
+int			 ribbon_policy_insert(int, int, int, int, int, int);
+int			 ribbon_policy_close(int, int, int, int);
+int			 ribbon_policy_output(int, int, int);
+
+struct ribbon		*ribbon_new(struct screen_ctx *, const char *);
+void			 ribbon_free(struct ribbon *);
+struct ribbon		*ribbon_find(struct screen_ctx *, const char *);
+struct ribbon		*ribbon_current(struct screen_ctx *);
+struct ribbon_col	*ribbon_col_new(struct ribbon *, struct ribbon_col *);
+struct ribbon_col	*ribbon_col_at(struct ribbon *, int);
+int			 ribbon_col_index(struct ribbon *, struct ribbon_col *);
+int			 ribbon_col_count(struct ribbon *);
+void			 ribbon_col_add(struct ribbon_col *,
+			     struct client_ctx *);
+void			 ribbon_measure(struct ribbon *);
+void			 ribbon_place(struct ribbon *);
+void			 ribbon_scroll(struct ribbon *);
+void			 ribbon_sync(struct screen_ctx *);
+
+void			 ribbon_screen_init(struct screen_ctx *);
+void			 ribbon_screen_update(struct screen_ctx *);
+int			 ribbon_client_insert(struct client_ctx *);
+void			 ribbon_client_remove(struct client_ctx *);
+void			 ribbon_client_focus(struct client_ctx *);
+
+void			 ribbon_focus_col(struct screen_ctx *, int);
+void			 ribbon_focus_win(struct screen_ctx *, int);
+void			 ribbon_move_client(struct client_ctx *, int);
+void			 ribbon_width(struct client_ctx *, int);
+void			 ribbon_center(struct screen_ctx *);
+void			 ribbon_float_toggle(struct client_ctx *);
 
 struct region_ctx	*region_find(struct screen_ctx *, int, int);
 void			 screen_assert_clients_within(struct screen_ctx *);

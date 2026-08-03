@@ -295,6 +295,16 @@ conf_init(struct conf *c)
 	c->ngroups = 0;
 	c->nameqlen = 5;
 
+	c->ribbon = 1;
+	c->ribbonhide = 0;
+	c->ribbongap = 8;
+	c->ribbonminw = 120;
+	c->ribbonminh = 60;
+	c->ribbonwidth[0] = 33;
+	c->ribbonwidth[1] = 50;
+	c->ribbonwidth[2] = 67;
+	c->ribbonwidth[3] = 100;
+
 	TAILQ_INIT(&c->ignoreq);
 	TAILQ_INIT(&c->autogroupq);
 	TAILQ_INIT(&c->keybindq);
