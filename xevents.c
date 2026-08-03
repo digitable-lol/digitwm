@@ -139,6 +139,16 @@ xev_handle_configurerequest(XEvent *ee)
 	if ((cc = client_find(e->window)) != NULL) {
 		sc = cc->sc;
 
+		/*
+		 * The ribbon owns the geometry of the windows on it.  Tell
+		 * the client what it actually has instead of granting the
+		 * request, as ICCCM requires of a denied configure.
+		 */
+		if (cc->flags & CLIENT_RIBBON) {
+			client_config(cc);
+			return;
+		}
+
 		if (e->value_mask & CWWidth)
 			cc->geom.w = e->width;
 		if (e->value_mask & CWHeight)
@@ -447,6 +457,7 @@ xev_handle_randr(XEvent *ee)
 
 	XRRUpdateConfiguration(ee);
 	screen_update_geometry(sc);
+	ribbon_screen_update(sc);
 	screen_assert_clients_within(sc);
 }
 

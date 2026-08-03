@@ -101,10 +101,17 @@ client_init(Window win, struct screen_ctx *sc)
 	cc->ptr.x = cc->geom.w / 2;
 	cc->ptr.y = cc->geom.h / 2;
 
-	if (wattr.map_state != IsViewable) {
+	/*
+	 * Where the window goes is decided here, inside the handling of the
+	 * MapRequest, and not after it: the difference between "it appeared
+	 * in place" and "it appeared and then jumped" is visible to the eye.
+	 */
+	if (!ribbon_client_insert(cc) && (wattr.map_state != IsViewable))
 		client_placement(cc);
+
+	if ((wattr.map_state != IsViewable) || (cc->flags & CLIENT_RIBBON)) {
 		client_resize(cc, 0);
-		if (cc->initial_state)
+		if ((wattr.map_state != IsViewable) && cc->initial_state)
 			xu_set_wm_state(cc->win, cc->initial_state);
 	}
 
@@ -143,6 +150,10 @@ client_init(Window win, struct screen_ctx *sc)
 			group_assign(NULL, cc);
 	}
 out:
+	/* The insertion shifted the ribbon; move the neighbours with it. */
+	if (cc->flags & CLIENT_RIBBON)
+		ribbon_sync(sc);
+
 	XSync(X_Dpy, False);
 	XUngrabServer(X_Dpy);
 
@@ -211,6 +222,10 @@ client_remove(struct client_ctx *cc)
 {
 	struct screen_ctx	*sc = cc->sc;
 	struct winname		*wn;
+	int			 ribbon;
+
+	ribbon = (cc->flags & CLIENT_RIBBON) != 0;
+	ribbon_client_remove(cc);
 
 	TAILQ_REMOVE(&sc->clientq, cc, entry);
 
@@ -231,6 +246,10 @@ client_remove(struct client_ctx *cc)
 	free(cc->res_class);
 	free(cc->res_name);
 	free(cc);
+
+	/* The column may have gone with it; close the gap it left. */
+	if (ribbon)
+		ribbon_sync(sc);
 }
 
 void
@@ -266,6 +285,9 @@ client_set_active(struct client_ctx *cc)
 	client_draw_border(cc);
 	conf_grab_mouse(cc->win);
 	xu_ewmh_net_active_window(sc, cc->win);
+
+	/* However focus arrived, the ribbon follows it. */
+	ribbon_client_focus(cc);
 }
 
 void
