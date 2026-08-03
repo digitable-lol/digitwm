@@ -1,0 +1,170 @@
+// Height of window number N of M in one column.
+//
+// Windows split the column evenly and the remainder of the division goes to
+// the last of them - otherwise the column does not fill the viewport exactly
+// and a one-pixel strip is left at the bottom.
+//
+// The caller computes and passes as fields:
+//
+//   last-index    window count - 1
+//   even-share    (viewport height - gaps) / window count
+//   remainder     (viewport height - gaps) - share x window count
+//   last-height   even share + remainder
+//
+// The division here is the only place in all six models where the caller
+// does something other than a difference.  There is no way around it: FTS
+// multiplies a field by a constant, but it neither divides a field by a
+// field nor takes a remainder, and the window count is a field.  What stays
+// in the model: who gets the remainder and which bounds apply.  The last
+// field is the sum of the two before it; it is there because an FTS
+// condition cannot add two fields.
+//
+// An empty column answers with the height of the viewport and applies
+// neither bound - that is what C does, and it is discussed in
+// `fts/README.md`.
+
+
+category "Ribbon layout"
+
+  object "Window in a column"
+    viewport-height is number
+    window-count is number
+    window-index is number
+    gap is number
+    min-height is number
+    last-index is number
+    even-share is number
+    remainder is number
+    last-height is number
+
+  utility window-height
+    accepts "Window in a column"
+    returns number
+    starts with 0
+
+    rule "An empty column gives the window the whole viewport"
+      if window-count is at most 0
+      then result equals 100 percent of field viewport-height
+
+    rule "Windows split the column evenly"
+      if window-count is at least 1
+      then result equals 100 percent of field even-share
+
+    rule "The remainder goes to the last window"
+      if window-count is at least 1
+      and window-index equals 100 percent of field last-index
+      then add 100 percent of field remainder
+
+    rule "The share is taller than the viewport"
+      if window-count is at least 1
+      and window-index is not equal to 100 percent of field last-index
+      and even-share is greater than 100 percent of field viewport-height
+      then result equals 100 percent of field viewport-height
+
+    rule "The last window is taller than the viewport"
+      if window-count is at least 1
+      and window-index equals 100 percent of field last-index
+      and last-height is greater than 100 percent of field viewport-height
+      then result equals 100 percent of field viewport-height
+
+    rule "The share is shorter than the minimum"
+      if window-count is at least 1
+      and window-index is not equal to 100 percent of field last-index
+      and even-share is less than 100 percent of field min-height
+      then result equals 100 percent of field min-height
+
+    rule "The last window is shorter than the minimum"
+      if window-count is at least 1
+      and window-index equals 100 percent of field last-index
+      and last-height is less than 100 percent of field min-height
+      then result equals 100 percent of field min-height
+
+    property "Height is at least the minimum"
+      result is at least 100 percent of field min-height
+
+    property "Height is positive"
+      result is greater than 0
+
+    example "Empty column"
+      given viewport-height equals 800
+      given window-count equals 0
+      given window-index equals 0
+      given gap equals 8
+      given min-height equals 60
+      given last-index equals -1
+      given even-share equals 0
+      given remainder equals 0
+      given last-height equals 0
+      expected result equals 800
+
+    example "One window fills the column"
+      given viewport-height equals 800
+      given window-count equals 1
+      given window-index equals 0
+      given gap equals 8
+      given min-height equals 60
+      given last-index equals 0
+      given even-share equals 800
+      given remainder equals 0
+      given last-height equals 800
+      expected result equals 800
+
+    example "Two windows, the upper one"
+      given viewport-height equals 800
+      given window-count equals 2
+      given window-index equals 0
+      given gap equals 8
+      given min-height equals 60
+      given last-index equals 1
+      given even-share equals 396
+      given remainder equals 0
+      given last-height equals 396
+      expected result equals 396
+
+    example "Three windows, an ordinary one"
+      given viewport-height equals 800
+      given window-count equals 3
+      given window-index equals 0
+      given gap equals 8
+      given min-height equals 60
+      given last-index equals 2
+      given even-share equals 261
+      given remainder equals 1
+      given last-height equals 262
+      expected result equals 261
+
+    example "Three windows, the last one takes the remainder"
+      given viewport-height equals 800
+      given window-count equals 3
+      given window-index equals 2
+      given gap equals 8
+      given min-height equals 60
+      given last-index equals 2
+      given even-share equals 261
+      given remainder equals 1
+      given last-height equals 262
+      expected result equals 262
+
+    example "More windows than fit"
+      given viewport-height equals 800
+      given window-count equals 20
+      given window-index equals 5
+      given gap equals 8
+      given min-height equals 60
+      given last-index equals 19
+      given even-share equals 32
+      given remainder equals 8
+      given last-height equals 40
+      expected result equals 60
+
+    example "Short viewport: the minimum wins"
+      given viewport-height equals 100
+      given window-count equals 3
+      given window-index equals 2
+      given gap equals 8
+      given min-height equals 60
+      given last-index equals 2
+      given even-share equals 28
+      given remainder equals 0
+      given last-height equals 28
+      expected result equals 60

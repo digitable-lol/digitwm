@@ -1,0 +1,78 @@
+# Модели раскладки против живого оконного менеджера.
+#
+# Здесь и только здесь исполняется FTS.  В самом digitwm его нет: оконный
+# менеджер собирается компилятором C, yacc и тремя библиотеками X, и Node на
+# машине пользователя не нужен - иначе NetBSD отпадает.
+#
+# Сборка валится, если:
+#   - модель не компилируется или её примеры не сходятся (fts check, fts test);
+#   - две поверхности одной модели дали разные канонические документы;
+#   - модель и живой WM разошлись хоть в одном векторе;
+#   - харнесс не заметил намеренно испорченной константы.
+
+name: fts-conformance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # Ветка или тег инструментария FTS.  Пиньте здесь, когда язык начнёт
+  # ломать совместимость: модели живут в этом репозитории, компилятор - нет.
+  FTS_REF: main
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Забрать digitwm
+        uses: actions/checkout@v4
+
+      - name: Библиотеки для сборки оконного менеджера
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            libx11-dev libxft-dev libxrandr-dev bison pkg-config
+
+      - name: Собрать оконный менеджер
+        run: make
+
+      - name: Проба раскладки отвечает без дисплея
+        run: ./cwm -C 'layout-probe layout viewport=1280x800 gap=8 border=1 columns=1,3,1 presets=0,2,3 focus=1'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Забрать инструментарий FTS
+        run: |
+          git clone --depth 1 --branch "$FTS_REF" \
+            https://github.com/digitable-lol/fts "$RUNNER_TEMP/fts"
+          cd "$RUNNER_TEMP/fts"
+          npm ci
+          npm run build
+
+      - name: Модели компилируются
+        run: |
+          for model in fts/*.fts; do
+            echo "check $model"
+            node "$RUNNER_TEMP/fts/dist/src/cli.js" check "$model" > /dev/null
+          done
+
+      - name: Примеры моделей сходятся
+        run: |
+          for model in fts/*.fts; do
+            echo "test $model"
+            node "$RUNNER_TEMP/fts/dist/src/cli.js" test "$model" > /dev/null
+          done
+
+      - name: Обе поверхности дают один канонический документ
+        run: node fts/harness/surfaces.mjs --fts "$RUNNER_TEMP/fts"
+
+      - name: Модели против живого оконного менеджера
+        run: node fts/harness/conformance.mjs --fts "$RUNNER_TEMP/fts" --wm ./cwm
+
+      - name: Харнесс замечает испорченную константу
+        run: node fts/harness/selftest.mjs --fts "$RUNNER_TEMP/fts" --wm ./cwm
