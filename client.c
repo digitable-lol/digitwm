@@ -91,6 +91,7 @@ client_init(Window win, struct screen_ctx *sc)
 	client_wm_protocols(cc);
 	client_get_sizehints(cc);
 	client_transient(cc);
+	client_wm_type(cc);
 	client_mwm_hints(cc);
 
 	if ((cc->flags & CLIENT_IGNORE))
@@ -860,13 +861,48 @@ client_mwm_hints(struct client_ctx *cc)
 	XFree(mwmh);
 }
 
+/*
+ * Read _NET_WM_WINDOW_TYPE.  Only the distinction the layout cares about is
+ * kept: a dock owns screen real estate of its own, and every auxiliary type
+ * (dialog, utility, splash, toolbar, menu) is a window the ribbon must leave
+ * floating rather than turn into a column of its own.
+ */
+void
+client_wm_type(struct client_ctx *cc)
+{
+	Atom	*p;
+	int	 i, n;
+
+	cc->flags &= ~(CLIENT_TYPE_DIALOG | CLIENT_TYPE_DOCK);
+
+	if ((n = xu_get_prop(cc->win, ewmh[_NET_WM_WINDOW_TYPE], XA_ATOM,
+	    32L, (unsigned char **)&p)) <= 0)
+		return;
+
+	for (i = 0; i < n; i++) {
+		if ((p[i] == ewmh[_NET_WM_WINDOW_TYPE_DOCK]) ||
+		    (p[i] == ewmh[_NET_WM_WINDOW_TYPE_DESKTOP]))
+			cc->flags |= CLIENT_TYPE_DOCK;
+		else if ((p[i] == ewmh[_NET_WM_WINDOW_TYPE_DIALOG]) ||
+		    (p[i] == ewmh[_NET_WM_WINDOW_TYPE_UTILITY]) ||
+		    (p[i] == ewmh[_NET_WM_WINDOW_TYPE_SPLASH]) ||
+		    (p[i] == ewmh[_NET_WM_WINDOW_TYPE_TOOLBAR]) ||
+		    (p[i] == ewmh[_NET_WM_WINDOW_TYPE_MENU]))
+			cc->flags |= CLIENT_TYPE_DIALOG;
+	}
+	XFree(p);
+}
+
 void
 client_transient(struct client_ctx *cc)
 {
 	struct client_ctx	*tc;
 	Window			 trans;
 
+	cc->flags &= ~CLIENT_TRANSIENT;
+
 	if (XGetTransientForHint(X_Dpy, cc->win, &trans)) {
+		cc->flags |= CLIENT_TRANSIENT;
 		if ((tc = client_find(trans)) != NULL) {
 			if (tc->flags & CLIENT_IGNORE) {
 				cc->flags |= CLIENT_IGNORE;
