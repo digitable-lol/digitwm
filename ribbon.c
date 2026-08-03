@@ -53,6 +53,8 @@ static int		 ribbon_col_visible(struct ribbon *,
 			     struct ribbon_col *);
 static void		 ribbon_sync_one(struct ribbon *);
 static void		 ribbon_activate(struct ribbon_col *);
+static void		 ribbon_warp(struct ribbon *);
+static void		 ribbon_settle(void);
 
 /*
  * Offset of the viewport once the focused column must be visible.
@@ -517,6 +519,24 @@ ribbon_sync_one(struct ribbon *rb)
 	}
 }
 
+/*
+ * Swallow the crossing events the ribbon has just caused itself.  cwm gives
+ * focus to whatever the pointer is over, and a window sliding under a
+ * resting pointer is the ribbon talking to itself, not the user asking for
+ * anything.  Left alone it oscillates: the scroll moves a window under the
+ * pointer, the EnterNotify moves focus back, and the next scroll undoes the
+ * first.
+ */
+static void
+ribbon_settle(void)
+{
+	XEvent	 ev;
+
+	XSync(X_Dpy, False);
+	while (XCheckMaskEvent(X_Dpy, EnterWindowMask, &ev))
+		;
+}
+
 /* Push the model onto the server for every ribbon of a screen. */
 void
 ribbon_sync(struct screen_ctx *sc)
@@ -525,6 +545,8 @@ ribbon_sync(struct screen_ctx *sc)
 
 	TAILQ_FOREACH(rb, &sc->ribbonq, entry)
 		ribbon_sync_one(rb);
+
+	ribbon_settle();
 }
 
 void
@@ -693,6 +715,30 @@ ribbon_activate(struct ribbon_col *col)
 	client_raise(cc);
 	client_set_active(cc);
 	client_ptr_warp(cc);
+	ribbon_settle();
+}
+
+/*
+ * Put the pointer back inside the focused window after the ribbon moved
+ * underneath it.  cwm follows the mouse, so without this a scroll slides
+ * some other window under a resting pointer, the EnterNotify that follows
+ * hands focus to it, and the viewport scrolls straight back where it came
+ * from.
+ */
+static void
+ribbon_warp(struct ribbon *rb)
+{
+	struct client_ctx	*cc;
+
+	if (rb->focus == NULL)
+		return;
+	if ((cc = rb->focus->focus) == NULL)
+		cc = TAILQ_FIRST(&rb->focus->winq);
+	if ((cc == NULL) || (cc->flags & CLIENT_HIDDEN))
+		return;
+
+	client_ptr_warp(cc);
+	ribbon_settle();
 }
 
 void
@@ -784,6 +830,7 @@ ribbon_move_client(struct client_ctx *cc, int flags)
 	rb->focus = dst;
 	ribbon_scroll(rb);
 	ribbon_sync(rb->sc);
+	ribbon_warp(rb);
 }
 
 /*
@@ -812,6 +859,7 @@ ribbon_width(struct client_ctx *cc, int flags)
 	rb->focus = col;
 	ribbon_scroll(rb);
 	ribbon_sync(rb->sc);
+	ribbon_warp(rb);
 }
 
 /* Put the focused column in the middle of the viewport. */
@@ -830,6 +878,7 @@ ribbon_center(struct screen_ctx *sc)
 	    col->x + (col->w / 2) - (rb->view.w / 2), rb->len);
 	ribbon_place(rb);
 	ribbon_sync(sc);
+	ribbon_warp(rb);
 }
 
 /*
@@ -855,6 +904,7 @@ ribbon_float_toggle(struct client_ctx *cc)
 
 		ribbon_scroll(rb);
 		ribbon_sync(sc);
+		ribbon_warp(rb);
 		client_raise(cc);
 		return;
 	}
