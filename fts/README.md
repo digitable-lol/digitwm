@@ -116,16 +116,17 @@ thrown properties and not one silently wrong number.
 
 ## Known divergences
 
-**An empty column skips both bounds.** `ribbon_policy_height` answers `vh` for
-`nwin <= 0` and returns before the `minh`/`vh` clamps. With a viewport shorter
-than the minimum — `viewport-height=144, window-count=0, min-height=148` — C
-answers 144 while the model's property "height is at least the minimum" is
-violated. It is not reachable today, because `ribbon_place()` only asks about
-windows that exist, so it is a latent inconsistency rather than a bug: the
-guard would be better written as `MAX(vh, minh)`, which is what the rest of
-the function does. The vectors keep `viewport-height >= min-height` for empty
-columns so that CI reports the divergence in this file rather than as a
-failure.
+**An empty column used to skip both bounds — fixed.** `ribbon_policy_height`
+answered `vh` for `nwin <= 0` and returned before the `minh`/`vh` clamps. With
+a viewport shorter than the minimum — `viewport-height=144, window-count=0,
+min-height=148` — C answered 144 while the model's property "height is at
+least the minimum" was violated. It was not reachable through `ribbon_place()`,
+which only asks about windows that exist, so it was a latent inconsistency
+rather than a visible bug; it is now `MAX(vh, minh)`, which is what the rest of
+the function does and what `ribbon_policy_width()` does with a viewport
+narrower than its minimum. Two vectors hold the boundary — `пустая колонка ниже
+минимума` and `пустая колонка ровно по минимуму` — and both surfaces carry the
+rule and a worked example, so the guard cannot be quietly reverted.
 
 **"Width no larger than the viewport" is not an invariant.** The specification
 lists it as a property of `column-width`; the code deliberately breaks it when

@@ -1,5 +1,7 @@
 [
 	{ "name": "пустая колонка", "viewport-height": 800, "window-count": 0, "window-index": 0, "gap": 8, "min-height": 60 },
+	{ "name": "пустая колонка ниже минимума", "viewport-height": 144, "window-count": 0, "window-index": 0, "gap": 8, "min-height": 148 },
+	{ "name": "пустая колонка ровно по минимуму", "viewport-height": 148, "window-count": 0, "window-index": 0, "gap": 8, "min-height": 148 },
 	{ "name": "одно окно", "viewport-height": 800, "window-count": 1, "window-index": 0, "gap": 8, "min-height": 60 },
 	{ "name": "два окна, верхнее", "viewport-height": 800, "window-count": 2, "window-index": 0, "gap": 8, "min-height": 60 },
 	{ "name": "два окна, нижнее", "viewport-height": 800, "window-count": 2, "window-index": 1, "gap": 8, "min-height": 60 },
