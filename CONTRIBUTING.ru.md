@@ -81,6 +81,7 @@ digitwm — форк [cwm](https://github.com/leahneukirchen/cwm), в котор
 | [doc/commands.md](doc/commands.md) / [doc/commands.ru.md](doc/commands.ru.md) | все команды и что с ними сделала лента |
 | [doc/monitors.md](doc/monitors.md) / [doc/monitors.ru.md](doc/monitors.ru.md) | больше одного монитора и hotplug |
 | [doc/offscreen.md](doc/offscreen.md) / [doc/offscreen.ru.md](doc/offscreen.ru.md) | окна за пределами вьюпорта и числа, которыми выбрано умолчание |
+| [doc/baseline.md](doc/baseline.md) / [doc/baseline.ru.md](doc/baseline.ru.md) | мерцание, задержка вставки и скрытые окна, измеренные живьём |
 | [doc/build.md](doc/build.md) / [doc/build.ru.md](doc/build.ru.md) | сборка, установка, запуск, проверка |
 | [fts/README.md](fts/README.md) / [fts/README.ru.md](fts/README.ru.md) | модели и харнессы |
 | [pkgsrc/README.md](pkgsrc/README.md) / [pkgsrc/README.ru.md](pkgsrc/README.ru.md) | пакет |

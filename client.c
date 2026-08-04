@@ -109,6 +109,19 @@ client_init(Window win, struct screen_ctx *sc)
 	if (!ribbon_client_insert(cc) && (wattr.map_state != IsViewable))
 		client_placement(cc);
 
+	/*
+	 * Move the neighbours out of the way before the newcomer is mapped,
+	 * not after.  The insertion put the new column where an old one was
+	 * standing; mapping first meant the new window covered its neighbour
+	 * for as long as it took to move it, and X throws away the contents of
+	 * a window that was fully obscured.  The neighbour then had to redraw
+	 * itself in full - a flicker on a window nothing had asked to change.
+	 * Measured with tools/measure-insert.sh: one full redraw per insertion
+	 * before this line existed, none after it.
+	 */
+	if (cc->flags & CLIENT_RIBBON)
+		ribbon_sync(sc);
+
 	if ((wattr.map_state != IsViewable) || (cc->flags & CLIENT_RIBBON)) {
 		client_resize(cc, 0);
 		if ((wattr.map_state != IsViewable) && cc->initial_state)
