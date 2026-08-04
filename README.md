@@ -94,6 +94,7 @@ things — a difference in facts is worse than a missing translation.
 | [doc/commands.md](doc/commands.md) | every command, and what the ribbon did to it |
 | [doc/monitors.md](doc/monitors.md) | more than one monitor, and what happens on hotplug |
 | [doc/offscreen.md](doc/offscreen.md) | windows outside the viewport, and the numbers behind the default |
+| [doc/baseline.md](doc/baseline.md) | flicker, insertion latency, hidden windows — measured, and what is still missing |
 | [doc/build.md](doc/build.md) | building, installing, running, checking a change |
 | [fts/README.md](fts/README.md) | the models, the harnesses, and where they stop |
 | [pkgsrc/README.md](pkgsrc/README.md) | the package, and what is missing until the first release |

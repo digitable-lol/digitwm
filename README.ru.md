@@ -98,6 +98,7 @@ session/verify.sh             # проверить, что получилось
 | [doc/commands.ru.md](doc/commands.ru.md) | все команды и что с ними сделала лента |
 | [doc/monitors.ru.md](doc/monitors.ru.md) | больше одного монитора и что происходит при hotplug |
 | [doc/offscreen.ru.md](doc/offscreen.ru.md) | окна за пределами вьюпорта и числа, которыми выбрано умолчание |
+| [doc/baseline.ru.md](doc/baseline.ru.md) | мерцание, задержка вставки, скрытые окна — что измерено и чего не хватает |
 | [doc/build.ru.md](doc/build.ru.md) | сборка, установка, запуск, проверка правки |
 | [fts/README.ru.md](fts/README.ru.md) | модели, харнессы и то, где они кончаются |
 | [pkgsrc/README.ru.md](pkgsrc/README.ru.md) | пакет и то, чего в нём нет до первого релиза |

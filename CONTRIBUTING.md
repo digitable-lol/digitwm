@@ -80,6 +80,7 @@ link to the other in the first lines of each. The set is:
 | [doc/commands.md](doc/commands.md) / [doc/commands.ru.md](doc/commands.ru.md) | every command, and what the ribbon did to it |
 | [doc/monitors.md](doc/monitors.md) / [doc/monitors.ru.md](doc/monitors.ru.md) | more than one monitor, and hotplug |
 | [doc/offscreen.md](doc/offscreen.md) / [doc/offscreen.ru.md](doc/offscreen.ru.md) | windows outside the viewport, with the numbers behind the default |
+| [doc/baseline.md](doc/baseline.md) / [doc/baseline.ru.md](doc/baseline.ru.md) | flicker, insertion latency and hidden windows, measured live |
 | [doc/build.md](doc/build.md) / [doc/build.ru.md](doc/build.ru.md) | building, installing, running, checking |
 | [fts/README.md](fts/README.md) / [fts/README.ru.md](fts/README.ru.md) | the models and the harnesses |
 | [pkgsrc/README.md](pkgsrc/README.md) / [pkgsrc/README.ru.md](pkgsrc/README.ru.md) | the package |
