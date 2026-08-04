@@ -83,6 +83,12 @@ struct probe_ctx {
 	char			 msg[256];
 };
 
+/* One RandR output as the probe spells it: NAME:WxH+X+Y. */
+struct probe_out {
+	char	 name[32];
+	int	 x, y, w, h;
+};
+
 static void		 probe_error(struct probe_ctx *, const char *, ...)
 			    __attribute__((__format__ (printf, 2, 3)));
 static int		 probe_parse(struct probe_ctx *, char *);
@@ -100,6 +106,13 @@ static int		 probe_dim(struct probe_ctx *, const char *, int *,
 static int		 probe_scalar(struct probe_ctx *, const char *);
 static void		 probe_report(struct ribbon *, int, const char *);
 static int		 probe_layout(struct probe_ctx *);
+static int		 probe_outs(struct probe_ctx *, const char *,
+			     struct probe_out *, int);
+static void		 probe_regions(struct screen_ctx *, struct probe_out *,
+			     int);
+static void		 probe_regions_free(struct screen_ctx *);
+static void		 probe_outputs_report(struct screen_ctx *, const char *);
+static int		 probe_outputs(struct probe_ctx *);
 
 /* The FTS models exist on two surfaces; both names mean the same utility. */
 static const struct {
@@ -113,6 +126,7 @@ static const struct {
 	{ "focus-after-close",	"Фокус после закрытия" },
 	{ "output-change",	"Смещение после смены монитора" },
 	{ "layout",		"Раскладка" },
+	{ "outputs",		"Мониторы" },
 };
 
 static void
@@ -613,6 +627,267 @@ done:
 }
 
 /*
+ * A list of outputs, "NAME:WxH+X+Y" separated by commas - the shape xrandr
+ * prints, so that a scenario can be read off a real desktop.
+ */
+static int
+probe_outs(struct probe_ctx *p, const char *key, struct probe_out *out, int max)
+{
+	char		 buf[PROBE_VALLEN];
+	const char	*v;
+	char		*tok, *save, *colon, *x, *plus1, *plus2;
+	int		 n = 0;
+
+	if ((v = probe_get(p, key)) == NULL)
+		return 0;
+
+	(void)strlcpy(buf, v, sizeof(buf));
+	for (tok = strtok_r(buf, ",", &save); tok != NULL;
+	    tok = strtok_r(NULL, ",", &save)) {
+		if (n >= max) {
+			probe_error(p, "field \"%s\" has too many outputs", key);
+			return n;
+		}
+		if ((colon = strchr(tok, ':')) == NULL) {
+			probe_error(p, "output \"%s\" wants NAME:WxH+X+Y", tok);
+			return n;
+		}
+		*colon = '\0';
+		if (strlcpy(out[n].name, tok, sizeof(out[n].name)) >=
+		    sizeof(out[n].name)) {
+			probe_error(p, "output name \"%s\" too long", tok);
+			return n;
+		}
+		tok = colon + 1;
+
+		if (((x = strchr(tok, 'x')) == NULL) ||
+		    ((plus1 = strchr(tok, '+')) == NULL) ||
+		    ((plus2 = strchr(plus1 + 1, '+')) == NULL)) {
+			probe_error(p, "output \"%s\" wants WxH+X+Y",
+			    out[n].name);
+			return n;
+		}
+		*x = *plus1 = *plus2 = '\0';
+		out[n].w = probe_value(p, key, tok);
+		out[n].h = probe_value(p, key, x + 1);
+		out[n].x = probe_value(p, key, plus1 + 1);
+		out[n].y = probe_value(p, key, plus2 + 1);
+		if (p->fail)
+			return n;
+		n++;
+	}
+	return n;
+}
+
+/* Replace the region list, the way screen_update_geometry() does after RandR. */
+static void
+probe_regions(struct screen_ctx *sc, struct probe_out *out, int nout)
+{
+	struct region_ctx	*rc;
+	int			 i;
+
+	probe_regions_free(sc);
+
+	for (i = 0; i < nout; i++) {
+		rc = xcalloc(1, sizeof(*rc));
+		rc->num = i;
+		rc->name = xstrdup(out[i].name);
+		rc->view.x = out[i].x;
+		rc->view.y = out[i].y;
+		rc->view.w = out[i].w;
+		rc->view.h = out[i].h;
+		rc->work = rc->view;
+		TAILQ_INSERT_TAIL(&sc->regionq, rc, entry);
+	}
+}
+
+static void
+probe_regions_free(struct screen_ctx *sc)
+{
+	struct region_ctx	*rc;
+
+	while ((rc = TAILQ_FIRST(&sc->regionq)) != NULL) {
+		TAILQ_REMOVE(&sc->regionq, rc, entry);
+		free(rc->name);
+		free(rc);
+	}
+}
+
+/* Every ribbon of the screen, attached or not, with everything it holds. */
+static void
+probe_outputs_report(struct screen_ctx *sc, const char *stage)
+{
+	struct ribbon		*rb;
+	struct ribbon_col	*col;
+	struct client_ctx	*cc;
+	int			 i, j;
+
+	(void)printf("stage %s\n", stage);
+	TAILQ_FOREACH(rb, &sc->ribbonq, entry) {
+		(void)printf("ribbon %s active %d view %d %d %d %d "
+		    "length %d offset %d columns %d focus %d\n",
+		    rb->output, rb->active, rb->view.x, rb->view.y,
+		    rb->view.w, rb->view.h, rb->len, rb->offset,
+		    ribbon_col_count(rb), ribbon_col_index(rb, rb->focus));
+
+		i = 0;
+		TAILQ_FOREACH(col, &rb->colq, entry) {
+			(void)printf("column %s %d ribbon-x %d width %d "
+			    "preset %d windows %d\n", rb->output, i, col->x,
+			    col->w, col->preset, col->nwin);
+			j = 0;
+			TAILQ_FOREACH(cc, &col->winq, rbentry) {
+				(void)printf("window %s %d %d ribbon %d %d %d "
+				    "%d\n", rb->output, i, j, cc->rbgeom.x,
+				    cc->rbgeom.y, cc->rbgeom.w, cc->rbgeom.h);
+				j++;
+			}
+			i++;
+		}
+	}
+	(void)printf("end\n");
+}
+
+/*
+ * A monitor coming and going.  "outputs" names the RandR outputs present at
+ * the start, "then" and "after" the ones present at the second and third
+ * stage; every stage runs through ribbon_screen_relayout(), the same call the
+ * RRScreenChangeNotify handler makes once the X part is stripped off it.
+ *
+ * What is being asked: does a ribbon survive its monitor being unplugged, does
+ * it come back as it was, and does anything ever cross from one ribbon to
+ * another.  The answer is printed, not asserted, because the assertion belongs
+ * in the harness where it can be read.
+ */
+static int
+probe_outputs(struct probe_ctx *p)
+{
+	struct screen_ctx	 sc;
+	struct probe_out	 outs[8], then[8], after[8];
+	struct ribbon		*rb, *rbnxt;
+	struct ribbon_col	*col;
+	struct client_ctx	*cc, *ccnxt;
+	char			 buf[PROBE_VALLEN];
+	const char		*v;
+	char			*tok, *save, *colon, *spec, *save2;
+	int			 nout, nthen, nafter, i, n;
+
+	if ((nout = probe_outs(p, "outputs", outs, nitems(outs))) <= 0) {
+		if (!p->fail)
+			probe_error(p, "missing field \"outputs\"");
+		return -1;
+	}
+	nthen = probe_outs(p, "then", then, nitems(then));
+	nafter = probe_outs(p, "after", after, nitems(after));
+	if (p->fail)
+		return -1;
+
+	Conf.ribbongap = probe_opt(p, "gap", Conf.ribbongap);
+	Conf.ribbonminw = probe_opt(p, "min-width", Conf.ribbonminw);
+	Conf.ribbonminh = probe_opt(p, "min-height", Conf.ribbonminh);
+
+	(void)memset(&sc, 0, sizeof(sc));
+	TAILQ_INIT(&sc.ribbonq);
+	TAILQ_INIT(&sc.regionq);
+
+	probe_regions(&sc, outs, nout);
+	ribbon_screen_relayout(&sc);
+
+	/*
+	 * Columns per output: "HDMI-1:2.1.3" is three columns on HDMI-1, with
+	 * two, one and three windows in them.
+	 */
+	if ((v = probe_get(p, "columns")) != NULL) {
+		(void)strlcpy(buf, v, sizeof(buf));
+		for (tok = strtok_r(buf, ",", &save); tok != NULL;
+		    tok = strtok_r(NULL, ",", &save)) {
+			if ((colon = strchr(tok, ':')) == NULL) {
+				probe_error(p, "columns want NAME:n.n.n");
+				goto done;
+			}
+			*colon = '\0';
+			if ((rb = ribbon_find(&sc, tok)) == NULL) {
+				probe_error(p, "no output named \"%s\"", tok);
+				goto done;
+			}
+			for (spec = strtok_r(colon + 1, ".", &save2);
+			    spec != NULL;
+			    spec = strtok_r(NULL, ".", &save2)) {
+				n = probe_value(p, "columns", spec);
+				if (p->fail)
+					goto done;
+				col = ribbon_col_new(rb, NULL);
+				for (i = 0; i < n; i++) {
+					cc = xcalloc(1, sizeof(*cc));
+					cc->sc = &sc;
+					ribbon_col_add(col, cc);
+				}
+			}
+			rb->focus = TAILQ_FIRST(&rb->colq);
+		}
+	}
+
+	/* Focus and offset per output, both optional: "HDMI-1:2". */
+	if ((v = probe_get(p, "focus")) != NULL) {
+		(void)strlcpy(buf, v, sizeof(buf));
+		for (tok = strtok_r(buf, ",", &save); tok != NULL;
+		    tok = strtok_r(NULL, ",", &save)) {
+			if (((colon = strchr(tok, ':')) == NULL) ||
+			    ((*colon = '\0'), (rb = ribbon_find(&sc, tok)) == NULL)) {
+				probe_error(p, "focus wants NAME:index");
+				goto done;
+			}
+			rb->focus = ribbon_col_at(rb,
+			    probe_value(p, "focus", colon + 1));
+		}
+	}
+	if ((v = probe_get(p, "offset")) != NULL) {
+		(void)strlcpy(buf, v, sizeof(buf));
+		for (tok = strtok_r(buf, ",", &save); tok != NULL;
+		    tok = strtok_r(NULL, ",", &save)) {
+			if (((colon = strchr(tok, ':')) == NULL) ||
+			    ((*colon = '\0'), (rb = ribbon_find(&sc, tok)) == NULL)) {
+				probe_error(p, "offset wants NAME:pixels");
+				goto done;
+			}
+			rb->offset = probe_value(p, "offset", colon + 1);
+		}
+	}
+	if (p->fail)
+		goto done;
+
+	(void)printf("ok outputs\n");
+	ribbon_screen_relayout(&sc);
+	probe_outputs_report(&sc, "outputs");
+
+	if (nthen > 0) {
+		probe_regions(&sc, then, nthen);
+		ribbon_screen_relayout(&sc);
+		probe_outputs_report(&sc, "then");
+	}
+	if (nafter > 0) {
+		probe_regions(&sc, after, nafter);
+		ribbon_screen_relayout(&sc);
+		probe_outputs_report(&sc, "after");
+	}
+
+done:
+	TAILQ_FOREACH_SAFE(rb, &sc.ribbonq, entry, rbnxt) {
+		TAILQ_FOREACH(col, &rb->colq, entry) {
+			TAILQ_FOREACH_SAFE(cc, &col->winq, rbentry, ccnxt) {
+				TAILQ_REMOVE(&col->winq, cc, rbentry);
+				free(cc);
+			}
+		}
+		TAILQ_REMOVE(&sc.ribbonq, rb, entry);
+		ribbon_free(rb);
+	}
+	probe_regions_free(&sc);
+
+	return p->fail ? -1 : 0;
+}
+
+/*
  * Does this -c argument name a control command rather than a config file?
  * Upstream cwm spells the config file -c, and digitwm keeps that; a command
  * is told apart by its verb, so both spellings work and neither has to be
@@ -711,6 +986,8 @@ probe_run(const char *cmd)
 
 	if (strcmp(util, "layout") == 0)
 		rv = probe_layout(&p);
+	else if (strcmp(util, "outputs") == 0)
+		rv = probe_outputs(&p);
 	else
 		rv = probe_scalar(&p, util);
 
