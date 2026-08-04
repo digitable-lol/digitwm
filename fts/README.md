@@ -39,6 +39,9 @@ for m in fts/*.fts; do node ../fts/dist/src/cli.js test  "$m" >/dev/null; done
 node fts/harness/surfaces.mjs   --fts ../fts
 node fts/harness/conformance.mjs --fts ../fts --wm ./cwm
 node fts/harness/selftest.mjs    --fts ../fts --wm ./cwm
+
+node fts/harness/invariants.mjs --wm ./cwm
+node fts/harness/invariants.mjs --wm ./cwm --selfcheck
 ```
 
 `conformance.mjs` is the bridge. One set of vectors from `fts/vectors/` goes
@@ -51,6 +54,26 @@ a model, and the result is compared with `layout-probe layout` line by line.
 
 `selftest.mjs` breaks one constant in a copy of the models and requires the
 harness to notice. A green harness that cannot go red proves nothing.
+
+`invariants.mjs` answers a different question. The two promises the ribbon is
+built on — *opening a window alters no window already on the ribbon*, and *the
+focused column always lies wholly inside the viewport* — are statements about
+the relation between two states of the ribbon, and no scalar model can hold
+one. The probe therefore runs `ribbon_insert()`, the call the MapRequest
+handler makes, and prints the state before and after it; the harness compares
+the two over 320 generated ribbons (612 insertions, 5 771 windows in the
+resulting states). Its `--selfcheck` breaks four things in an answer the window
+manager actually gave — a preset changed under an existing column, a window
+made one pixel shorter, the viewport scrolled off the focused column, a column
+moved off the grid — and requires each to be reported by the check it was aimed
+at, not by a neighbouring one.
+
+The border of the first promise is drawn there rather than smoothed over. It
+holds in full for a **new column**: neighbours are pushed along the ribbon, all
+by the same amount, and no width or height changes. Inserting into the stack of
+an existing column — `insert=stack` — must recompute the heights inside *that*
+column, or the new window would have nowhere to go; what is checked then is the
+weaker statement that nothing outside that one column moves.
 
 ## What the caller computes, and why
 

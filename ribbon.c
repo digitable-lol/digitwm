@@ -596,6 +596,45 @@ ribbon_screen_update(struct screen_ctx *sc)
 }
 
 /*
+ * Put a window on the ribbon at the place the insertion policy named.  A new
+ * column is made after the focused one, so the ribbon grows where the eye
+ * already is; the columns to the right of it are pushed along the ribbon and
+ * none of them is resized, which is the invariant this window manager exists
+ * for.
+ *
+ * Kept apart from ribbon_client_insert() because the invariant harness drives
+ * it through "layout-probe": a proof about insertion is worth something only
+ * if it exercises the code the MapRequest handler runs, and everything above
+ * this line in that handler needs an X server.
+ *
+ * Returns the column the window landed in, NULL when the ribbon declined it.
+ */
+struct ribbon_col *
+ribbon_insert(struct ribbon *rb, int place, struct client_ctx *cc)
+{
+	struct ribbon_col	*col;
+
+	switch (place) {
+	case RIBBON_PLACE_STACK:
+		col = rb->focus;
+		break;
+	case RIBBON_PLACE_COLUMN:
+		col = ribbon_col_new(rb, rb->focus);
+		break;
+	default:
+		return NULL;
+	}
+	if (col == NULL)
+		return NULL;
+
+	ribbon_col_add(col, cc);
+	rb->focus = col;
+	ribbon_scroll(rb);
+
+	return col;
+}
+
+/*
  * Decide the place of a freshly managed window and put it there.  Called
  * from client_init(), that is from within the MapRequest handler and before
  * the window is mapped, so that it appears where it belongs instead of
@@ -608,7 +647,6 @@ ribbon_client_insert(struct client_ctx *cc)
 {
 	struct screen_ctx	*sc = cc->sc;
 	struct ribbon		*rb;
-	struct ribbon_col	*col;
 	int			 place;
 
 	if (!Conf.ribbon)
@@ -625,22 +663,7 @@ ribbon_client_insert(struct client_ctx *cc)
 	    ((cc->flags & CLIENT_FULLSCREEN) != 0),
 	    RIBBON_RULE_NONE);
 
-	switch (place) {
-	case RIBBON_PLACE_STACK:
-		col = rb->focus;
-		break;
-	case RIBBON_PLACE_COLUMN:
-		col = ribbon_col_new(rb, rb->focus);
-		break;
-	default:
-		return 0;
-	}
-
-	ribbon_col_add(col, cc);
-	rb->focus = col;
-	ribbon_scroll(rb);
-
-	return 1;
+	return (ribbon_insert(rb, place, cc) != NULL);
 }
 
 /*
