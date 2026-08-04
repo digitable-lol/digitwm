@@ -598,6 +598,8 @@ void			 ribbon_sync(struct screen_ctx *);
 
 void			 ribbon_screen_init(struct screen_ctx *);
 void			 ribbon_screen_update(struct screen_ctx *);
+struct ribbon_col	*ribbon_insert(struct ribbon *, int,
+			     struct client_ctx *);
 int			 ribbon_client_insert(struct client_ctx *);
 void			 ribbon_client_remove(struct client_ctx *);
 void			 ribbon_client_focus(struct client_ctx *);

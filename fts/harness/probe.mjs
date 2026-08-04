@@ -59,11 +59,38 @@ export function probeScalar(wm, utility, args) {
  * ленты, колонки и геометрия каждого окна в координатах ленты и экрана.
  */
 export function probeLayout(wm, args) {
+	return parseLayout(run(wm, `layout-probe layout ${args.join(" ")}`))
+}
+
+/**
+ * Тот же сценарий, но со всеми состояниями, которые он напечатал.  Их
+ * больше одного, когда probe просили вставить окно: `initial` до вставки и
+ * `column` либо `stack` после неё.
+ */
+export function probeStages(wm, args) {
 	const stdout = run(wm, `layout-probe layout ${args.join(" ")}`)
+	const stages = []
+	let current = null
+	for (const raw of stdout.split("\n")) {
+		if (raw.trim().startsWith("stage ")) {
+			if (current !== null) stages.push(current)
+			current = []
+		}
+		if (current !== null) current.push(raw)
+	}
+	if (current !== null) stages.push(current)
+	if (stages.length === 0) throw new Error(`не разобран вывод layout: ${stdout}`)
+	return stages.map((lines) => parseLayout(lines.join("\n")))
+}
+
+function parseLayout(stdout) {
 	const layout = { columns: [], windows: [] }
 	for (const raw of stdout.split("\n")) {
 		const parts = raw.trim().split(/\s+/)
 		switch (parts[0]) {
+			case "stage":
+				layout.stage = parts[1]
+				break
 			case "viewport":
 				layout.viewport = numbers(parts.slice(1), 4)
 				break

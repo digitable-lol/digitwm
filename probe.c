@@ -98,6 +98,7 @@ static int		 probe_list(struct probe_ctx *, const char *, int *,
 static int		 probe_dim(struct probe_ctx *, const char *, int *,
 			     int *);
 static int		 probe_scalar(struct probe_ctx *, const char *);
+static void		 probe_report(struct ribbon *, int, const char *);
 static int		 probe_layout(struct probe_ctx *);
 
 /* The FTS models exist on two surfaces; both names mean the same utility. */
@@ -431,6 +432,46 @@ probe_scalar(struct probe_ctx *p, const char *util)
 }
 
 /*
+ * One state of the ribbon, named by its stage.  A scenario prints one such
+ * block, or two when it is asked to insert a window: the harness compares the
+ * two and holds the insertion invariant against them.
+ */
+static void
+probe_report(struct ribbon *rb, int border, const char *stage)
+{
+	struct ribbon_col	*col;
+	struct client_ctx	*cc;
+	int			 i, j;
+
+	(void)printf("stage %s\n", stage);
+	(void)printf("viewport %d %d %d %d\n", rb->view.x, rb->view.y,
+	    rb->view.w, rb->view.h);
+	(void)printf("gap %d\n", Conf.ribbongap);
+	(void)printf("border %d\n", border);
+	(void)printf("ribbon length %d offset %d columns %d focus %d\n",
+	    rb->len, rb->offset, ribbon_col_count(rb),
+	    ribbon_col_index(rb, rb->focus));
+
+	i = 0;
+	TAILQ_FOREACH(col, &rb->colq, entry) {
+		(void)printf("column %d ribbon-x %d width %d preset %d "
+		    "windows %d\n", i, col->x, col->w, col->preset, col->nwin);
+		j = 0;
+		TAILQ_FOREACH(cc, &col->winq, rbentry) {
+			(void)printf("window %d %d ribbon %d %d %d %d "
+			    "screen %d %d %d %d\n", i, j,
+			    cc->rbgeom.x, cc->rbgeom.y,
+			    cc->rbgeom.w, cc->rbgeom.h,
+			    cc->geom.x, cc->geom.y,
+			    cc->geom.w, cc->geom.h);
+			j++;
+		}
+		i++;
+	}
+	(void)printf("end\n");
+}
+
+/*
  * A whole scenario: build the ribbon the arguments describe out of the real
  * structures, run the real scroll over it, and report where every window
  * ended up - in ribbon coordinates and on the screen both.
@@ -441,6 +482,10 @@ probe_scalar(struct probe_ctx *p, const char *util)
  * scrolls, which is the entire point of a scrollable ribbon.  A harness that
  * checked the invariant against screen coordinates would be testing the
  * opposite of what was promised.
+ *
+ * With "insert=column" or "insert=stack" the scenario runs on: a window is
+ * handed to ribbon_insert(), the same call the MapRequest handler makes, and
+ * the state after it is printed as a second stage.
  */
 static int
 probe_layout(struct probe_ctx *p)
@@ -449,6 +494,7 @@ probe_layout(struct probe_ctx *p)
 	struct ribbon		*rb;
 	struct ribbon_col	*col;
 	struct client_ctx	*cc, *ccnxt;
+	const char		*place;
 	int			 cols[PROBE_MAXCOL], presets[PROBE_MAXCOL];
 	int			 widths[RIBBON_NPRESET];
 	int			 vw = 0, vh = 0, rw = 0, rh = 0;
@@ -522,31 +568,37 @@ probe_layout(struct probe_ctx *p)
 	}
 
 	(void)printf("ok layout\n");
-	(void)printf("viewport %d %d %d %d\n", rb->view.x, rb->view.y,
-	    rb->view.w, rb->view.h);
-	(void)printf("gap %d\n", Conf.ribbongap);
-	(void)printf("border %d\n", border);
-	(void)printf("ribbon length %d offset %d columns %d focus %d\n",
-	    rb->len, rb->offset, ribbon_col_count(rb),
-	    ribbon_col_index(rb, rb->focus));
+	probe_report(rb, border, "initial");
 
-	i = 0;
-	TAILQ_FOREACH(col, &rb->colq, entry) {
-		(void)printf("column %d ribbon-x %d width %d preset %d "
-		    "windows %d\n", i, col->x, col->w, col->preset, col->nwin);
-		j = 0;
-		TAILQ_FOREACH(cc, &col->winq, rbentry) {
-			(void)printf("window %d %d ribbon %d %d %d %d "
-			    "screen %d %d %d %d\n", i, j,
-			    cc->rbgeom.x, cc->rbgeom.y,
-			    cc->rbgeom.w, cc->rbgeom.h,
-			    cc->geom.x, cc->geom.y,
-			    cc->geom.w, cc->geom.h);
-			j++;
+	/*
+	 * The insertion itself, through the same call the MapRequest handler
+	 * makes.  "column" and "stack" name the two places the insertion
+	 * policy can return for a window the ribbon keeps; a policy answer of
+	 * "float" leaves the ribbon alone and is therefore nothing to print.
+	 */
+	if ((place = probe_get(p, "insert")) != NULL) {
+		cc = xcalloc(1, sizeof(*cc));
+		cc->sc = &sc;
+		cc->bwidth = border;
+
+		if (strcmp(place, "column") == 0)
+			col = ribbon_insert(rb, RIBBON_PLACE_COLUMN, cc);
+		else if (strcmp(place, "stack") == 0)
+			col = ribbon_insert(rb, RIBBON_PLACE_STACK, cc);
+		else {
+			free(cc);
+			probe_error(p, "insert wants column or stack, got %s",
+			    place);
+			goto done;
 		}
-		i++;
+
+		if (col == NULL) {
+			free(cc);
+			probe_error(p, "the ribbon declined the window");
+			goto done;
+		}
+		probe_report(rb, border, place);
 	}
-	(void)printf("end\n");
 
 done:
 	TAILQ_FOREACH(col, &rb->colq, entry) {
