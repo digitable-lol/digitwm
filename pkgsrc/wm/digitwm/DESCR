@@ -1,0 +1,13 @@
+digitwm is a scrollable-tiling window manager for X11, forked from cwm, the
+calm window manager of the OpenBSD base system.
+
+Windows live on an endless horizontal ribbon of columns; the screen is a
+viewport onto that ribbon.  Opening a window pushes the ribbon along instead
+of squeezing the neighbours into slivers, and moving focus scrolls the
+viewport to the column you are working in.  The idea is the one niri brought
+to Wayland; digitwm brings it to X11, where it runs on Linux, FreeBSD and
+NetBSD alike.
+
+It is not a compositor and does not animate.  Everything cwm does - groups,
+menus, key bindings, floating windows - is still there, and a window can
+leave the ribbon at any time.

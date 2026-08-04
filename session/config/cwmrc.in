@@ -5,10 +5,9 @@
 # абсолютные пути. Правьте этот файл и запускайте install.sh заново; правка
 # готового ~/.config/digitwm/cwmrc будет перезаписана (с бэкапом).
 #
-# Здесь только те ключевые слова, которые понимает cwm СЕГОДНЯ (cwmrc(5)).
-# Ленты в digitwm ещё нет: ни одного ribbon-ключевого слова спецификация
-# DGT-WM не назвала, а придумывать их за неё — значит гарантировать
-# несовместимость. Раскладка ниже — это то, что реально работает.
+# Здесь только те ключевые слова, которые понимает cwm СЕГОДНЯ (cwmrc(5)),
+# включая ленту: `ribbon`, `ribbongap`, `ribbonwidths` и остальные описаны
+# там же, а команды `ribbon-*` перечислены в doc/ribbon.ru.md.
 #
 # Важно про запуск программ: cwm выполняет строку через execvp БЕЗ оболочки
 # (util.c, u_exec). Значит здесь не работают ни ~, ни $HOME, ни конвейеры,
@@ -27,6 +26,24 @@ snapdist 12
 htile 50
 vtile 40
 gap 0 0 0 0
+
+# --- Лента -----------------------------------------------------------------
+# Ради неё digitwm и существует: окна живут в бесконечном ряду колонок, экран
+# ездит вдоль него. Новое окно сдвигает соседей, а не ужимает их.
+#
+# Зазор в 8 точек служит и полем, которое лента оставляет у края экрана при
+# прокрутке, — поэтому соседняя колонка всегда выглядывает и видно, что ряд
+# продолжается. Пресеты — доли экрана: треть, половина, две трети, целиком.
+#
+# ribbonhide выбран измерением, а не на глаз: при тяжёлой перерисовке гашение
+# стоит 2,7 медианы и 6,7 худшего случая. Числа — в doc/offscreen.ru.md.
+
+ribbon          yes
+ribbongap       8
+ribbonminwidth  320
+ribbonminheight 120
+ribbonwidths    33 50 67 100
+ribbonhide      no
 
 # Новое окно не попадает в текущую группу автоматически: группа — это
 # осознанный выбор, а не побочный эффект того, где вы были.
@@ -61,7 +78,10 @@ command git     "@@TERMINAL_EXEC@@ lazygit"
 # Группа 0 в cwmrc(5) значит «ни в какой группе», то есть окно видно на всех
 # рабочих столах. Для агента это ровно то, что нужно: он рядом с работой, а
 # не вместо неё. Совпадение имени и класса задаёт session/bin/digitwm-digit.
-# Когда появится лента, эта строка станет закреплением за колонкой 0.
+#
+# Закрепления за колонкой у ленты нет: колонка — это место в ряду, а ряд
+# двигается. Digit встаёт своей колонкой там, где его открыли, и остаётся
+# видимым во всех группах.
 autogroup 0 "digit,Digit"
 
 # --- Клавиши ---------------------------------------------------------------
@@ -71,33 +91,44 @@ autogroup 0 "digit,Digit"
 # (floaterm). Если бы оконный менеджер взял те же сочетания, он перехватывал
 # бы их у редактора — и «конфетка» превратилась бы в драку за клавиатуру.
 
-# Фокус. В сегодняшнем cwm это перебор окон; когда появится лента, h/l станут
-# движением по колонкам, j/k — по стопке внутри колонки.
-bind-key 4-h            window-rcycle
-bind-key 4-l            window-cycle
-bind-key 4-k            window-rcycle-ingroup
-bind-key 4-j            window-cycle-ingroup
+# Движение по ленте: h/l — по колонкам, j/k — по стопке внутри колонки.
+# Перебор окон никуда не делся и живёт на Tab, где ему и место.
+bind-key 4-h            ribbon-focus-left
+bind-key 4-l            ribbon-focus-right
+bind-key 4-k            ribbon-focus-up
+bind-key 4-j            ribbon-focus-down
 bind-key 4-Tab          window-cycle
 bind-key 4S-Tab         window-rcycle
 
-# Перенос окна.
-bind-key 4S-h           window-move-left-big
-bind-key 4S-l           window-move-right-big
+# Перенос окна по ленте: Shift+h/l уносит окно в соседнюю колонку, а на краю
+# заводит новую. Вверх и вниз двигают плавающее окно — на ленте геометрию
+# держит она сама.
+bind-key 4S-h           ribbon-move-left
+bind-key 4S-l           ribbon-move-right
 bind-key 4S-k           window-move-up-big
 bind-key 4S-j           window-move-down-big
 
-# Размер окна.
+# Ширина колонки и её место во вьюпорте.
+bind-key 4-r            ribbon-width-cycle
+bind-key 4-equal        ribbon-width-grow
+bind-key 4-minus        ribbon-width-shrink
+bind-key 4-c            ribbon-center
+bind-key 4-u            ribbon-float-toggle
+
+# Размер плавающего окна. На ленте ширину задаёт пресет колонки (4-r), а
+# высоту — число окон в стопке: эти четыре сочетания сработают, но первое же
+# событие ленты вернёт окно на место. Сначала 4-u или 4-t, потом размер.
 bind-key 4C-h           window-resize-left-big
 bind-key 4C-l           window-resize-right-big
 bind-key 4C-k           window-resize-up-big
 bind-key 4C-j           window-resize-down-big
 
-# Раскладка по краям — ручная замена ленте, пока ленты нет.
+# Раскладка по краям — для окон, выведенных из ленты.
 bind-key 4-Left         window-snap-left
 bind-key 4-Right        window-snap-right
 bind-key 4-Up           window-snap-up
 bind-key 4-Down         window-snap-down
-bind-key 4-c            window-snap-center
+bind-key 4S-c           window-snap-center
 bind-key 4-v            window-vtile
 bind-key 4-s            window-htile
 
@@ -106,7 +137,7 @@ bind-key 4-f            window-fullscreen
 bind-key 4-m            window-maximize
 bind-key 4-q            window-close
 bind-key 4-w            window-hide
-bind-key 4-r            window-raise
+bind-key 4S-r           window-raise
 bind-key 4-d            window-lower
 bind-key 4-t            window-freeze
 bind-key 4-y            window-stick
