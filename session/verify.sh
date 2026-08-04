@@ -293,6 +293,26 @@ if [ -f "$CONFIG_DIR/cwmrc" ]; then
   else
     note "cwmrc без строк color — установка шла без палитры"
   fi
+
+  # Лента — то, ради чего digitwm существует. Установка, после которой
+  # получился обычный плавающий cwm, — это не установка digitwm.
+  if grep -qE '^ribbon +yes' "$CONFIG_DIR/cwmrc"; then
+    ok "cwmrc включает ленту"
+  else
+    bad "cwmrc" "лента не включена: нет строки «ribbon yes»"
+  fi
+  ribbon_missing=""
+  for ribbon_cmd in ribbon-focus-left ribbon-focus-right ribbon-focus-up \
+                    ribbon-focus-down ribbon-move-left ribbon-move-right \
+                    ribbon-width-cycle ribbon-center ribbon-float-toggle; do
+    grep -q "$ribbon_cmd" "$CONFIG_DIR/cwmrc" || \
+      ribbon_missing="$ribbon_missing $ribbon_cmd"
+  done
+  if [ -z "$ribbon_missing" ]; then
+    ok "cwmrc привязывает все девять команд ленты"
+  else
+    bad "cwmrc" "команды ленты без клавиш:$ribbon_missing"
+  fi
 fi
 
 for f in "$CONFIG_DIR/vimrc" "$CONFIG_DIR/zshrc" "$CONFIG_DIR/tmux.conf" \
