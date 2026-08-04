@@ -132,6 +132,12 @@ ribbon_policy_width(int vw, int preset, int gap, int minw)
  * Height of window number idx of nwin in a column.  The remainder of the
  * division goes to the last window, so a column always fills the viewport
  * exactly instead of leaving a stray pixel row at the bottom.
+ *
+ * The empty column takes the same lower bound as every other answer.  It used
+ * to return vh outright and skip both clamps, which quietly broke the model's
+ * property "height is at least the minimum" whenever the viewport was shorter
+ * than ribbonminh; MAX(vh, minh) is what the rest of the function does, and
+ * what ribbon_policy_width() does with a viewport narrower than its minimum.
  */
 int
 ribbon_policy_height(int vh, int nwin, int idx, int gap, int minh)
@@ -139,7 +145,7 @@ ribbon_policy_height(int vh, int nwin, int idx, int gap, int minh)
 	int	 total, base, h;
 
 	if (nwin <= 0)
-		return vh;
+		return MAX(vh, minh);
 
 	total = vh - (gap * (nwin - 1));
 	base = total / nwin;

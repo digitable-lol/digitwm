@@ -19,9 +19,10 @@
 // field is the sum of the two before it; it is there because an FTS
 // condition cannot add two fields.
 //
-// An empty column answers with the height of the viewport and applies
-// neither bound - that is what C does, and it is discussed in
-// `fts/README.md`.
+// An empty column answers with the height of the viewport, but it does apply
+// the lower bound: a viewport shorter than the minimum height is the same
+// case as a column that cannot fit its windows, and answering it with a
+// number below the declared minimum would break the model's own property.
 
 
 category "Ribbon layout"
@@ -45,6 +46,11 @@ category "Ribbon layout"
     rule "An empty column gives the window the whole viewport"
       if window-count is at most 0
       then result equals 100 percent of field viewport-height
+
+    rule "An empty column shorter than the minimum"
+      if window-count is at most 0
+      and viewport-height is less than 100 percent of field min-height
+      then result equals 100 percent of field min-height
 
     rule "Windows split the column evenly"
       if window-count is at least 1
@@ -96,6 +102,18 @@ category "Ribbon layout"
       given remainder equals 0
       given last-height equals 0
       expected result equals 800
+
+    example "An empty column shorter than the minimum"
+      given viewport-height equals 144
+      given window-count equals 0
+      given window-index equals 0
+      given gap equals 8
+      given min-height equals 148
+      given last-index equals -1
+      given even-share equals 0
+      given remainder equals 0
+      given last-height equals 0
+      expected result equals 148
 
     example "One window fills the column"
       given viewport-height equals 800
