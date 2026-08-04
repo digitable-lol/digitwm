@@ -86,3 +86,9 @@ jobs:
 
       - name: Харнесс инвариантов умеет краснеть
         run: node fts/harness/invariants.mjs --wm ./cwm --selfcheck
+
+      - name: Монитор ушёл и вернулся - лента цела
+        run: node fts/harness/hotplug.mjs --wm ./cwm
+
+      - name: Харнесс мониторов умеет краснеть
+        run: node fts/harness/hotplug.mjs --wm ./cwm --selfcheck

@@ -83,6 +83,61 @@ export function probeStages(wm, args) {
 	return stages.map((lines) => parseLayout(lines.join("\n")))
 }
 
+/**
+ * Смена мониторов: `layout-probe outputs`.  Возвращает состояния лент по
+ * стадиям - до отключения, после него и после возврата монитора.
+ */
+export function probeOutputs(wm, args) {
+	const stdout = run(wm, `layout-probe outputs ${args.join(" ")}`)
+	const stages = []
+	let current = null
+	for (const raw of stdout.split("\n")) {
+		const parts = raw.trim().split(/\s+/)
+		switch (parts[0]) {
+			case "stage":
+				current = { stage: parts[1], ribbons: new Map() }
+				stages.push(current)
+				break
+			case "ribbon":
+				/* ribbon NAME active A view x y w h length L offset O columns N focus F */
+				current.ribbons.set(parts[1], {
+					name: parts[1],
+					active: Number(parts[3]),
+					view: numbers(parts.slice(5, 9), 4),
+					length: Number(parts[10]),
+					offset: Number(parts[12]),
+					columnCount: Number(parts[14]),
+					focus: Number(parts[16]),
+					columns: [],
+					windows: [],
+				})
+				break
+			case "column":
+				/* column NAME I ribbon-x X width W preset P windows N */
+				current.ribbons.get(parts[1]).columns.push({
+					index: Number(parts[2]),
+					x: Number(parts[4]),
+					width: Number(parts[6]),
+					preset: Number(parts[8]),
+					windows: Number(parts[10]),
+				})
+				break
+			case "window":
+				/* window NAME C I ribbon x y w h */
+				current.ribbons.get(parts[1]).windows.push({
+					column: Number(parts[2]),
+					index: Number(parts[3]),
+					ribbon: numbers(parts.slice(5, 9), 4),
+				})
+				break
+			default:
+				break
+		}
+	}
+	if (stages.length === 0) throw new Error(`не разобран вывод outputs: ${stdout}`)
+	return stages
+}
+
 function parseLayout(stdout) {
 	const layout = { columns: [], windows: [] }
 	for (const raw of stdout.split("\n")) {

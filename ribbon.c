@@ -569,7 +569,7 @@ ribbon_screen_init(struct screen_ctx *sc)
  * ribbon to another, so two monitors never end up sharing a row.
  */
 void
-ribbon_screen_update(struct screen_ctx *sc)
+ribbon_screen_relayout(struct screen_ctx *sc)
 {
 	struct region_ctx	*rc;
 	struct ribbon		*rb;
@@ -591,7 +591,19 @@ ribbon_screen_update(struct screen_ctx *sc)
 		    rb->len);
 		ribbon_scroll(rb);
 	}
+}
 
+/*
+ * The whole of it: the arithmetic above, and then the X calls that push it
+ * onto the server.  They are apart because a monitor coming and going is
+ * worth proving, and everything worth proving is in the half that needs no
+ * display: "layout-probe outputs" replays a hotplug through
+ * ribbon_screen_relayout() and prints what became of every ribbon.
+ */
+void
+ribbon_screen_update(struct screen_ctx *sc)
+{
+	ribbon_screen_relayout(sc);
 	ribbon_sync(sc);
 }
 
