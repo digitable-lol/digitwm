@@ -115,4 +115,8 @@ were not.
 ISC, inherited from cwm and applied to new code as well. Full text in
 [LICENSE](LICENSE); provenance and the one BSD-3 exception in [NOTICE](NOTICE).
 
-Part of [Digitable](https://digitable.life).
+Part of [Digitable](https://digitable.life). A write-up with the numbers from
+the harnesses and the measurements is on the product page,
+[courses.digitable.life/digitwm](https://courses.digitable.life/digitwm/);
+it also says why digitwm stays out of the paid Workbench archive even though
+ISC does not forbid it.

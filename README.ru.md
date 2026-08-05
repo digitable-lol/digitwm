@@ -119,4 +119,8 @@ ISC — унаследована от cwm и применяется к ново�
 [LICENSE](LICENSE), происхождение и единственное исключение под BSD-3 — в
 [NOTICE](NOTICE).
 
-Часть [Digitable](https://digitable.life).
+Часть [Digitable](https://digitable.life). Разбор с числами прогонов и
+замеров — на странице продукта
+[courses.digitable.life/digitwm](https://courses.digitable.life/digitwm/);
+там же сказано, почему digitwm не входит в платный архив Workbench, хотя
+ISC этого не запрещает.
