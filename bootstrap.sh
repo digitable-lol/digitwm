@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
+# SPDX-License-Identifier: ISC
 #
 # digitwm - одна команда от голой системы до работающей среды
 #

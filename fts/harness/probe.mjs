@@ -1,3 +1,5 @@
+/* SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life> */
+/* SPDX-License-Identifier: ISC */
 /*
  * digitwm - вызов живого оконного менеджера через layout-probe
  *

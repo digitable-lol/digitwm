@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
+# SPDX-License-Identifier: ISC
 #
 # Digitable Session — установка окружения вокруг digitwm.
 #
