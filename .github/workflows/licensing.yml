@@ -1,0 +1,30 @@
+# Лицензионный контур форка cwm.
+#
+# Отдельный workflow, а не шаг в fts-conformance: та сборка ставит библиотеки
+# X, компилирует оконный менеджер и тянет инструментарий FTS, и любая её
+# поломка увела бы за собой лицензионную проверку. Здесь не нужно ничего,
+# кроме checkout и python3.
+#
+# Сборка валится, если:
+#   - под контролем версий появился файл с текстом GPL (сгенерированный
+#     parse.c уже попадал в дерево однажды);
+#   - наш собственный исходник без SPDX-заголовка;
+#   - в шапке файла апстрима появился копирайт Digitable;
+#   - из LICENSE или NOTICE пропало то, на что опираются проверки выше.
+name: licensing
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  licensing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Забрать digitwm
+        uses: actions/checkout@v4
+
+      - name: Лицензионный гейт
+        run: python3 tools/check-licensing.py

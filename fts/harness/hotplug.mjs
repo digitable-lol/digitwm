@@ -1,3 +1,5 @@
+/* SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life> */
+/* SPDX-License-Identifier: ISC */
 /*
  * digitwm - монитор ушёл и вернулся: что стало с лентами
  *

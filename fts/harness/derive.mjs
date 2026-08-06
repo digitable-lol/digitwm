@@ -1,3 +1,5 @@
+/* SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life> */
+/* SPDX-License-Identifier: ISC */
 /*
  * digitwm - от общего вектора к входу FTS и к аргументам layout-probe
  *

@@ -1,3 +1,5 @@
+/* SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life> */
+/* SPDX-License-Identifier: ISC */
 /*
  * digitwm - два обещания ленты, проверенные на живом оконном менеджере
  *
