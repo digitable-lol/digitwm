@@ -49,14 +49,21 @@ UPSTREAM = {
     "parse.y", "update.sh",
 }
 
-SOURCE_SUFFIXES = {".c", ".h", ".sh", ".mjs"}
+# `.py` is here so that this file, exempt from the GPL scan above, is still
+# held to the header requirement like every other source file of ours.
+SOURCE_SUFFIXES = {".c", ".h", ".sh", ".mjs", ".py"}
 
 # Prose is allowed to discuss the GPL — NOTICE explains at length why no line
 # of papersway or sdorfehs is here, and .gitignore explains why generated
 # parse.c must never be committed. Neither can carry licensed code; what is
 # forbidden is a file that *is* under the GPL, not one that names it.
+#
+# This file is exempt for a sharper reason: it holds the search patterns
+# themselves, so it matches its own scan by construction. Without the
+# exemption the gate fails on itself the moment it is committed — which is
+# exactly what happened on the first run after it was added to the tree.
 GPL_SCAN_EXEMPT_SUFFIXES = {".md"}
-GPL_SCAN_EXEMPT_NAMES = {"NOTICE", ".gitignore"}
+GPL_SCAN_EXEMPT_NAMES = {"NOTICE", ".gitignore", "check-licensing.py"}
 
 GPL_MARKERS = ("GNU General Public License", "GNU GENERAL PUBLIC LICENSE",
                "GPL-2.0", "GPL-3.0")
@@ -75,6 +82,18 @@ def tracked_files():
 
 def read(relative):
     return (ROOT / relative).read_text(encoding="utf-8", errors="replace")
+
+
+def header_of(relative):
+    """The first lines of a file — where an SPDX header is or is not.
+
+    Deliberately not "the first 2 KB": this file's own docstring quotes
+    `SPDX-License-Identifier: ISC` while explaining the rule, and a scan
+    over 2 KB accepted that quotation as the header. The check then passed
+    on a copy of this file whose real header had been deleted. A header
+    lives at the top or it is not a header.
+    """
+    return "\n".join(read(relative).split("\n")[:15])
 
 
 files = tracked_files()
@@ -114,15 +133,15 @@ ours = [
 
 missing_header = []
 for relative in ours:
-    head = read(relative)[:2048]
+    head = header_of(relative)
     if "SPDX-License-Identifier: ISC" not in head:
         missing_header.append(
-            f"{relative}: no `SPDX-License-Identifier: ISC` in the first 2 KB "
+            f"{relative}: no `SPDX-License-Identifier: ISC` in the opening lines "
             f"(file of our own authorship — NOTICE puts new Digitable code under ISC)"
         )
     elif "SPDX-FileCopyrightText:" not in head or "Digitable" not in head:
         missing_header.append(
-            f"{relative}: no `SPDX-FileCopyrightText: ... Digitable` in the first 2 KB"
+            f"{relative}: no `SPDX-FileCopyrightText: ... Digitable` in the opening lines"
         )
 
 if missing_header:
@@ -136,7 +155,7 @@ for relative in sorted(UPSTREAM):
     if not (ROOT / relative).exists():
         failures.append(f"{relative}: listed as upstream's in NOTICE but missing from the tree")
         continue
-    head = read(relative)[:4096]
+    head = header_of(relative)
     if "Digitable" in head:
         claimed.append(
             f"{relative}: carries a Digitable copyright line — this is upstream's "
