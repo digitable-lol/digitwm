@@ -54,7 +54,8 @@ reachable.
 
 The two promises no single number can hold — *opening a window alters no window
 already on the ribbon*, and *the focused column always lies wholly inside the
-viewport* — are checked against the running binary by a harness of their own.
+viewport horizontally* — are checked against the running binary by a harness of
+their own.
 [doc/ribbon.md](doc/ribbon.md) is the whole model in one page.
 
 ## The session

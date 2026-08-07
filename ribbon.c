@@ -24,7 +24,10 @@
  *
  *   - inserting a window never alters the ribbon geometry of a window that
  *     is already on the ribbon.  Neighbours are pushed along, never squeezed;
- *   - after any event the focused column lies wholly inside the viewport.
+ *   - after any event the focused column lies wholly inside the viewport
+ *     horizontally.  Only horizontally: the ribbon scrolls sideways and
+ *     nothing scrolls it vertically, so a column whose windows do not fit the
+ *     viewport height sticks out below it (see ribbon_policy_height).
  *
  * The scalar decisions - how far to scroll, how wide a column is, how tall a
  * window in it is, where a new window goes, what gets focus after a close -
@@ -132,8 +135,21 @@ ribbon_policy_width(int vw, int preset, int gap, int minw)
 
 /*
  * Height of window number idx of nwin in a column.  The remainder of the
- * division goes to the last window, so a column always fills the viewport
- * exactly instead of leaving a stray pixel row at the bottom.
+ * division goes to the last window, so a column fills the viewport exactly
+ * instead of leaving a stray pixel row at the bottom - for as long as the equal
+ * share clears the minimum height.
+ *
+ * Once it does not, the minimum wins: it is a declared property of the model
+ * ("height is at least the minimum", fts/window-height.fts), and answering with
+ * less would break the model's own property.  So the stack runs past the bottom
+ * edge instead - nwin windows of minh plus the gaps.  Unlike the same collision
+ * in ribbon_policy_width(), which the horizontal scroll resolves, there is no
+ * vertical scroll and ribbon_col_visible() only tests the x extent: whatever
+ * ends up below the edge is neither parked nor reachable.  Measured at
+ * 1280x800, gap 8, minh 60: 11 windows fit, 12 overflow by 11px, 20 overflow by
+ * 552px with the last 8 entirely below the edge.  Which side should give is a
+ * product decision and is deliberately left open here; the harness pins the
+ * arithmetic of both cases so the exception cannot go unnoticed.
  *
  * The empty column takes the same lower bound as every other answer.  It used
  * to return vh outright and skip both clamps, which quietly broke the model's
