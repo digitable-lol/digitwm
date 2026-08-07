@@ -59,7 +59,7 @@ rather than about one number, so no model holds them:
 
 ```
 opening a window alters the geometry of no window already on the ribbon
-the focused column always lies wholly inside the viewport
+the focused column always lies wholly inside the viewport horizontally
 ```
 
 They are checked by `fts/harness/invariants.mjs` against the running binary, and

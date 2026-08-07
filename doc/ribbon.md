@@ -12,7 +12,7 @@ That is the whole model. Everything below is what follows from it.
 
 ```
 opening a window alters the geometry of no window already on the ribbon
-the focused column always lies wholly inside the viewport
+the focused column always lies wholly inside the viewport horizontally
 ```
 
 The first is the reason the ribbon exists. A tiling layout that splits the

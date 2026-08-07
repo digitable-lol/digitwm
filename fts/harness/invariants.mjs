@@ -26,7 +26,8 @@
  *
  *   1. открытие окна не меняет геометрию ни одного окна, уже стоящего на
  *      ленте.  Соседей сдвигают вдоль ленты, но не сжимают;
- *   2. колонка с фокусом всегда целиком во вьюпорте.
+ *   2. колонка с фокусом всегда целиком во вьюпорте по горизонтали; ниже
+ *      кромки стопка выходить может - вертикального скролла нет.
  *
  * Оба обещания сняты не с модели, а с двоичного файла: probe строит ленту из
  * настоящих структур, зовёт ribbon_insert() - ту же функцию, что зовёт
@@ -168,7 +169,7 @@ function checkTiling(state, scenario, complaints) {
 	if (state.length !== length) complaints.push(`длина ленты ${state.length}, а колонки занимают ${length}`)
 }
 
-/* Колонка с фокусом целиком во вьюпорте - второе обещание ленты. */
+/* Колонка с фокусом целиком во вьюпорте по горизонтали - второе обещание ленты. */
 function checkViewport(state, complaints) {
 	const [, , vw] = state.viewport
 	const limit = MAX(0, state.length - vw)
@@ -218,7 +219,36 @@ function checkStacks(state, scenario, complaints) {
 			}
 			y = wy + wh + scenario.gap
 		})
+		checkStackHeight(state, scenario, column, windows, y, complaints)
 	})
+}
+
+/*
+ * Куда доходит низ стопки. Обещание «колонка заполняет вьюпорт ровно» верно
+ * только пока равная доля не упёрлась в минимальную высоту: минимум объявлен
+ * свойством модели (fts/window-height.fts, «Высота не меньше минимальной»), и
+ * когда окон столько, что доля меньше минимума, модель сознательно выбирает
+ * минимум, а не вьюпорт. Тогда стопка вылезает вниз, и ровно на предсказуемую
+ * величину. Проверяем оба случая, чтобы исключение было записано, а не
+ * подразумевалось: до этой проверки харнесс смотрел только горизонталь.
+ */
+function checkStackHeight(state, scenario, column, windows, y, complaints) {
+	if (windows.length === 0) return
+	const vh = state.viewport[3]
+	const minh = scenario["min-height"]
+	const gaps = (windows.length - 1) * scenario.gap
+	const bottom = y - scenario.gap
+	const share = Math.floor((vh - gaps) / windows.length)
+	if (share >= minh) {
+		if (bottom !== vh) {
+			complaints.push(`колонка ${column.index}: доля ${share} не ниже минимума ${minh}, стопка обязана заполнить вьюпорт ${vh}, а дошла до ${bottom}`)
+		}
+		return
+	}
+	const expected = windows.length * minh + gaps
+	if (bottom !== expected) {
+		complaints.push(`колонка ${column.index}: доля ${share} ниже минимума ${minh}, стопка обязана дойти до ${expected} (${windows.length}x${minh} плюс зазоры), а дошла до ${bottom}`)
+	}
 }
 
 /* Экранная геометрия - это геометрия ленты, сдвинутая на смещение. */

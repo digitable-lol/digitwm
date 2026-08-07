@@ -57,7 +57,7 @@ harness to notice. A green harness that cannot go red proves nothing.
 
 `invariants.mjs` answers a different question. The two promises the ribbon is
 built on — *opening a window alters no window already on the ribbon*, and *the
-focused column always lies wholly inside the viewport* — are statements about
+focused column always lies wholly inside the viewport horizontally* — are statements about
 the relation between two states of the ribbon, and no scalar model can hold
 one. The probe therefore runs `ribbon_insert()`, the call the MapRequest
 handler makes, and prints the state before and after it; the harness compares
