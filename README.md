@@ -106,6 +106,7 @@ things — a difference in facts is worse than a missing translation.
 | [doc/baseline.md](doc/baseline.md) | flicker, insertion latency, hidden windows — measured, and what is still missing |
 | [doc/panel.md](doc/panel.md) | the panel: ours against someone else's, the numbers behind the choice, and what a panel does to the ribbon |
 | [doc/build.md](doc/build.md) | building, installing, running, checking a change |
+| [doc/portability.md](doc/portability.md) | what here is X11 and what is arithmetic, measured — and what a macOS port would cost |
 | [fts/README.md](fts/README.md) | the models, the harnesses, and where they stop |
 | [pkgsrc/README.md](pkgsrc/README.md) | the package, and what is missing until the first release |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | the order a layout change is made in |

@@ -84,6 +84,7 @@ digitwm — форк [cwm](https://github.com/leahneukirchen/cwm), в котор
 | [doc/baseline.md](doc/baseline.md) / [doc/baseline.ru.md](doc/baseline.ru.md) | мерцание, задержка вставки и скрытые окна, измеренные живьём |
 | [doc/panel.md](doc/panel.md) / [doc/panel.ru.md](doc/panel.ru.md) | панель: своя против внешней и что панель делает с лентой |
 | [doc/build.md](doc/build.md) / [doc/build.ru.md](doc/build.ru.md) | сборка, установка, запуск, проверка |
+| [doc/portability.md](doc/portability.md) / [doc/portability.ru.md](doc/portability.ru.md) | что здесь X11, а что арифметика, и во что обошёлся бы перенос на macOS |
 | [fts/README.md](fts/README.md) / [fts/README.ru.md](fts/README.ru.md) | модели и харнессы |
 | [pkgsrc/README.md](pkgsrc/README.md) / [pkgsrc/README.ru.md](pkgsrc/README.ru.md) | пакет |
 | [session/README.md](session/README.md) | окружение вокруг оконного менеджера |
