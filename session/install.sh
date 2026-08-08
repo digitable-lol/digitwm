@@ -641,8 +641,13 @@ install_configs() {
 
   if [ -n "$PALETTE_VALUES" ]; then
     install_rendered "$SCRIPT_DIR/config/Xresources.in"   "$CONFIG_DIR/Xresources" 644
+    # Панель — единственный файл, который без палитры теряет смысл целиком:
+    # у polybar цвета обязательны, и пустые значения он принимает молча,
+    # выкрашивая бар в чужие умолчания. Лучше не класть, чем положить чужой.
+    install_rendered "$SCRIPT_DIR/config/polybar.ini.in"  "$CONFIG_DIR/polybar.ini" 644
   else
     DONE_SKIPPED+=("Xresources — палитра не найдена")
+    DONE_SKIPPED+=("polybar.ini — палитра не найдена")
   fi
 
   install_rendered "$SCRIPT_DIR/bin/digitwm-session.in" "$PREFIX/bin/digitwm-session" 755

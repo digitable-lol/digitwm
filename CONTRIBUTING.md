@@ -59,7 +59,8 @@ rather than about one number, so no model holds them:
 
 ```
 opening a window alters the geometry of no window already on the ribbon
-the focused column always lies wholly inside the viewport horizontally
+the focused column always lies wholly inside the viewport horizontally,
+and the focused window of it vertically
 ```
 
 They are checked by `fts/harness/invariants.mjs` against the running binary, and
@@ -81,6 +82,7 @@ link to the other in the first lines of each. The set is:
 | [doc/monitors.md](doc/monitors.md) / [doc/monitors.ru.md](doc/monitors.ru.md) | more than one monitor, and hotplug |
 | [doc/offscreen.md](doc/offscreen.md) / [doc/offscreen.ru.md](doc/offscreen.ru.md) | windows outside the viewport, with the numbers behind the default |
 | [doc/baseline.md](doc/baseline.md) / [doc/baseline.ru.md](doc/baseline.ru.md) | flicker, insertion latency and hidden windows, measured live |
+| [doc/panel.md](doc/panel.md) / [doc/panel.ru.md](doc/panel.ru.md) | the panel: ours against someone else's, and what a panel does to the ribbon |
 | [doc/build.md](doc/build.md) / [doc/build.ru.md](doc/build.ru.md) | building, installing, running, checking |
 | [fts/README.md](fts/README.md) / [fts/README.ru.md](fts/README.ru.md) | the models and the harnesses |
 | [pkgsrc/README.md](pkgsrc/README.md) / [pkgsrc/README.ru.md](pkgsrc/README.ru.md) | the package |

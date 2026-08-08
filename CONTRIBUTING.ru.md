@@ -60,7 +60,7 @@ digitwm — форк [cwm](https://github.com/leahneukirchen/cwm), в котор
 
 ```
 открытие окна не меняет геометрию ни одного окна, уже стоящего на ленте
-колонка с фокусом всегда целиком во вьюпорте по горизонтали
+колонка с фокусом всегда целиком во вьюпорте по горизонтали, а окно с фокусом — по вертикали
 ```
 
 Их проверяет `fts/harness/invariants.mjs` на работающем двоичном файле, а
@@ -82,6 +82,7 @@ digitwm — форк [cwm](https://github.com/leahneukirchen/cwm), в котор
 | [doc/monitors.md](doc/monitors.md) / [doc/monitors.ru.md](doc/monitors.ru.md) | больше одного монитора и hotplug |
 | [doc/offscreen.md](doc/offscreen.md) / [doc/offscreen.ru.md](doc/offscreen.ru.md) | окна за пределами вьюпорта и числа, которыми выбрано умолчание |
 | [doc/baseline.md](doc/baseline.md) / [doc/baseline.ru.md](doc/baseline.ru.md) | мерцание, задержка вставки и скрытые окна, измеренные живьём |
+| [doc/panel.md](doc/panel.md) / [doc/panel.ru.md](doc/panel.ru.md) | панель: своя против внешней и что панель делает с лентой |
 | [doc/build.md](doc/build.md) / [doc/build.ru.md](doc/build.ru.md) | сборка, установка, запуск, проверка |
 | [fts/README.md](fts/README.md) / [fts/README.ru.md](fts/README.ru.md) | модели и харнессы |
 | [pkgsrc/README.md](pkgsrc/README.md) / [pkgsrc/README.ru.md](pkgsrc/README.ru.md) | пакет |

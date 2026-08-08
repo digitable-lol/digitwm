@@ -222,6 +222,18 @@ xev_handle_propertynotify(XEvent *ee)
 		default:
 			if (e->atom == ewmh[_NET_WM_NAME])
 				client_set_name(cc);
+			else if ((e->atom == ewmh[_NET_WM_STRUT_PARTIAL]) ||
+			    (e->atom == ewmh[_NET_WM_STRUT])) {
+				/*
+				 * The other way a panel collapses: it keeps
+				 * its window and drops the strut to zero.
+				 * Both ways have to work, because both are in
+				 * use - polybar unmaps, others rewrite the
+				 * property.
+				 */
+				client_wm_strut(cc);
+				screen_update_struts(cc->sc);
+			}
 			break;
 		}
 	} else {

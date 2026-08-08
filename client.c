@@ -73,6 +73,18 @@ client_init(Window win, struct screen_ctx *sc)
 	cc->stackingorder = 0;
 	cc->initial_state = 0;
 	memset(&cc->hint, 0, sizeof(cc->hint));
+	/*
+	 * The ribbon fields are filled in by ribbon_col_add(), and that never
+	 * runs for a window the ribbon leaves floating - a dock, a dialog, a
+	 * transient.  xmalloc() does not zero, so without these lines such a
+	 * window carries a garbage column pointer, and the first thing to ask
+	 * "which ribbon is current?" follows it: ribbon_current() reads
+	 * cc->rbcol->rb of the active client.  Opening any window while a panel
+	 * held focus crashed the manager there, reproducibly.
+	 */
+	cc->rbcol = NULL;
+	memset(&cc->rbgeom, 0, sizeof(cc->rbgeom));
+	memset(&cc->strut, 0, sizeof(cc->strut));
 	TAILQ_INIT(&cc->nameq);
 
 	cc->geom.x = wattr.x;
@@ -92,9 +104,16 @@ client_init(Window win, struct screen_ctx *sc)
 	client_get_sizehints(cc);
 	client_transient(cc);
 	client_wm_type(cc);
+	client_wm_strut(cc);
 	client_mwm_hints(cc);
 
-	if ((cc->flags & CLIENT_IGNORE))
+	/*
+	 * A dock gets no border, for the same reason an ignored window gets
+	 * none: it is furniture, not a window you focus.  The border was also
+	 * measurably wrong - a panel asking for 1280x28 at 0,0 came out at
+	 * -1,0, one pixel of it off the left edge and one short on the right.
+	 */
+	if ((cc->flags & (CLIENT_IGNORE | CLIENT_TYPE_DOCK)))
 		cc->bwidth = 0;
 	cc->dim.w = (cc->geom.w - cc->hint.basew) / cc->hint.incw;
 	cc->dim.h = (cc->geom.h - cc->hint.baseh) / cc->hint.inch;
@@ -105,8 +124,14 @@ client_init(Window win, struct screen_ctx *sc)
 	 * Where the window goes is decided here, inside the handling of the
 	 * MapRequest, and not after it: the difference between "it appeared
 	 * in place" and "it appeared and then jumped" is visible to the eye.
+	 *
+	 * A dock is the one window that places itself.  A panel asks for the
+	 * top edge and means it; client_placement() used to answer by dropping
+	 * it into the middle of the screen, which put a bar 28 pixels tall at
+	 * y=145 across the windows it was supposed to sit above.
 	 */
-	if (!ribbon_client_insert(cc) && (wattr.map_state != IsViewable))
+	if (!ribbon_client_insert(cc) && (wattr.map_state != IsViewable) &&
+	    !(cc->flags & CLIENT_TYPE_DOCK))
 		client_placement(cc);
 
 	/*
@@ -163,6 +188,15 @@ client_init(Window win, struct screen_ctx *sc)
 			group_assign(NULL, cc);
 	}
 out:
+	/*
+	 * A panel arriving takes its edge away from every column at once, so
+	 * the whole screen is remeasured rather than one ribbon nudged.  This
+	 * runs after the client is on sc->clientq, because the measurement
+	 * reads the struts off that queue.
+	 */
+	if (client_has_strut(cc))
+		screen_update_struts(sc);
+
 	/* The insertion shifted the ribbon; move the neighbours with it. */
 	if (cc->flags & CLIENT_RIBBON)
 		ribbon_sync(sc);
@@ -235,9 +269,10 @@ client_remove(struct client_ctx *cc)
 {
 	struct screen_ctx	*sc = cc->sc;
 	struct winname		*wn;
-	int			 ribbon;
+	int			 ribbon, strut;
 
 	ribbon = (cc->flags & CLIENT_RIBBON) != 0;
+	strut = client_has_strut(cc);
 	ribbon_client_remove(cc);
 
 	TAILQ_REMOVE(&sc->clientq, cc, entry);
@@ -259,6 +294,15 @@ client_remove(struct client_ctx *cc)
 	free(cc->res_class);
 	free(cc->res_name);
 	free(cc);
+
+	/*
+	 * A panel leaving gives its edge back.  This is also how a collapsing
+	 * panel is seen: a panel that hides unmaps its window, the manager
+	 * takes that for a window going away, and the columns grow back into
+	 * the freed band.  Showing it again is an ordinary MapRequest.
+	 */
+	if (strut)
+		screen_update_struts(sc);
 
 	/* The column may have gone with it; close the gap it left. */
 	if (ribbon)
@@ -926,6 +970,78 @@ client_wm_type(struct client_ctx *cc)
 			cc->flags |= CLIENT_TYPE_DIALOG;
 	}
 	XFree(p);
+}
+
+/*
+ * Read what the window reserves at the screen edges.  _NET_WM_STRUT_PARTIAL is
+ * twelve numbers - four depths and the stretch of each edge they apply to -
+ * and is what every panel written this decade sets.  _NET_WM_STRUT is the
+ * older four-number form; it means the same depths across the whole edge, so
+ * it is read into the same fields with the spans opened wide.  The partial
+ * form wins when a window sets both, which panels commonly do.
+ *
+ * Anything shorter than the property claims to be is dropped whole rather than
+ * read in part: a truncated strut is not a smaller strut, it is a broken one.
+ */
+void
+client_wm_strut(struct client_ctx *cc)
+{
+	struct screen_ctx	*sc = cc->sc;
+	unsigned long		*p;
+	int			 n, sw, sh;
+
+	memset(&cc->strut, 0, sizeof(cc->strut));
+
+	sw = DisplayWidth(X_Dpy, sc->which);
+	sh = DisplayHeight(X_Dpy, sc->which);
+
+	if ((n = xu_get_prop(cc->win, ewmh[_NET_WM_STRUT_PARTIAL], XA_CARDINAL,
+	    12L, (unsigned char **)&p)) == 12) {
+		cc->strut.left = (int)p[0];
+		cc->strut.right = (int)p[1];
+		cc->strut.top = (int)p[2];
+		cc->strut.bottom = (int)p[3];
+		cc->strut.left_start_y = (int)p[4];
+		cc->strut.left_end_y = (int)p[5];
+		cc->strut.right_start_y = (int)p[6];
+		cc->strut.right_end_y = (int)p[7];
+		cc->strut.top_start_x = (int)p[8];
+		cc->strut.top_end_x = (int)p[9];
+		cc->strut.bottom_start_x = (int)p[10];
+		cc->strut.bottom_end_x = (int)p[11];
+		XFree(p);
+		return;
+	}
+	if (n > 0)
+		XFree(p);
+
+	if ((n = xu_get_prop(cc->win, ewmh[_NET_WM_STRUT], XA_CARDINAL, 4L,
+	    (unsigned char **)&p)) == 4) {
+		cc->strut.left = (int)p[0];
+		cc->strut.right = (int)p[1];
+		cc->strut.top = (int)p[2];
+		cc->strut.bottom = (int)p[3];
+		cc->strut.left_start_y = 0;
+		cc->strut.left_end_y = sh - 1;
+		cc->strut.right_start_y = 0;
+		cc->strut.right_end_y = sh - 1;
+		cc->strut.top_start_x = 0;
+		cc->strut.top_end_x = sw - 1;
+		cc->strut.bottom_start_x = 0;
+		cc->strut.bottom_end_x = sw - 1;
+		XFree(p);
+		return;
+	}
+	if (n > 0)
+		XFree(p);
+}
+
+/* Does this window reserve anything at all? */
+int
+client_has_strut(struct client_ctx *cc)
+{
+	return ((cc->strut.left > 0) || (cc->strut.right > 0) ||
+	    (cc->strut.top > 0) || (cc->strut.bottom > 0));
 }
 
 void
