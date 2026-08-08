@@ -49,7 +49,7 @@ const int = (value) => {
 const cdiv = (a, b) => Math.trunc(a / b)
 
 /**
- * Семь утилит.  `probe` - имена аргументов `layout-probe`, они же ключи
+ * Девять утилит.  `probe` - имена аргументов `layout-probe`, они же ключи
  * вектора; `fields` - каноническая последовательность полей модели.
  */
 export const UTILITIES = [
@@ -216,6 +216,58 @@ export const UTILITIES = [
 			["ribbon-length", "длина ленты", (v) => int(v["ribbon-length"])],
 			/* длина ленты минус ширина вьюпорта */
 			["scroll-limit", "предел прокрутки", (v) => v["ribbon-length"] - v["viewport-width"]],
+		],
+	},
+	{
+		/*
+		 * Полоса под панель, решение первое: касается ли заявка чужой
+		 * программы этого монитора вообще.  Ответ - 0 или 1.
+		 *
+		 * `overlap-tail` считается с -1 не по описке: последняя точка
+		 * области - это «край плюс длина минус одна», и заявка,
+		 * кончающаяся ровно на ней, область всё ещё задевает.
+		 */
+		name: "strut-span",
+		ru: "Достаёт ли полоса до области",
+		probe: ["span-start", "span-end", "region-start", "region-length"],
+		truncate: false,
+		fields: [
+			["span-start", "начало заявки", (v) => int(v["span-start"])],
+			["span-end", "конец заявки", (v) => int(v["span-end"])],
+			["region-start", "левый край области", (v) => int(v["region-start"])],
+			["region-length", "длина области", (v) => int(v["region-length"])],
+			/* конец заявки минус её начало */
+			["span-length", "длина заявки", (v) => v["span-end"] - v["span-start"]],
+			/* конец заявки минус левый край области */
+			["overlap-head", "перекрытие слева", (v) => v["span-end"] - v["region-start"]],
+			/* правый край области минус начало заявки */
+			["overlap-tail", "перекрытие справа", (v) =>
+				v["region-start"] + v["region-length"] - 1 - v["span-start"]],
+		],
+	},
+	{
+		/*
+		 * Полоса под панель, решение второе: на сколько точек она
+		 * укорачивает область.  Край области сюда приходит уже сдвинутым
+		 * на зазор, поэтому панель, помещающаяся в отданный зазор, не
+		 * стоит ничего сверх него - разность `near-take` уходит в минус
+		 * сама, без единого условия здесь.
+		 */
+		name: "strut-reserve",
+		ru: "Сколько полоса отнимает у области",
+		probe: ["strut", "screen-size", "region-start", "region-length", "far-edge"],
+		truncate: false,
+		fields: [
+			["strut", "полоса", (v) => int(v.strut)],
+			["screen-size", "размер экрана", (v) => int(v["screen-size"])],
+			["region-start", "край области", (v) => int(v["region-start"])],
+			["region-length", "длина области", (v) => int(v["region-length"])],
+			["far-edge", "дальний край", (v) => bool(v["far-edge"])],
+			/* полоса минус край области */
+			["near-take", "заход у ближнего края", (v) => v.strut - v["region-start"]],
+			/* дальний край области минус начало полосы у дальнего края */
+			["far-take", "заход у дальнего края", (v) =>
+				v["region-start"] + v["region-length"] - v["screen-size"] + v.strut],
 		],
 	},
 ]

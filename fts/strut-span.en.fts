@@ -1,0 +1,174 @@
+// Does the strip a panel claims reach this region of the screen at all.
+//
+// The panel is somebody else's program.  It sets `_NET_WM_STRUT_PARTIAL` and
+// thereby says two things: how deep a strip it takes off a screen edge, and
+// on which SEGMENT of that edge it takes it.  The segment is the claim: from
+// its start to its end, both ends inside the claim.  The region is whatever
+// the strip may be taken from: the work area of one monitor along the same
+// edge.
+//
+// The model answers one question: do these two segments meet.  The answer is
+// 0 or 1, and it decides whether a panel on the left monitor shortens the
+// right one.  It does not - that whole sentence is what is written here.
+//
+// Why this is a decision of its own rather than a line inside the
+// subtraction: the claim arrives from somebody else's program and may be
+// anything, including inside out and about a segment the screen does not
+// have.  Sorting that out inside the arithmetic would mix "did it reach" with
+// "how much did it take", and a mistake in the first would quietly become a
+// number in the second.
+//
+// Ends meeting at one point count as meeting: a claim that ends exactly where
+// the region begins shares that one pixel column with it.  Hence the -1 in
+// the difference: the far end of the region is "start plus length minus one",
+// the last point inside rather than the first outside.
+//
+// The caller computes the differences and passes them as fields, because an
+// FTS condition compares one field with a constant or with a percent of one
+// field:
+//
+//   span-length     span end - span start
+//   overlap-head    span end - region start
+//   overlap-tail    far end of the region - span start
+//
+// The segments meet exactly when both differences are non-negative and both
+// lengths are non-negative.  None of the conditions is spare: the first
+// rejects an inside-out claim, the second an empty region, the third and the
+// fourth a claim that missed the region on one side or the other.
+
+
+category "Ribbon layout"
+
+  object "Strut claim"
+    span-start is number
+    span-end is number
+    region-start is number
+    region-length is number
+    span-length is number
+    overlap-head is number
+    overlap-tail is number
+
+  utility strut-span
+    accepts "Strut claim"
+    returns number
+    starts with 0
+
+    // The conditions do not overlap, so the order of the rules decides
+    // nothing here.  There are five cases and every one of them is named out
+    // loud: a silent default zero cannot be told apart from a zero somebody
+    // decided on.
+
+    rule "The claim is inside out"
+      if span-length is less than 0
+      then result equals 0
+
+    rule "The region is empty: nothing to take from"
+      if span-length is at least 0
+      and region-length is at most 0
+      then result equals 0
+
+    rule "The claim ends before the region starts"
+      if span-length is at least 0
+      and region-length is greater than 0
+      and overlap-head is less than 0
+      then result equals 0
+
+    rule "The claim starts after the region ends"
+      if span-length is at least 0
+      and region-length is greater than 0
+      and overlap-head is at least 0
+      and overlap-tail is less than 0
+      then result equals 0
+
+    rule "The segments meet"
+      if span-length is at least 0
+      and region-length is greater than 0
+      and overlap-head is at least 0
+      and overlap-tail is at least 0
+      then result equals 1
+
+    property "The answer is not negative"
+      result is at least 0
+
+    property "The answer is at most one"
+      result is at most 1
+
+    example "A panel across the whole top edge of the only monitor"
+      given span-start equals 0
+      given span-end equals 1279
+      given region-start equals 0
+      given region-length equals 1280
+      given span-length equals 1279
+      given overlap-head equals 1279
+      given overlap-tail equals 1279
+      expected result equals 1
+
+    example "A panel on the left monitor does not shorten the right one"
+      given span-start equals 0
+      given span-end equals 1279
+      given region-start equals 1280
+      given region-length equals 1280
+      given span-length equals 1279
+      given overlap-head equals -1
+      given overlap-tail equals 2559
+      expected result equals 0
+
+    example "Ends meeting at one point are a meeting"
+      given span-start equals 0
+      given span-end equals 1280
+      given region-start equals 1280
+      given region-length equals 1280
+      given span-length equals 1280
+      given overlap-head equals 0
+      given overlap-tail equals 2559
+      expected result equals 1
+
+    example "The claim starts after the region ends"
+      given span-start equals 1280
+      given span-end equals 2559
+      given region-start equals 0
+      given region-length equals 1280
+      given span-length equals 1279
+      given overlap-head equals 2559
+      given overlap-tail equals -1
+      expected result equals 0
+
+    example "The claim lies wholly inside the region"
+      given span-start equals 400
+      given span-end equals 800
+      given region-start equals 0
+      given region-length equals 1280
+      given span-length equals 400
+      given overlap-head equals 800
+      given overlap-tail equals 879
+      expected result equals 1
+
+    example "A region of zero length"
+      given span-start equals 0
+      given span-end equals 1279
+      given region-start equals 0
+      given region-length equals 0
+      given span-length equals 1279
+      given overlap-head equals 1279
+      given overlap-tail equals -1
+      expected result equals 0
+
+    example "An inside-out claim from somebody else's program"
+      given span-start equals 100
+      given span-end equals 50
+      given region-start equals 0
+      given region-length equals 1280
+      given span-length equals -50
+      given overlap-head equals 50
+      given overlap-tail equals 1179
+      expected result equals 0
+
+    example "A claim across three monitors covers the middle one"
+      given span-start equals 0
+      given span-end equals 3839
+      given region-start equals 1280
+      given region-length equals 1280
+      given span-length equals 3839
+      given overlap-head equals 2559
+      given overlap-tail equals 2559
+      expected result equals 1
