@@ -47,7 +47,7 @@ directory and should not need root at all.
 | FreeBSD | `pkg` | `libX11 libXft libXrandr bison pkgconf` |
 | NetBSD | `pkgin` | `bison pkgconf` — X11 is in the base system |
 | OpenBSD | — | nothing: X11 and yacc are in the base system |
-| macOS | — | refused, with a reason: there is nothing for an X11 window manager to manage |
+| macOS | — | refused, with a reason: there is nothing for an X11 window manager to manage. What a native build would cost is measured in [portability.md](portability.md) |
 
 `--no-session` stops after the window manager; `--no-packages` never touches the
 package manager; anything else is passed to `session/install.sh` untouched
