@@ -124,6 +124,18 @@ shorten the right one. Two panels on one edge do not stack: the deeper one
 wins. The strut is taken after the configured `gap`, so a panel that fits
 inside a gap you have already given away costs nothing more.
 
+Both decisions - "does it reach" and "how much does it take" - are the pure
+functions `ribbon_policy_span()` and `ribbon_policy_reserve()`, and each has an
+FTS model of its own: [`fts/strut-span.fts`](../fts/strut-span.fts) and
+[`fts/strut-reserve.fts`](../fts/strut-reserve.fts) on both surfaces, 38
+vectors checked against the live binary through `layout-probe`. **For a day and
+a half they were missing**, and that is worth saying plainly: commit `585bf4d`
+put both functions straight into C, bypassing `fts/`, which put the numbers of
+the strip back where the project had walked away from - into code, where they
+change silently. Among the rules of those models are both of the non-obvious
+decisions: ends meeting at one point count as meeting, and a strip deeper than
+the region leaves it empty rather than negative.
+
 ## What "collapsible" means in the ribbon model
 
 The ribbon has one axis: the viewport travels sideways. A panel takes height,

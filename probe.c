@@ -32,7 +32,7 @@
  * X server to spare, and a probe that needed a running window manager to
  * answer a question about arithmetic would be answering a different question.
  *
- * Seven utilities carry the names of the FTS models, in either surface:
+ * Nine utilities carry the names of the FTS models, in either surface:
  *
  *   scroll-offset       "Смещение ленты после фокуса"
  *   stack-offset        "Смещение полотна после фокуса"
@@ -41,6 +41,8 @@
  *   insertion           "Куда вставить окно"
  *   focus-after-close   "Фокус после закрытия"
  *   output-change       "Смещение после смены монитора"
+ *   strut-span          "Достаёт ли полоса до области"
+ *   strut-reserve       "Сколько полоса отнимает у области"
  *
  * and "layout" answers with the geometry of every window of a whole
  * scenario.  Field names are English kebab-case on both surfaces, because
@@ -129,6 +131,8 @@ static const struct {
 	{ "insertion",		"Куда вставить окно" },
 	{ "focus-after-close",	"Фокус после закрытия" },
 	{ "output-change",	"Смещение после смены монитора" },
+	{ "strut-span",		"Достаёт ли полоса до области" },
+	{ "strut-reserve",	"Сколько полоса отнимает у области" },
 	{ "layout",		"Раскладка" },
 	{ "outputs",		"Мониторы" },
 };
@@ -390,8 +394,8 @@ probe_dim(struct probe_ctx *p, const char *key, int *w, int *h)
 }
 
 /*
- * The six scalar utilities plus output-change.  Each one is a single call
- * into the same ribbon_policy_* function the window manager uses.
+ * The nine scalar utilities.  Each one is a single call into the same
+ * ribbon_policy_* function the window manager uses.
  */
 static int
 probe_scalar(struct probe_ctx *p, const char *util)
@@ -446,6 +450,19 @@ probe_scalar(struct probe_ctx *p, const char *util)
 		    probe_req(p, "viewport-width"),
 		    probe_req(p, "offset"),
 		    probe_req(p, "ribbon-length"));
+	} else if (strcmp(util, "strut-span") == 0) {
+		v = ribbon_policy_span(
+		    probe_req(p, "span-start"),
+		    probe_req(p, "span-end"),
+		    probe_req(p, "region-start"),
+		    probe_req(p, "region-length"));
+	} else if (strcmp(util, "strut-reserve") == 0) {
+		v = ribbon_policy_reserve(
+		    probe_req(p, "strut"),
+		    probe_req(p, "screen-size"),
+		    probe_req(p, "region-start"),
+		    probe_req(p, "region-length"),
+		    probe_req(p, "far-edge"));
 	} else {
 		probe_error(p, "unknown utility \"%s\"", util);
 	}

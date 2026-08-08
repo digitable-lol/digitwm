@@ -1,0 +1,20 @@
+[
+	{ "name": "панель во весь верхний край единственного монитора", "span-start": 0, "span-end": 1279, "region-start": 0, "region-length": 1280 },
+	{ "name": "панель левого монитора против области правого", "span-start": 0, "span-end": 1279, "region-start": 1280, "region-length": 1280 },
+	{ "name": "концы сошлись в одной точке", "span-start": 0, "span-end": 1280, "region-start": 1280, "region-length": 1280 },
+	{ "name": "заявка начинается правее области", "span-start": 1280, "span-end": 2559, "region-start": 0, "region-length": 1280 },
+	{ "name": "заявка целиком внутри области", "span-start": 400, "span-end": 800, "region-start": 0, "region-length": 1280 },
+	{ "name": "область нулевой длины", "span-start": 0, "span-end": 1279, "region-start": 0, "region-length": 0 },
+	{ "name": "область отрицательной длины", "span-start": 0, "span-end": 1279, "region-start": 0, "region-length": -5 },
+	{ "name": "вывернутая заявка мимо области", "span-start": 100, "span-end": 50, "region-start": 0, "region-length": 1280 },
+	{ "name": "вывернутая заявка поверх области", "span-start": 800, "span-end": 400, "region-start": 0, "region-length": 1280 },
+	{ "name": "заявка через три монитора накрывает средний", "span-start": 0, "span-end": 3839, "region-start": 1280, "region-length": 1280 },
+	{ "name": "заявка в одну точку внутри области", "span-start": 640, "span-end": 640, "region-start": 0, "region-length": 1280 },
+	{ "name": "заявка в одну точку на последней точке области", "span-start": 1279, "span-end": 1279, "region-start": 0, "region-length": 1280 },
+	{ "name": "заявка в одну точку сразу за областью", "span-start": 1280, "span-end": 1280, "region-start": 0, "region-length": 1280 },
+	{ "name": "заявка в одну точку на первой точке области", "span-start": 0, "span-end": 0, "region-start": 0, "region-length": 1280 },
+	{ "name": "заявка кончается за точку до области", "span-start": 1279, "span-end": 1279, "region-start": 1280, "region-length": 1280 },
+	{ "name": "область в одну точку под широкой заявкой", "span-start": 0, "span-end": 1279, "region-start": 640, "region-length": 1 },
+	{ "name": "область в одну точку мимо заявки", "span-start": 0, "span-end": 100, "region-start": 640, "region-length": 1 },
+	{ "name": "заявка на левом краю трёхмониторной ленты", "span-start": 0, "span-end": 1279, "region-start": 2560, "region-length": 1280 }
+]

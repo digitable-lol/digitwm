@@ -116,6 +116,28 @@ const MUTATIONS = [
 		],
 	},
 	{
+		/*
+		 * Концы, сошедшиеся в одной точке, перестают считаться
+		 * пересечением.  Мутация выбрана на границе намеренно: именно её
+		 * легче всего написать в C случайно, и именно от неё панель на
+		 * стыке двух мониторов начала бы укорачивать соседний.
+		 */
+		title: "заявка, кончающаяся на последней точке области, её больше не задевает",
+		utility: "strut-span",
+		edits: [
+			["strut-span.fts", "и «перекрытие справа» не меньше 0\n      то результат равен 1", "и «перекрытие справа» больше 0\n      то результат равен 1"],
+			["strut-span.en.fts", "and overlap-tail is at least 0\n      then result equals 1", "and overlap-tail is greater than 0\n      then result equals 1"],
+		],
+	},
+	{
+		title: "полоса глубже области отдаёт девять десятых вместо всей",
+		utility: "strut-reserve",
+		edits: [
+			["strut-reserve.fts", "и «заход у ближнего края» больше 100 процентов от поля «длина области»\n      то результат равен 100 процентов от поля «длина области»", "и «заход у ближнего края» больше 100 процентов от поля «длина области»\n      то результат равен 90 процентов от поля «длина области»"],
+			["strut-reserve.en.fts", "and near-take is greater than 100 percent of field region-length\n      then result equals 100 percent of field region-length", "and near-take is greater than 100 percent of field region-length\n      then result equals 90 percent of field region-length"],
+		],
+	},
+	{
 		title: "правку внесли только в английскую поверхность",
 		utility: "window-height",
 		surfacesOnly: true,

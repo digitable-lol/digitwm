@@ -2,10 +2,12 @@
 
 **Русская версия: [README.ru.md](README.ru.md).**
 
-Seven scalar decisions drive the ribbon — how far it scrolls along the row and
+Nine scalar decisions drive the ribbon — how far it scrolls along the row and
 down the canvas after a focus change, how wide a column is, how tall a window in it is, where a new window
 goes, what takes focus when a window closes, what happens to the offset when
-the monitor changes size. Each is an [FTS](https://github.com/digitable-lol/fts)
+the monitor changes size, whether the strip a panel claims reaches this
+monitor at all and how much it takes off it. Each is an
+[FTS](https://github.com/digitable-lol/fts)
 model here, on both surfaces, with checked properties and worked examples on
 the boundaries.
 
@@ -18,6 +20,17 @@ the boundaries.
 | `insertion` | `ribbon_policy_insert` | `insertion`, `«Куда вставить окно»` |
 | `focus-after-close` | `ribbon_policy_close` | `focus-after-close`, `«Фокус после закрытия»` |
 | `output-change` | `ribbon_policy_output` | `output-change`, `«Смещение после смены монитора»` |
+| `strut-span` | `ribbon_policy_span` | `strut-span`, `«Достаёт ли полоса до области»` |
+| `strut-reserve` | `ribbon_policy_reserve` | `strut-reserve`, `«Сколько полоса отнимает у области»` |
+
+The last two rows arrived later than the rest, and how is worth saying out
+loud. `ribbon_policy_span` and `ribbon_policy_reserve` came in with commit
+`585bf4d` straight into C, bypassing `fts/`, and for a day and a half the
+numbers of the panel strip lived in the code alone: the promise "the numbers of
+the ribbon are not buried in C" had a silent exception of two functions. Only
+reading could catch that, so the correspondence is now guarded by a check — the
+`ribbon_policy_*` names of `ribbon.c` are matched against the file names of the
+models, and a tenth policy without a model goes red by itself.
 
 `name.fts` is the Russian surface and `name.en.fts` the English one. They are
 not translations of each other: one parser, one canonical document, and CI

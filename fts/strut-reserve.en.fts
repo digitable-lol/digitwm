@@ -1,0 +1,181 @@
+// How many pixels the strip a panel claims takes off this region.
+//
+// The second half of the panel decision.  The first - "strut-span" - answers
+// whether the claim touches this monitor at all; this one answers by how much
+// its work area shrinks after that.
+//
+// The strip is measured from the screen edge inwards: the panel says "my 28
+// pixels off the top", not "I stand from 0 to 27".  The region, in turn, is
+// given by its own edge and length, and that edge has ALREADY been moved by
+// the configured `ribbongap`.  Hence the property this model exists for: a
+// panel that fits inside a gap you have already given away costs NOTHING on
+// top of it.  `gap 40 0 0 0` plus a panel 28 tall is 40 taken, not 68.  The
+// same pixels are never taken twice.
+//
+// The far edge - bottom or right - is mirror arithmetic, and the far-edge
+// flag switches exactly that.  There is nothing to fold the two edges into
+// one formula with: at the near edge the strip grows from zero inwards, at
+// the far one from the screen size backwards.
+//
+// The caller computes the differences and passes them as fields, because an
+// FTS condition compares one field with a constant or with a percent of one
+// field:
+//
+//   near-take   strut - region start
+//   far-take    region start + region length - screen size + strut
+//
+// Two clamps, below and above: less than nothing cannot be taken (a strip the
+// region does not reach does not hand pixels back to it), and more than the
+// whole region cannot be taken - a strip deeper than the region leaves it
+// empty rather than negative.
+//
+// The measured case to check against: a monitor 800 pixels tall, gap 8,
+// columns 798 tall; polybar claims 28 off the top and the columns become 770.
+// That is the line "strut 28, screen 800, region start 0, region length 798"
+// of the first example.
+
+
+category "Ribbon layout"
+
+  object "Reserved strip"
+    strut is number
+    screen-size is number
+    region-start is number
+    region-length is number
+    far-edge is boolean
+    near-take is number
+    far-take is number
+
+  utility strut-reserve
+    accepts "Reserved strip"
+    returns number
+    starts with 0
+
+    // The order decides everything here: every rule whose condition holds
+    // runs, and the last "then result equals" overwrites the ones before it.
+    // First how far the strip reaches in, then the two clamps - exactly the
+    // way the C reads top to bottom.
+
+    rule "No panel: the strip is zero or negative"
+      if strut is at most 0
+      then result equals 0
+
+    rule "Near edge: the strip reaches into the region from above"
+      if strut is greater than 0
+      and far-edge equals false
+      then result equals 100 percent of field near-take
+
+    rule "Far edge: the strip reaches into the region from below"
+      if strut is greater than 0
+      and far-edge equals true
+      then result equals 100 percent of field far-take
+
+    rule "At the near edge the region starts below the strip"
+      if strut is greater than 0
+      and far-edge equals false
+      and near-take is less than 0
+      then result equals 0
+
+    rule "At the far edge the region ends above the strip"
+      if strut is greater than 0
+      and far-edge equals true
+      and far-take is less than 0
+      then result equals 0
+
+    rule "At the near edge the strip is deeper than the whole region"
+      if strut is greater than 0
+      and far-edge equals false
+      and near-take is greater than 100 percent of field region-length
+      then result equals 100 percent of field region-length
+
+    rule "At the far edge the strip is deeper than the whole region"
+      if strut is greater than 0
+      and far-edge equals true
+      and far-take is greater than 100 percent of field region-length
+      then result equals 100 percent of field region-length
+
+    property "Nothing less than zero is taken"
+      result is at least 0
+
+    property "No more than the whole region is taken"
+      result is at most 100 percent of field region-length
+
+    example "polybar 28 pixels off the top: 798 becomes 770"
+      given strut equals 28
+      given screen-size equals 800
+      given region-start equals 0
+      given region-length equals 798
+      given far-edge equals false
+      given near-take equals 28
+      given far-take equals 26
+      expected result equals 28
+
+    example "A panel that fits the gap already given away costs nothing"
+      given strut equals 28
+      given screen-size equals 800
+      given region-start equals 40
+      given region-length equals 760
+      given far-edge equals false
+      given near-take equals -12
+      given far-take equals 28
+      expected result equals 0
+
+    example "A strip deeper than the whole region leaves it empty"
+      given strut equals 900
+      given screen-size equals 800
+      given region-start equals 0
+      given region-length equals 798
+      given far-edge equals false
+      given near-take equals 900
+      given far-take equals 898
+      expected result equals 798
+
+    example "A panel along the bottom edge"
+      given strut equals 28
+      given screen-size equals 800
+      given region-start equals 0
+      given region-length equals 798
+      given far-edge equals true
+      given near-take equals 28
+      given far-take equals 26
+      expected result equals 26
+
+    example "A panel at the bottom fits the gap at the bottom"
+      given strut equals 28
+      given screen-size equals 800
+      given region-start equals 0
+      given region-length equals 760
+      given far-edge equals true
+      given near-take equals 28
+      given far-take equals -12
+      expected result equals 0
+
+    example "No panel at all"
+      given strut equals 0
+      given screen-size equals 800
+      given region-start equals 0
+      given region-length equals 798
+      given far-edge equals false
+      given near-take equals 0
+      given far-take equals -2
+      expected result equals 0
+
+    example "The region starts exactly under the strip"
+      given strut equals 28
+      given screen-size equals 800
+      given region-start equals 28
+      given region-length equals 770
+      given far-edge equals false
+      given near-take equals 0
+      given far-take equals 26
+      expected result equals 0
+
+    example "A strip at the bottom deeper than the whole region"
+      given strut equals 900
+      given screen-size equals 800
+      given region-start equals 0
+      given region-length equals 798
+      given far-edge equals true
+      given near-take equals 900
+      given far-take equals 898
+      expected result equals 798
