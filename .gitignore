@@ -8,3 +8,5 @@
 parse.c
 *.o
 cwm
+
+tools/__pycache__/
