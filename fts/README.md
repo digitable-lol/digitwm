@@ -2,8 +2,8 @@
 
 **Русская версия: [README.ru.md](README.ru.md).**
 
-Six scalar decisions drive the ribbon — how far it scrolls after a focus
-change, how wide a column is, how tall a window in it is, where a new window
+Seven scalar decisions drive the ribbon — how far it scrolls along the row and
+down the canvas after a focus change, how wide a column is, how tall a window in it is, where a new window
 goes, what takes focus when a window closes, what happens to the offset when
 the monitor changes size. Each is an [FTS](https://github.com/digitable-lol/fts)
 model here, on both surfaces, with checked properties and worked examples on
@@ -12,6 +12,7 @@ the boundaries.
 | Model | C function | `layout-probe` utility |
 |---|---|---|
 | `scroll-offset` | `ribbon_policy_offset` | `scroll-offset`, `«Смещение ленты после фокуса»` |
+| `stack-offset` | `ribbon_policy_voffset` | `stack-offset`, `«Смещение полотна после фокуса»` |
 | `column-width` | `ribbon_policy_width` | `column-width`, `«Ширина колонки по пресету»` |
 | `window-height` | `ribbon_policy_height` | `window-height`, `«Высота окна в колонке»` |
 | `insertion` | `ribbon_policy_insert` | `insertion`, `«Куда вставить окно»` |
@@ -57,16 +58,19 @@ harness to notice. A green harness that cannot go red proves nothing.
 
 `invariants.mjs` answers a different question. The two promises the ribbon is
 built on — *opening a window alters no window already on the ribbon*, and *the
-focused column always lies wholly inside the viewport horizontally* — are statements about
+focused column always lies wholly inside the viewport horizontally, and the
+focused window of it vertically* — are statements about
 the relation between two states of the ribbon, and no scalar model can hold
 one. The probe therefore runs `ribbon_insert()`, the call the MapRequest
 handler makes, and prints the state before and after it; the harness compares
 the two over 320 generated ribbons (612 insertions, 5 771 windows in the
-resulting states). Its `--selfcheck` breaks four things in an answer the window
+resulting states). Its `--selfcheck` breaks seven things in an answer the window
 manager actually gave — a preset changed under an existing column, a window
 made one pixel shorter, the viewport scrolled off the focused column, a column
-moved off the grid — and requires each to be reported by the check it was aimed
-at, not by a neighbouring one.
+moved off the grid, the canvas scrolled past the focused window, the canvas
+lower than its tallest column, a column lying about the height of its stack —
+and requires each to be reported by the check it was aimed at, not by a
+neighbouring one.
 
 The border of the first promise is drawn there rather than smoothed over. It
 holds in full for a **new column**: neighbours are pushed along the ribbon, all

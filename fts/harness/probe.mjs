@@ -101,7 +101,7 @@ export function probeOutputs(wm, args) {
 				stages.push(current)
 				break
 			case "ribbon":
-				/* ribbon NAME active A view x y w h length L offset O columns N focus F */
+				/* ribbon NAME active A view x y w h length L offset O columns N focus F canvas C voffset V */
 				current.ribbons.set(parts[1], {
 					name: parts[1],
 					active: Number(parts[3]),
@@ -110,18 +110,21 @@ export function probeOutputs(wm, args) {
 					offset: Number(parts[12]),
 					columnCount: Number(parts[14]),
 					focus: Number(parts[16]),
+					canvas: Number(parts[18]),
+					voffset: Number(parts[20]),
 					columns: [],
 					windows: [],
 				})
 				break
 			case "column":
-				/* column NAME I ribbon-x X width W preset P windows N */
+				/* column NAME I ribbon-x X width W preset P windows N height H */
 				current.ribbons.get(parts[1]).columns.push({
 					index: Number(parts[2]),
 					x: Number(parts[4]),
 					width: Number(parts[6]),
 					preset: Number(parts[8]),
 					windows: Number(parts[10]),
+					height: Number(parts[12]),
 				})
 				break
 			case "window":
@@ -158,20 +161,23 @@ function parseLayout(stdout) {
 				layout.border = Number(parts[1])
 				break
 			case "ribbon":
-				/* ribbon length L offset O columns N focus F */
+				/* ribbon length L offset O columns N focus F canvas C voffset V */
 				layout.length = Number(parts[2])
 				layout.offset = Number(parts[4])
 				layout.columnCount = Number(parts[6])
 				layout.focus = Number(parts[8])
+				layout.canvas = Number(parts[10])
+				layout.voffset = Number(parts[12])
 				break
 			case "column":
-				/* column I ribbon-x X width W preset P windows N */
+				/* column I ribbon-x X width W preset P windows N height H */
 				layout.columns.push({
 					index: Number(parts[1]),
 					x: Number(parts[3]),
 					width: Number(parts[5]),
 					preset: Number(parts[7]),
 					windows: Number(parts[9]),
+					height: Number(parts[11]),
 				})
 				break
 			case "window":

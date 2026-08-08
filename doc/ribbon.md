@@ -2,9 +2,10 @@
 
 **Русская версия: [ribbon.ru.md](ribbon.ru.md).**
 
-Windows live on an endless horizontal row of **columns**. The screen is a
-**viewport** onto that row; moving focus moves the viewport, and the row keeps
-its shape. A column holds a **stack** of one or more windows, split vertically.
+Windows live on an endless horizontal row of **columns**. A column holds a
+**stack** of one or more windows, split vertically. Row and stacks together are
+the **canvas**; the screen is a **viewport** onto it and slides over both of its
+axes. Moving focus moves the viewport, and the canvas keeps its shape.
 
 That is the whole model. Everything below is what follows from it.
 
@@ -12,7 +13,8 @@ That is the whole model. Everything below is what follows from it.
 
 ```
 opening a window alters the geometry of no window already on the ribbon
-the focused column always lies wholly inside the viewport horizontally
+the focused column always lies wholly inside the viewport horizontally,
+and the focused window of it vertically
 ```
 
 The first is the reason the ribbon exists. A tiling layout that splits the
@@ -26,10 +28,22 @@ into the stack of an existing column *does* recompute the heights inside that
 one column — there is nowhere else for it to go. Nothing outside that column
 moves.
 
-The second promise is what makes the first bearable: the ribbon is longer than
-the screen, so the viewport is pulled along to keep the column you are working
-in fully visible, with a gap's width of the neighbour showing when there is
-room for it.
+The second promise is what makes the first bearable: the canvas is larger than
+the screen, so the viewport is pulled along to keep what you are working in
+fully visible, with a gap's width of the neighbour showing when there is room
+for it.
+
+The unit differs per axis, and not by carelessness. Across, the viewport follows
+the **column**: a column is bounded by its own width. Down, it follows the
+**focused window**, because a stack can be taller than any screen and a promise
+about the whole of it would be a lie: at 1280x800, gap 8, minimum height 60,
+eleven windows fit, twelve make a canvas 811 tall, twenty make one 1352 tall.
+Whatever did not fit is reached by scrolling: `ribbon-focus-down` takes the
+canvas to exactly 11 and 552 respectively. Before the second axis those pixels
+were windows nothing could reach.
+
+What is larger than the viewport shows its beginning: a column wider than the
+screen its left edge, a window taller than the screen its top.
 
 Both are checked against the running binary, not asserted in a comment:
 
@@ -39,11 +53,12 @@ node fts/harness/invariants.mjs --wm ./cwm
 
 ## The numbers are a specification
 
-Six decisions drive the layout, and none of them is buried in C:
+Seven decisions drive the layout, and none of them is buried in C:
 
 | Decision | C function | FTS model |
 |---|---|---|
-| how far the viewport scrolls after a focus change | `ribbon_policy_offset` | [`fts/scroll-offset.fts`](../fts/scroll-offset.fts) |
+| how far the viewport scrolls along the ribbon after a focus change | `ribbon_policy_offset` | [`fts/scroll-offset.fts`](../fts/scroll-offset.fts) |
+| how far it scrolls down the canvas after a focus change | `ribbon_policy_voffset` | [`fts/stack-offset.fts`](../fts/stack-offset.fts) |
 | how wide a column is | `ribbon_policy_width` | [`fts/column-width.fts`](../fts/column-width.fts) |
 | how tall window *n* of *m* in a column is | `ribbon_policy_height` | [`fts/window-height.fts`](../fts/window-height.fts) |
 | where a new window goes | `ribbon_policy_insert` | [`fts/insertion.fts`](../fts/insertion.fts) |
@@ -71,14 +86,14 @@ loop substitutes are policy, and policy belongs where it can be read and tested.
 |---|---|---|
 | `ribbon-focus-left` | `4-h` | focus the column to the left |
 | `ribbon-focus-right` | `4-l` | focus the column to the right |
-| `ribbon-focus-up` | `4-k` | focus the window above in the stack |
-| `ribbon-focus-down` | `4-j` | focus the window below in the stack |
+| `ribbon-focus-up` | `4-k` | focus the window above in the stack; the canvas follows |
+| `ribbon-focus-down` | `4-j` | focus the window below in the stack; the canvas follows |
 | `ribbon-move-left` | `4S-h` | carry the window one column left, making a column at the edge |
 | `ribbon-move-right` | `4S-l` | carry the window one column right |
 | `ribbon-width-cycle` | `4-r` | step the column through the width presets |
 | `ribbon-width-grow` | `4-equal` | next preset up |
 | `ribbon-width-shrink` | `4-minus` | next preset down |
-| `ribbon-center` | `4-c` | centre the focused column in the viewport |
+| `ribbon-center` | `4-c` | put the focus in the middle of the viewport, both axes |
 | `ribbon-float-toggle` | — | take the window off the ribbon, or put a floating one on it |
 
 `Mod4` is free in upstream cwm, so nothing inherited was rebound. Every other

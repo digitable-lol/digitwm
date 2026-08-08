@@ -21,13 +21,16 @@
 /*
  * Конформанс-харнесс отвечает на вопрос «то же ли число, что в модели».  Этот
  * отвечает на другой - тот, ради которого digitwm вообще написан, и который
- * ни одна из шести моделей не выражает, потому что он говорит не об одном
+ * ни одна из семи моделей не выражает, потому что он говорит не об одном
  * числе, а об отношении двух состояний ленты:
  *
  *   1. открытие окна не меняет геометрию ни одного окна, уже стоящего на
  *      ленте.  Соседей сдвигают вдоль ленты, но не сжимают;
- *   2. колонка с фокусом всегда целиком во вьюпорте по горизонтали; ниже
- *      кромки стопка выходить может - вертикального скролла нет.
+ *   2. колонка с фокусом всегда целиком во вьюпорте по горизонтали, а окно с
+ *      фокусом - по вертикали.  Единица разная не по недосмотру: колонку
+ *      ограничивает её ширина, а стопка бывает выше любого вьюпорта, и
+ *      обещание про неё целиком было бы невыполнимым.  Что больше вьюпорта,
+ *      то показывается своим началом: левым краем поперёк, верхним вниз.
  *
  * Оба обещания сняты не с модели, а с двоичного файла: probe строит ленту из
  * настоящих структур, зовёт ribbon_insert() - ту же функцию, что зовёт
@@ -100,6 +103,14 @@ const MINIMA = [
 
 function corpus(seed, count) {
 	const next = random(seed)
+	/*
+	 * Вертикальное смещение берётся из отдельного потока, а не из общего.
+	 * Один лишний вызов next() сдвинул бы всю последовательность, и корпус
+	 * после появления второй оси стал бы другим - тогда про сценарии,
+	 * которыми лента проверялась до сих пор, нельзя было бы сказать, что они
+	 * всё ещё зелёные.  Так - те же 320, каждый со съехавшим полотном.
+	 */
+	const down = random(seed ^ 0x2d0a)
 	const pick = (list) => list[Math.floor(next() * list.length)]
 	const between = (low, high) => low + Math.floor(next() * (high - low + 1))
 	const scenarios = []
@@ -127,6 +138,8 @@ function corpus(seed, count) {
 			presets,
 			focus,
 			offset: next() < 0.3 ? between(0, 4000) : 0,
+			/* Устаревшее смещение бывает по обеим осям, и по вертикали тоже. */
+			voffset: down() < 0.3 ? Math.floor(down() * 2001) : 0,
 		})
 	}
 	return scenarios
@@ -145,6 +158,7 @@ function args(scenario, insert) {
 		`presets=${scenario.presets.join(",")}`,
 		`focus=${scenario.focus}`,
 		`offset=${scenario.offset}`,
+		`voffset=${scenario.voffset}`,
 	]
 	if (insert) list.push(`insert=${insert}`)
 	return list
@@ -169,13 +183,17 @@ function checkTiling(state, scenario, complaints) {
 	if (state.length !== length) complaints.push(`длина ленты ${state.length}, а колонки занимают ${length}`)
 }
 
-/* Колонка с фокусом целиком во вьюпорте по горизонтали - второе обещание ленты. */
+/*
+ * Второе обещание ленты, обе его половины: колонка с фокусом целиком во
+ * вьюпорте по горизонтали, окно с фокусом - по вертикали.
+ */
 function checkViewport(state, complaints) {
 	const [, , vw] = state.viewport
 	const limit = MAX(0, state.length - vw)
 	if (state.offset < 0 || state.offset > limit) {
 		complaints.push(`смещение ${state.offset} вне [0, ${limit}]`)
 	}
+	checkViewportDown(state, complaints)
 	if (state.focus < 0) return
 	const column = state.columns[state.focus]
 	if (column === undefined) {
@@ -197,6 +215,73 @@ function checkViewport(state, complaints) {
 	}
 	if (column.x + column.width > state.offset + vw) {
 		complaints.push(`правый край колонки ${state.focus} (${column.x + column.width}) правее вьюпорта (${state.offset + vw})`)
+	}
+}
+
+/*
+ * Вертикальная половина.  Ось следует не за стопкой, а за одним её окном - тем,
+ * которое держит фокус, - потому что стопка бывает выше вьюпорта, а окно
+ * помещается в него почти всегда.  Почти: окно выше вьюпорта показывает свой
+ * верхний край, ровно как колонка шире вьюпорта показывает левый.
+ *
+ * Окно с фокусом - последнее добавленное в колонку: столько и оставляет после
+ * себя ribbon_col_add(), и то же самое делает probe, когда его не просят об
+ * ином.
+ */
+function checkViewportDown(state, complaints) {
+	const vh = state.viewport[3]
+	const limit = MAX(0, state.canvas - vh)
+	if (state.voffset < 0 || state.voffset > limit) {
+		complaints.push(`смещение по вертикали ${state.voffset} вне [0, ${limit}]`)
+	}
+	if (state.focus < 0) return
+	const column = state.columns[state.focus]
+	if (column === undefined) return
+
+	const windows = state.windows.filter((window) => window.column === column.index)
+	const window = windows[windows.length - 1]
+	if (window === undefined) {
+		/* Пустой колонке нечего показывать, и полотну незачем съезжать. */
+		if (state.voffset !== 0) {
+			complaints.push(`колонка ${state.focus} пуста, а полотно съехало на ${state.voffset}`)
+		}
+		return
+	}
+
+	const [, top, , height] = window.ribbon
+	if (height >= vh) {
+		if (state.voffset !== top) {
+			complaints.push(`окно ${column.index}.${windows.length - 1} выше вьюпорта, но полотно стоит на ${state.voffset}, а не на ${top}`)
+		}
+		return
+	}
+	if (state.voffset > top) {
+		complaints.push(`верх окна ${column.index}.${windows.length - 1} (${top}) выше вьюпорта (${state.voffset})`)
+	}
+	if (top + height > state.voffset + vh) {
+		complaints.push(`низ окна ${column.index}.${windows.length - 1} (${top + height}) ниже вьюпорта (${state.voffset + vh})`)
+	}
+}
+
+/*
+ * Полотно ровно накрывает содержимое: высота колонки - это низ её стопки, а
+ * высота полотна - самая высокая из колонок.  Без этой проверки предел
+ * вертикальной прокрутки был бы взят на веру, а он и есть то, чем достают
+ * нижние окна.
+ */
+function checkCanvas(state, complaints) {
+	let tallest = 0
+	state.columns.forEach((column) => {
+		const windows = state.windows.filter((window) => window.column === column.index)
+		const last = windows[windows.length - 1]
+		const bottom = last === undefined ? 0 : last.ribbon[1] + last.ribbon[3]
+		if (column.height !== bottom) {
+			complaints.push(`высота колонки ${column.index} объявлена ${column.height}, а стопка дошла до ${bottom}`)
+		}
+		if (column.height > tallest) tallest = column.height
+	})
+	if (state.canvas !== tallest) {
+		complaints.push(`высота полотна ${state.canvas}, а самая высокая колонка ${tallest}`)
 	}
 }
 
@@ -251,14 +336,14 @@ function checkStackHeight(state, scenario, column, windows, y, complaints) {
 	}
 }
 
-/* Экранная геометрия - это геометрия ленты, сдвинутая на смещение. */
+/* Экранная геометрия - это геометрия полотна, сдвинутая на оба смещения. */
 function checkScreen(state, scenario, complaints) {
 	const [vx, vy] = state.viewport
 	state.windows.forEach((window) => {
 		const [rx, ry, rw, rh] = window.ribbon
 		const expected = [
 			vx + rx - state.offset,
-			vy + ry,
+			vy + ry - state.voffset,
 			MAX(1, rw - scenario.border * 2),
 			MAX(1, rh - scenario.border * 2),
 		]
@@ -272,6 +357,7 @@ function checkState(state, scenario, complaints) {
 	checkTiling(state, scenario, complaints)
 	checkViewport(state, complaints)
 	checkStacks(state, scenario, complaints)
+	checkCanvas(state, complaints)
 	checkScreen(state, scenario, complaints)
 }
 
@@ -429,6 +515,29 @@ function selfcheck(wm, scenario) {
 				states[1].columns[states[1].columns.length - 1].x += 3
 			},
 		],
+		[
+			"полотно съехало мимо окна с фокусом",
+			"выше вьюпорта",
+			(states) => {
+				const state = states[1]
+				const windows = state.windows.filter((window) => window.column === state.focus)
+				state.voffset = windows[windows.length - 1].ribbon[1] + 1
+			},
+		],
+		[
+			"полотно ниже своей самой высокой колонки",
+			"самая высокая колонка",
+			(states) => {
+				states[1].canvas += 1
+			},
+		],
+		[
+			"колонка соврала о высоте своей стопки",
+			"а стопка дошла до",
+			(states) => {
+				states[1].columns[0].height += 1
+			},
+		],
 	]
 
 	let missed = 0
@@ -502,7 +611,7 @@ function main() {
 		console.error("\nобещание ленты нарушено - сборка остановлена")
 		return 1
 	}
-	console.log("открытие окна не тронуло ни одного существующего; колонка с фокусом всегда во вьюпорте")
+	console.log("открытие окна не тронуло ни одного существующего; колонка с фокусом всегда во вьюпорте поперёк, окно с фокусом - вниз")
 	return 0
 }
 

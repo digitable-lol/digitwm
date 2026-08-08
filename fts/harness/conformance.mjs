@@ -211,11 +211,24 @@ function buildLayout(policy, surface, scenario) {
 	let [vw, vh] = scenario.viewport
 	const [vx, vy] = scenario["viewport-origin"] ?? [0, 0]
 	let offset = scenario.offset ?? 0
+	let voffset = scenario.voffset ?? 0
+
+	const height = (count, index) => call("window-height", {
+		"viewport-height": vh,
+		"window-count": count,
+		"window-index": index,
+		gap,
+		"min-height": scenario["min-height"],
+	})
 
 	const measure = () => {
-		/* ribbon_measure(): ширина каждой колонки, её место и длина ленты */
+		/*
+		 * ribbon_measure(): размеры полотна - ширина каждой колонки и её
+		 * место, высота каждой стопки, длина ленты и высота полотна.
+		 */
 		const geometry = []
 		let x = 0
+		let canvas = 0
 		columns.forEach((count, index) => {
 			const width = Math.trunc(call("column-width", {
 				"viewport-width": vw,
@@ -223,10 +236,33 @@ function buildLayout(policy, surface, scenario) {
 				gap,
 				"min-width": scenario["min-width"],
 			}))
-			geometry.push({ x, width, preset: presets[index] ?? 1, windows: count })
+			let y = 0
+			for (let j = 0; j < count; j += 1) y += height(count, j) + gap
+			const stack = y > 0 ? y - gap : 0
+			if (stack > canvas) canvas = stack
+			geometry.push({ x, width, preset: presets[index] ?? 1, windows: count, height: stack })
 			x += width + gap
 		})
-		return { geometry, length: x > 0 ? x - gap : 0 }
+		return { geometry, length: x > 0 ? x - gap : 0, canvas }
+	}
+
+	/*
+	 * Какое окно колонки держит фокус - то, за которым идёт вертикальная ось.
+	 * Без указания это последнее добавленное: столько и оставляет после себя
+	 * ribbon_col_add(), и то же самое делает probe.
+	 */
+	const focusWindow = (column) => {
+		const given = scenario["focus-window"]
+		return given === undefined || given < 0 ? column.windows - 1 : given
+	}
+
+	/* Верхний край и высота окна с фокусом - вход вертикальной оси. */
+	const focusExtent = (column) => {
+		const want = focusWindow(column)
+		if (column.windows <= 0 || want < 0 || want >= column.windows) return [0, 0]
+		let y = 0
+		for (let j = 0; j < want; j += 1) y += height(column.windows, j) + gap
+		return [y, height(column.windows, want)]
 	}
 
 	const scroll = (state) => {
@@ -245,41 +281,61 @@ function buildLayout(policy, surface, scenario) {
 		})
 	}
 
+	/*
+	 * Та же развилка по второй оси. Ленты без фокуса и здесь только
+	 * возвращают смещение в границы, и делает это та же утилита «Смещение
+	 * после смены монитора»: её арифметика - чистое ограничение отрезком, а
+	 * поля названы по горизонтали лишь потому, что там она написана. Так же
+	 * зовёт её и C.
+	 */
+	const vscroll = (state) => {
+		const focused = state.geometry[scenario.focus]
+		if (focused === undefined) {
+			return call("output-change", { "viewport-width": vh, offset: voffset, "ribbon-length": state.canvas })
+		}
+		const [top, tall] = focusExtent(focused)
+		return call("stack-offset", {
+			"viewport-height": vh,
+			"window-top": top,
+			"window-height": tall,
+			offset: voffset,
+			gap,
+			"canvas-height": state.canvas,
+		})
+	}
+
 	let state = measure()
 	offset = scroll(state)
+	voffset = vscroll(state)
 
 	if (scenario.resize) {
 		;[vw, vh] = scenario.resize
 		state = measure()
 		offset = call("output-change", { "viewport-width": vw, offset, "ribbon-length": state.length })
+		voffset = call("output-change", { "viewport-width": vh, offset: voffset, "ribbon-length": state.canvas })
 		state = measure()
 		offset = scroll(state)
+		voffset = vscroll(state)
 	}
 
-	/* ribbon_place(): геометрия окна в координатах ленты и на экране */
+	/* ribbon_place(): геометрия окна в координатах полотна и на экране */
 	const windows = []
 	state.geometry.forEach((column, index) => {
 		let y = 0
 		for (let j = 0; j < column.windows; j += 1) {
-			const height = call("window-height", {
-				"viewport-height": vh,
-				"window-count": column.windows,
-				"window-index": j,
-				gap,
-				"min-height": scenario["min-height"],
-			})
+			const tall = height(column.windows, j)
 			windows.push({
 				column: index,
 				index: j,
-				ribbon: [column.x, y, column.width, height],
+				ribbon: [column.x, y, column.width, tall],
 				screen: [
 					vx + column.x - offset,
-					vy + y,
+					vy + y - voffset,
 					MAX(1, column.width - border * 2),
-					MAX(1, height - border * 2),
+					MAX(1, tall - border * 2),
 				],
 			})
-			y += height + gap
+			y += tall + gap
 		}
 	})
 
@@ -289,6 +345,8 @@ function buildLayout(policy, surface, scenario) {
 		border,
 		length: state.length,
 		offset,
+		canvas: state.canvas,
+		voffset,
 		columnCount: columns.length,
 		focus: state.geometry[scenario.focus] === undefined ? -1 : scenario.focus,
 		columns: state.geometry.map((column, index) => ({ index, ...column })),
@@ -306,7 +364,9 @@ function layoutArgs(scenario) {
 		`columns=${scenario.columns.join(",")}`,
 		`focus=${scenario.focus}`,
 		`offset=${scenario.offset ?? 0}`,
+		`voffset=${scenario.voffset ?? 0}`,
 	]
+	if (scenario["focus-window"] !== undefined) args.push(`focus-window=${scenario["focus-window"]}`)
 	if (scenario.presets) args.push(`presets=${scenario.presets.join(",")}`)
 	if (scenario["viewport-origin"]) {
 		args.push(`viewport-x=${scenario["viewport-origin"][0]}`)
@@ -327,13 +387,15 @@ function diffLayout(where, model, live) {
 	}
 	check("вьюпорт", model.viewport, live.viewport)
 	check("длина ленты", model.length, live.length)
+	check("высота полотна", model.canvas, live.canvas)
 	check("смещение", model.offset, live.offset)
+	check("смещение по вертикали", model.voffset, live.voffset)
 	check("число колонок", model.columnCount, live.columnCount)
 	check("колонка с фокусом", model.focus, live.focus)
 	model.columns.forEach((column, index) => {
 		const other = live.columns[index]
-		check(`колонка ${index}`, [column.x, column.width, column.preset, column.windows],
-			other && [other.x, other.width, other.preset, other.windows])
+		check(`колонка ${index}`, [column.x, column.width, column.preset, column.windows, column.height],
+			other && [other.x, other.width, other.preset, other.windows, other.height])
 	})
 	model.windows.forEach((window, index) => {
 		const other = live.windows[index]
@@ -380,7 +442,7 @@ async function main() {
 	const scenarios = vectorsFor("layout")
 	for (const surface of SURFACES) {
 		const policy = policies[surface.id]
-		const needed = ["scroll-offset", "column-width", "window-height", "output-change"]
+		const needed = ["scroll-offset", "stack-offset", "column-width", "window-height", "output-change"]
 		if (needed.some((name) => typeof policy[name] !== "function")) {
 			fail(`layout [${surface.id}]`, "модели не сгенерировались, сценарии пропущены")
 			continue

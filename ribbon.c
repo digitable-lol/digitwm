@@ -19,24 +19,30 @@
  */
 
 /*
- * Windows live on an endless row of columns; the screen is a viewport
- * sliding along it.  Two invariants drive everything here:
+ * Windows live on an endless row of columns, each column an ordered stack of
+ * windows.  Row and stacks together make a canvas, and the screen is a
+ * viewport sliding over it on both axes.  Two invariants drive everything
+ * here:
  *
  *   - inserting a window never alters the ribbon geometry of a window that
  *     is already on the ribbon.  Neighbours are pushed along, never squeezed;
  *   - after any event the focused column lies wholly inside the viewport
- *     horizontally.  Only horizontally: the ribbon scrolls sideways and
- *     nothing scrolls it vertically, so a column whose windows do not fit the
- *     viewport height sticks out below it (see ribbon_policy_height).
+ *     horizontally, and the focused window of it lies wholly inside the
+ *     viewport vertically.  The unit differs per axis because the promise
+ *     has to be keepable: a column is bounded by its width, but a stack is
+ *     as tall as the windows in it and can outgrow any viewport, so
+ *     vertically the most that can be promised is about one window.  What is
+ *     larger than the viewport on either axis shows its beginning - left edge
+ *     across, top edge down.
  *
- * The scalar decisions - how far to scroll, how wide a column is, how tall a
- * window in it is, where a new window goes, what gets focus after a close -
- * are the ribbon_policy_* functions below.  They take and return plain
- * numbers, touch no state and call no X function, because the same policy is
- * written a second time as an FTS model and the two are compared vector by
- * vector in CI through "layout-probe".  Everything that needs more than
- * numbers - the loop over columns, the X calls - is deliberately kept out
- * of them.
+ * The scalar decisions - how far to scroll on either axis, how wide a column
+ * is, how tall a window in it is, where a new window goes, what gets focus
+ * after a close - are the ribbon_policy_* functions below.  They take and
+ * return plain numbers, touch no state and call no X function, because the
+ * same policy is written a second time as an FTS model and the two are
+ * compared vector by vector in CI through "layout-probe".  Everything that
+ * needs more than numbers - the loop over columns, the X calls - is
+ * deliberately kept out of them.
  */
 
 #include <sys/types.h>
@@ -56,6 +62,7 @@ static void		 ribbon_col_free(struct ribbon *, struct ribbon_col *);
 static void		 ribbon_col_del(struct client_ctx *);
 static int		 ribbon_col_visible(struct ribbon *,
 			     struct ribbon_col *);
+static void		 ribbon_focus_extent(struct ribbon *, int *, int *);
 static void		 ribbon_sync_one(struct ribbon *);
 static void		 ribbon_activate(struct ribbon_col *);
 static void		 ribbon_warp(struct ribbon *);
@@ -94,6 +101,29 @@ ribbon_policy_offset(int vw, int cl, int cw, int off, int gap, int len)
 		off = 0;
 
 	return off;
+}
+
+/*
+ * Offset of the viewport down the canvas once the focused window must be
+ * visible.  Same policy as ribbon_policy_offset(), turned on its side: the
+ * canvas has to behave the same way down as across or it is not one canvas
+ * but two unrelated things sharing a name.  Hence the delegation rather than
+ * a second copy of the arithmetic - a copy would be free to drift.
+ *
+ * What differs is the unit, and that is a matter for the caller: across, the
+ * viewport follows the focused column; down, it follows the focused window of
+ * it, because a stack of ten windows fits no viewport and a promise about the
+ * whole stack could not be kept.
+ *
+ * Its own name and its own FTS model (fts/stack-offset.fts) all the same:
+ * "layout-probe stack-offset" is what the conformance harness compares that
+ * model against, and a model written in heights has to be answered by a
+ * function that reads in heights.
+ */
+int
+ribbon_policy_voffset(int vh, int wy, int wh, int off, int gap, int canvas)
+{
+	return ribbon_policy_offset(vh, wy, wh, off, gap, canvas);
 }
 
 /*
@@ -142,14 +172,15 @@ ribbon_policy_width(int vw, int preset, int gap, int minw)
  * Once it does not, the minimum wins: it is a declared property of the model
  * ("height is at least the minimum", fts/window-height.fts), and answering with
  * less would break the model's own property.  So the stack runs past the bottom
- * edge instead - nwin windows of minh plus the gaps.  Unlike the same collision
- * in ribbon_policy_width(), which the horizontal scroll resolves, there is no
- * vertical scroll and ribbon_col_visible() only tests the x extent: whatever
- * ends up below the edge is neither parked nor reachable.  Measured at
- * 1280x800, gap 8, minh 60: 11 windows fit, 12 overflow by 11px, 20 overflow by
- * 552px with the last 8 entirely below the edge.  Which side should give is a
- * product decision and is deliberately left open here; the harness pins the
- * arithmetic of both cases so the exception cannot go unnoticed.
+ * edge instead - nwin windows of minh plus the gaps.  That is the same
+ * collision ribbon_policy_width() has, and it is now resolved the same way: by
+ * scrolling.  The stack is part of a canvas taller than the viewport, and
+ * ribbon_policy_voffset() brings whatever sits below the edge back into it.
+ * Measured at 1280x800, gap 8, minh 60: 11 windows fit exactly, 12 make a
+ * canvas 811 tall, 20 make one 1352 tall - and the vertical offset runs to
+ * exactly 11 and 552, which is what it takes to reach the last window of
+ * either.  Before the second axis those were 11 and 552 pixels of windows
+ * nothing could reach.
  *
  * The empty column takes the same lower bound as every other answer.  It used
  * to return vh outright and skip both clamps, which quietly broke the model's
@@ -308,7 +339,9 @@ ribbon_new(struct screen_ctx *sc, const char *output)
 	rb->output = xstrdup(output);
 	rb->focus = NULL;
 	rb->offset = 0;
+	rb->voffset = 0;
 	rb->len = 0;
+	rb->canvas = 0;
 	rb->active = 0;
 	TAILQ_INIT(&rb->colq);
 
@@ -467,31 +500,98 @@ ribbon_col_del(struct client_ctx *cc)
 }
 
 /*
- * Widths and ribbon positions of every column, and with them the length of
- * the ribbon.  Independent of the offset, so insertion can measure without
- * having decided yet where to scroll.
+ * The size of the canvas: widths and ribbon positions of every column, the
+ * height of every stack, and with them the length of the ribbon and the height
+ * of the canvas.  Independent of both offsets, so insertion can measure
+ * without having decided yet where to scroll.
+ *
+ * The heights are walked here and again in ribbon_place() because the two
+ * answer different questions: scrolling needs to know how tall the canvas is
+ * before it can clamp the offset to it, and placing needs to know where each
+ * window goes after the clamping.  Walking a stack costs one call to the
+ * height policy per window and no allocation, so the honest order is worth
+ * more than the saved arithmetic.
  */
 void
 ribbon_measure(struct ribbon *rb)
 {
 	struct ribbon_col	*col;
-	int			 x = 0;
+	struct client_ctx	*cc;
+	int			 x = 0, y, i;
+
+	rb->canvas = 0;
 
 	TAILQ_FOREACH(col, &rb->colq, entry) {
 		col->w = ribbon_policy_width(rb->view.w, col->preset,
 		    Conf.ribbongap, Conf.ribbonminw);
 		col->x = x;
 		x += col->w + Conf.ribbongap;
+
+		i = 0;
+		y = 0;
+		TAILQ_FOREACH(cc, &col->winq, rbentry) {
+			y += ribbon_policy_height(rb->view.h, col->nwin, i,
+			    Conf.ribbongap, Conf.ribbonminh) + Conf.ribbongap;
+			i++;
+		}
+		col->h = (y > 0) ? (y - Conf.ribbongap) : 0;
+		if (col->h > rb->canvas)
+			rb->canvas = col->h;
 	}
 
 	rb->len = (x > 0) ? (x - Conf.ribbongap) : 0;
 }
 
 /*
- * Screen geometry of every window from the measured columns and the current
- * offset.  Windows left of the viewport simply get a negative x: owning the
- * geometry is the whole reason this is a window manager and not a script
- * driving one.
+ * Where the focused window sits in its stack, in canvas coordinates.  This is
+ * the loop the vertical policy needs and does not do itself: which window has
+ * the focus is state, and the policy takes numbers only.
+ *
+ * A ribbon with no focused column, or a focused column that lost its last
+ * window, answers with the top of the canvas - the same place ribbon_scroll()
+ * would settle on anyway.
+ */
+static void
+ribbon_focus_extent(struct ribbon *rb, int *top, int *height)
+{
+	struct ribbon_col	*col = rb->focus;
+	struct client_ctx	*cc, *want;
+	int			 i = 0, y = 0, h;
+
+	*top = 0;
+	*height = 0;
+
+	if (col == NULL)
+		return;
+	if ((want = col->focus) == NULL)
+		want = TAILQ_FIRST(&col->winq);
+	if (want == NULL)
+		return;
+
+	TAILQ_FOREACH(cc, &col->winq, rbentry) {
+		h = ribbon_policy_height(rb->view.h, col->nwin, i,
+		    Conf.ribbongap, Conf.ribbonminh);
+		if (cc == want) {
+			*top = y;
+			*height = h;
+			return;
+		}
+		y += h + Conf.ribbongap;
+		i++;
+	}
+}
+
+/*
+ * Screen geometry of every window from the measured canvas and the current
+ * offsets.  Windows left of the viewport simply get a negative x and windows
+ * above it a negative y: owning the geometry is the whole reason this is a
+ * window manager and not a script driving one.
+ *
+ * The canvas coordinates in rbgeom keep no offset at all, on either axis.
+ * That is what makes the first invariant a statement about anything: a scroll
+ * moves every window on the screen, and a harness that checked "the insertion
+ * moved nobody" against screen coordinates would be checking the opposite of
+ * what was promised.
  */
 void
 ribbon_place(struct ribbon *rb)
@@ -519,7 +619,7 @@ ribbon_place(struct ribbon *rb)
 			 */
 			if (!(cc->flags & (CLIENT_FREEZE | CLIENT_FULLSCREEN))) {
 				cc->geom.x = rb->view.x + col->x - rb->offset;
-				cc->geom.y = rb->view.y + y;
+				cc->geom.y = rb->view.y + y - rb->voffset;
 				cc->geom.w = MAX(1, col->w - (cc->bwidth * 2));
 				cc->geom.h = MAX(1, h - (cc->bwidth * 2));
 			}
@@ -530,30 +630,52 @@ ribbon_place(struct ribbon *rb)
 	}
 }
 
-/* Measure, pull the viewport onto the focused column, place. */
+/*
+ * Measure, pull the viewport onto the focus on both axes, place.  Across, the
+ * viewport follows the focused column; down, the focused window inside it.
+ * A ribbon without a focus has nothing to follow and is only pulled back
+ * inside the canvas, which is what an output change leaves behind.
+ */
 void
 ribbon_scroll(struct ribbon *rb)
 {
 	struct ribbon_col	*col = rb->focus;
+	int			 top, height;
 
 	ribbon_measure(rb);
 
-	if (col != NULL)
+	if (col != NULL) {
 		rb->offset = ribbon_policy_offset(rb->view.w, col->x, col->w,
 		    rb->offset, Conf.ribbongap, rb->len);
-	else
+		ribbon_focus_extent(rb, &top, &height);
+		rb->voffset = ribbon_policy_voffset(rb->view.h, top, height,
+		    rb->voffset, Conf.ribbongap, rb->canvas);
+	} else {
 		rb->offset = ribbon_policy_output(rb->view.w, rb->offset,
 		    rb->len);
+		rb->voffset = ribbon_policy_output(rb->view.h, rb->voffset,
+		    rb->canvas);
+	}
 
 	ribbon_place(rb);
 }
 
+/*
+ * Whether any part of the column is inside the viewport.  Both axes, because
+ * a column scrolled off the top of the canvas is as invisible as one scrolled
+ * off its left, and ribbonhide exists to stop drawing what is not seen.
+ * Every stack starts at the top of the canvas and the offset never goes
+ * negative, so the only way a column leaves the viewport upwards is by being
+ * shorter than the scroll - a short stack next to a tall one.
+ */
 static int
 ribbon_col_visible(struct ribbon *rb, struct ribbon_col *col)
 {
 	if ((col->x + col->w) <= rb->offset)
 		return 0;
 	if (col->x >= (rb->offset + rb->view.w))
+		return 0;
+	if (col->h <= rb->voffset)
 		return 0;
 
 	return 1;
@@ -662,6 +784,8 @@ ribbon_screen_relayout(struct screen_ctx *sc)
 		ribbon_measure(rb);
 		rb->offset = ribbon_policy_output(rb->view.w, rb->offset,
 		    rb->len);
+		rb->voffset = ribbon_policy_output(rb->view.h, rb->voffset,
+		    rb->canvas);
 		ribbon_scroll(rb);
 	}
 }
@@ -787,8 +911,14 @@ ribbon_client_remove(struct client_ctx *cc)
 
 /*
  * Keep the model's idea of focus in step with the server's, whichever way
- * focus was given - a ribbon command, the pointer, or a client asking for
- * it.  Only a change of column costs a scroll.
+ * focus was given - a ribbon command, the pointer, or a client asking for it.
+ *
+ * A change of window costs a scroll as much as a change of column does: the
+ * vertical axis follows the focused window, so focus landing further down a
+ * stack that is taller than the screen has to bring the canvas with it.  Only
+ * focus arriving where it already was costs nothing, and that case has to be
+ * caught or every scroll would feed itself through the crossing events it
+ * causes.
  */
 void
 ribbon_client_focus(struct client_ctx *cc)
@@ -801,11 +931,11 @@ ribbon_client_focus(struct client_ctx *cc)
 
 	col = cc->rbcol;
 	rb = col->rb;
-	col->focus = cc;
 
-	if (rb->focus == col)
+	if ((rb->focus == col) && (col->focus == cc))
 		return;
 
+	col->focus = cc;
 	rb->focus = col;
 	ribbon_scroll(rb);
 	ribbon_sync(rb->sc);
@@ -901,6 +1031,14 @@ ribbon_focus_win(struct screen_ctx *sc, int flags)
 		return;
 
 	col->focus = cc;
+	/*
+	 * Walking the stack is what scrolls the canvas down, and it is how the
+	 * bottom of a stack taller than the screen is reached at all.  Before
+	 * the second axis this function moved the focus to a window that could
+	 * be wholly below the edge and left it there.
+	 */
+	ribbon_scroll(rb);
+	ribbon_sync(sc);
 	ribbon_activate(col);
 }
 
@@ -983,20 +1121,24 @@ ribbon_width(struct client_ctx *cc, int flags)
 	ribbon_warp(rb);
 }
 
-/* Put the focused column in the middle of the viewport. */
+/* Put the focus in the middle of the viewport, on both axes. */
 void
 ribbon_center(struct screen_ctx *sc)
 {
 	struct ribbon		*rb;
 	struct ribbon_col	*col;
+	int			 top, height;
 
 	if (((rb = ribbon_current(sc)) == NULL) || (rb->focus == NULL))
 		return;
 
 	col = rb->focus;
 	ribbon_measure(rb);
+	ribbon_focus_extent(rb, &top, &height);
 	rb->offset = ribbon_policy_output(rb->view.w,
 	    col->x + (col->w / 2) - (rb->view.w / 2), rb->len);
+	rb->voffset = ribbon_policy_output(rb->view.h,
+	    top + (height / 2) - (rb->view.h / 2), rb->canvas);
 	ribbon_place(rb);
 	ribbon_sync(sc);
 	ribbon_warp(rb);

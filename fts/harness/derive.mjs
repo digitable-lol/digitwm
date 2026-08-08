@@ -49,7 +49,7 @@ const int = (value) => {
 const cdiv = (a, b) => Math.trunc(a / b)
 
 /**
- * Шесть утилит.  `probe` - имена аргументов `layout-probe`, они же ключи
+ * Семь утилит.  `probe` - имена аргументов `layout-probe`, они же ключи
  * вектора; `fields` - каноническая последовательность полей модели.
  */
 export const UTILITIES = [
@@ -83,6 +83,45 @@ export const UTILITIES = [
 			/* предел прокрутки минус выход за вьюпорт */
 			["limit-less-right", "предел минус правый край", (v) =>
 				v["ribbon-length"] - v["column-left"] - v["column-width"]],
+		],
+	},
+	{
+		/*
+		 * Вторая ось. Разности те же, что у «scroll-offset», повёрнутые:
+		 * там вьюпорт догоняет колонку по горизонтали, здесь - окно с
+		 * фокусом по вертикали. Единица разная не по недосмотру: колонку
+		 * ограничивает её ширина, а стопка бывает выше любого вьюпорта, и
+		 * обещать про неё целиком нечего.
+		 */
+		name: "stack-offset",
+		ru: "Смещение полотна после фокуса",
+		probe: ["viewport-height", "window-top", "window-height", "offset", "gap", "canvas-height"],
+		truncate: false,
+		fields: [
+			["viewport-height", "высота вьюпорта", (v) => int(v["viewport-height"])],
+			["window-top", "верхний край окна", (v) => int(v["window-top"])],
+			["window-height", "высота окна", (v) => int(v["window-height"])],
+			["offset", "смещение", (v) => int(v.offset)],
+			["gap", "зазор", (v) => int(v.gap)],
+			["canvas-height", "высота полотна", (v) => int(v["canvas-height"])],
+			/* высота вьюпорта минус высота окна */
+			["viewport-slack", "запас вьюпорта", (v) => v["viewport-height"] - v["window-height"]],
+			/* верхний край окна минус смещение */
+			["top-slack", "запас сверху", (v) => v["window-top"] - v.offset],
+			/* нижний край вьюпорта минус нижний край окна */
+			["bottom-slack", "запас снизу", (v) =>
+				v.offset + v["viewport-height"] - v["window-top"] - v["window-height"]],
+			/* высота полотна минус высота вьюпорта */
+			["scroll-limit", "предел прокрутки", (v) => v["canvas-height"] - v["viewport-height"]],
+			/* нижний край окна минус высота вьюпорта */
+			["overhang", "выход за вьюпорт", (v) =>
+				v["window-top"] + v["window-height"] - v["viewport-height"]],
+			/* предел прокрутки минус верхний край окна */
+			["limit-less-top", "предел минус верхний край", (v) =>
+				v["canvas-height"] - v["viewport-height"] - v["window-top"]],
+			/* предел прокрутки минус выход за вьюпорт */
+			["limit-less-bottom", "предел минус нижний край", (v) =>
+				v["canvas-height"] - v["window-top"] - v["window-height"]],
 		],
 	},
 	{

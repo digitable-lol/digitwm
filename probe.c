@@ -32,9 +32,10 @@
  * X server to spare, and a probe that needed a running window manager to
  * answer a question about arithmetic would be answering a different question.
  *
- * Six utilities carry the names of the FTS models, in either surface:
+ * Seven utilities carry the names of the FTS models, in either surface:
  *
  *   scroll-offset       "Смещение ленты после фокуса"
+ *   stack-offset        "Смещение полотна после фокуса"
  *   column-width        "Ширина колонки по пресету"
  *   window-height       "Высота окна в колонке"
  *   insertion           "Куда вставить окно"
@@ -122,6 +123,7 @@ static const struct {
 	const char	*alias;
 } probe_utils[] = {
 	{ "scroll-offset",	"Смещение ленты после фокуса" },
+	{ "stack-offset",	"Смещение полотна после фокуса" },
 	{ "column-width",	"Ширина колонки по пресету" },
 	{ "window-height",	"Высота окна в колонке" },
 	{ "insertion",		"Куда вставить окно" },
@@ -388,7 +390,7 @@ probe_dim(struct probe_ctx *p, const char *key, int *w, int *h)
 }
 
 /*
- * The five scalar utilities plus output-change.  Each one is a single call
+ * The six scalar utilities plus output-change.  Each one is a single call
  * into the same ribbon_policy_* function the window manager uses.
  */
 static int
@@ -404,6 +406,14 @@ probe_scalar(struct probe_ctx *p, const char *util)
 		    probe_req(p, "offset"),
 		    probe_opt(p, "gap", Conf.ribbongap),
 		    probe_req(p, "ribbon-length"));
+	} else if (strcmp(util, "stack-offset") == 0) {
+		v = ribbon_policy_voffset(
+		    probe_req(p, "viewport-height"),
+		    probe_req(p, "window-top"),
+		    probe_req(p, "window-height"),
+		    probe_req(p, "offset"),
+		    probe_opt(p, "gap", Conf.ribbongap),
+		    probe_req(p, "canvas-height"));
 	} else if (strcmp(util, "column-width") == 0) {
 		v = ribbon_policy_width(
 		    probe_req(p, "viewport-width"),
@@ -464,14 +474,22 @@ probe_report(struct ribbon *rb, int border, const char *stage)
 	    rb->view.w, rb->view.h);
 	(void)printf("gap %d\n", Conf.ribbongap);
 	(void)printf("border %d\n", border);
-	(void)printf("ribbon length %d offset %d columns %d focus %d\n",
+	/*
+	 * The canvas and the vertical offset come last on their lines, and the
+	 * height of a column last on its own, because the harness reads these
+	 * lines by position: appending keeps a reader that knows nothing of the
+	 * second axis working, which is exactly what the hotplug harness is.
+	 */
+	(void)printf("ribbon length %d offset %d columns %d focus %d "
+	    "canvas %d voffset %d\n",
 	    rb->len, rb->offset, ribbon_col_count(rb),
-	    ribbon_col_index(rb, rb->focus));
+	    ribbon_col_index(rb, rb->focus), rb->canvas, rb->voffset);
 
 	i = 0;
 	TAILQ_FOREACH(col, &rb->colq, entry) {
 		(void)printf("column %d ribbon-x %d width %d preset %d "
-		    "windows %d\n", i, col->x, col->w, col->preset, col->nwin);
+		    "windows %d height %d\n", i, col->x, col->w, col->preset,
+		    col->nwin, col->h);
 		j = 0;
 		TAILQ_FOREACH(cc, &col->winq, rbentry) {
 			(void)printf("window %d %d ribbon %d %d %d %d "
@@ -514,7 +532,7 @@ probe_layout(struct probe_ctx *p)
 	int			 cols[PROBE_MAXCOL], presets[PROBE_MAXCOL];
 	int			 widths[RIBBON_NPRESET];
 	int			 vw = 0, vh = 0, rw = 0, rh = 0;
-	int			 border, focus, ncol, npreset, nwidth;
+	int			 border, focus, fwin, ncol, npreset, nwidth;
 	int			 i, j, resized;
 
 	if (probe_dim(p, "viewport", &vw, &vh) != 1) {
@@ -564,6 +582,26 @@ probe_layout(struct probe_ctx *p)
 	focus = probe_opt(p, "focus", ncol - 1);
 	rb->focus = ribbon_col_at(rb, focus);
 	rb->offset = probe_opt(p, "offset", 0);
+	rb->voffset = probe_opt(p, "voffset", 0);
+
+	/*
+	 * Which window of the focused column has the focus - the one the
+	 * vertical axis follows.  Left alone it is the last window added, which
+	 * is what ribbon_col_add() leaves behind and therefore what a freshly
+	 * built ribbon really looks like; "focus-window" is for scenarios that
+	 * want to look at some other window of the stack.
+	 */
+	fwin = probe_opt(p, "focus-window", -1);
+	if ((rb->focus != NULL) && (fwin >= 0)) {
+		j = 0;
+		TAILQ_FOREACH(cc, &rb->focus->winq, rbentry) {
+			if (j++ == fwin)
+				rb->focus->focus = cc;
+		}
+	}
+	if (p->fail)
+		goto done;
+
 	ribbon_scroll(rb);
 
 	/*
@@ -580,6 +618,8 @@ probe_layout(struct probe_ctx *p)
 		ribbon_measure(rb);
 		rb->offset = ribbon_policy_output(rb->view.w, rb->offset,
 		    rb->len);
+		rb->voffset = ribbon_policy_output(rb->view.h, rb->voffset,
+		    rb->canvas);
 		ribbon_scroll(rb);
 	}
 
@@ -727,16 +767,18 @@ probe_outputs_report(struct screen_ctx *sc, const char *stage)
 	(void)printf("stage %s\n", stage);
 	TAILQ_FOREACH(rb, &sc->ribbonq, entry) {
 		(void)printf("ribbon %s active %d view %d %d %d %d "
-		    "length %d offset %d columns %d focus %d\n",
+		    "length %d offset %d columns %d focus %d "
+		    "canvas %d voffset %d\n",
 		    rb->output, rb->active, rb->view.x, rb->view.y,
 		    rb->view.w, rb->view.h, rb->len, rb->offset,
-		    ribbon_col_count(rb), ribbon_col_index(rb, rb->focus));
+		    ribbon_col_count(rb), ribbon_col_index(rb, rb->focus),
+		    rb->canvas, rb->voffset);
 
 		i = 0;
 		TAILQ_FOREACH(col, &rb->colq, entry) {
 			(void)printf("column %s %d ribbon-x %d width %d "
-			    "preset %d windows %d\n", rb->output, i, col->x,
-			    col->w, col->preset, col->nwin);
+			    "preset %d windows %d height %d\n", rb->output, i,
+			    col->x, col->w, col->preset, col->nwin, col->h);
 			j = 0;
 			TAILQ_FOREACH(cc, &col->winq, rbentry) {
 				(void)printf("window %s %d %d ribbon %d %d %d "
@@ -853,6 +895,19 @@ probe_outputs(struct probe_ctx *p)
 				goto done;
 			}
 			rb->offset = probe_value(p, "offset", colon + 1);
+		}
+	}
+	/* The same for the other axis: "HDMI-1:400". */
+	if ((v = probe_get(p, "voffset")) != NULL) {
+		(void)strlcpy(buf, v, sizeof(buf));
+		for (tok = strtok_r(buf, ",", &save); tok != NULL;
+		    tok = strtok_r(NULL, ",", &save)) {
+			if (((colon = strchr(tok, ':')) == NULL) ||
+			    ((*colon = '\0'), (rb = ribbon_find(&sc, tok)) == NULL)) {
+				probe_error(p, "voffset wants NAME:pixels");
+				goto done;
+			}
+			rb->voffset = probe_value(p, "voffset", colon + 1);
 		}
 	}
 	if (p->fail)

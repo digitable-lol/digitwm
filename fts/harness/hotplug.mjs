@@ -127,6 +127,23 @@ const SCENARIOS = [
 		detached: ["B"],
 		restored: true,
 	},
+	{
+		/*
+		 * Стопка выше вьюпорта: полотно съехало по вертикали, и монитор
+		 * уходит из-под него. Без этого сценария вторая ось на отключении
+		 * не проверялась бы вовсе - в остальных лентах по одному-два окна в
+		 * колонке, и полотно там никогда не выше экрана.
+		 */
+		name: "полотно выше экрана переживает отключение",
+		outputs: "A:1280x800+0+0,B:1280x800+1280+0",
+		columns: "A:20,B:12",
+		focus: "A:0,B:0",
+		voffset: "A:552,B:11",
+		then: "A:1280x800+0+0",
+		after: "A:1280x800+0+0,B:1280x800+1280+0",
+		detached: ["B"],
+		restored: true,
+	},
 ]
 
 function args(scenario) {
@@ -139,6 +156,7 @@ function args(scenario) {
 		"min-height=60",
 	]
 	if (scenario.offset) list.push(`offset=${scenario.offset}`)
+	if (scenario.voffset) list.push(`voffset=${scenario.voffset}`)
 	if (scenario.then) list.push(`then=${scenario.then}`)
 	if (scenario.after) list.push(`after=${scenario.after}`)
 	return list
@@ -150,7 +168,9 @@ function shape(ribbon) {
 		windows: ribbon.windows.map((window) => [window.column, window.index, ...window.ribbon]),
 		focus: ribbon.focus,
 		offset: ribbon.offset,
+		voffset: ribbon.voffset,
 		length: ribbon.length,
+		canvas: ribbon.canvas,
 	}
 }
 
@@ -210,12 +230,16 @@ function judge(scenario, stages) {
 		}
 	}
 
-	/* У каждой подключённой ленты свой вьюпорт и своё смещение. */
+	/* У каждой подключённой ленты свой вьюпорт и свои два смещения. */
 	for (const stage of stages) {
 		for (const ribbon of stage.ribbons.values()) {
 			const limit = Math.max(0, ribbon.length - ribbon.view[2])
 			if (ribbon.offset < 0 || ribbon.offset > limit) {
 				complaints.push(`лента ${ribbon.name} на стадии «${stage.stage}»: смещение ${ribbon.offset} вне [0, ${limit}]`)
+			}
+			const down = Math.max(0, ribbon.canvas - ribbon.view[3])
+			if (ribbon.voffset < 0 || ribbon.voffset > down) {
+				complaints.push(`лента ${ribbon.name} на стадии «${stage.stage}»: смещение по вертикали ${ribbon.voffset} вне [0, ${down}]`)
 			}
 		}
 		const views = [...stage.ribbons.values()].filter((ribbon) => ribbon.active === 1).map((ribbon) => ribbon.view.join(","))
@@ -266,6 +290,21 @@ function main() {
 				"осталась подключённой",
 				(states) => {
 					states[1].ribbons.get("DP-1").active = 1
+				},
+			],
+			[
+				"полотно вернулось съехавшим по вертикали",
+				"вернулась другой",
+				(states) => {
+					states[2].ribbons.get("DP-1").voffset += 5
+				},
+			],
+			[
+				"смещение по вертикали ушло за высоту полотна",
+				"по вертикали",
+				(states) => {
+					const ribbon = states[0].ribbons.get("DP-1")
+					ribbon.voffset = ribbon.canvas + 1
 				},
 			],
 		]
