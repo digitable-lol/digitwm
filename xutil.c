@@ -192,6 +192,8 @@ xu_atom_init(void)
 		"_NET_WM_WINDOW_TYPE_SPLASH",
 		"_NET_WM_WINDOW_TYPE_DIALOG",
 		"_NET_WM_WINDOW_TYPE_NORMAL",
+		"_NET_WM_STRUT",
+		"_NET_WM_STRUT_PARTIAL",
 	};
 
 	XInternAtoms(X_Dpy, cwmhints, nitems(cwmhints), False, cwmh);

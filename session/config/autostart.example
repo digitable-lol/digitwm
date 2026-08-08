@@ -21,9 +21,14 @@
 # Обои вместо однотонного фона.
 # command -v feh >/dev/null 2>&1 && feh --bg-fill "$HOME/.local/share/digitwm/wallpaper.jpg"
 
-# Панель. У cwm панели нет вовсе, а собственная панель digitwm — открытый
-# вопрос спецификации. Пока подойдёт любая внешняя.
-# command -v polybar >/dev/null 2>&1 && polybar --reload main &
+# Панель. Своей у digitwm нет и не планируется — решение с числами лежит в
+# doc/panel.ru.md. Конфигурация панели пришла вместе с сессией и покрашена
+# вашей палитрой; лента отдаёт ей полосу сама, окна под неё не уезжают.
+# Раскомментируйте строку, если panel вам нужна с самого входа.
+# command -v polybar >/dev/null 2>&1 && \
+#   polybar --reload -c "$HOME/.config/digitwm/polybar.ini" digitwm &
+#
+# Свернуть и развернуть её потом: 4S-b, то есть polybar-msg cmd toggle.
 
 # Гашение экрана и энергосбережение.
 # command -v xset >/dev/null 2>&1 && xset s 600 dpms 900 1200 1800

@@ -131,6 +131,29 @@ struct gap {
 	int		 right;
 };
 
+/*
+ * What a panel takes off the screen: _NET_WM_STRUT_PARTIAL, in the order the
+ * specification writes it.  A window says how deep it eats into each edge and
+ * over which stretch of that edge, so that a panel spanning one monitor of
+ * three does not shrink the other two.  Plain _NET_WM_STRUT is read into the
+ * same fields with the spans opened to the whole screen, because that is what
+ * the four-number form means.
+ */
+struct strut {
+	int		 left;
+	int		 right;
+	int		 top;
+	int		 bottom;
+	int		 left_start_y;
+	int		 left_end_y;
+	int		 right_start_y;
+	int		 right_end_y;
+	int		 top_start_x;
+	int		 top_end_x;
+	int		 bottom_start_x;
+	int		 bottom_end_x;
+};
+
 struct winname {
 	TAILQ_ENTRY(winname)	 entry;
 	char			*name;
@@ -145,6 +168,7 @@ struct client_ctx {
 	struct group_ctx	*gc;
 	struct ribbon_col	*rbcol; /* column holding it, NULL if floating */
 	struct geom		 rbgeom; /* geometry in ribbon coordinates */
+	struct strut		 strut; /* screen edges this window reserves */
 	Window			 win;
 	Colormap		 colormap;
 	int			 bwidth; /* border width */
@@ -479,6 +503,8 @@ enum ewmh {
 	_NET_WM_WINDOW_TYPE_SPLASH,
 	_NET_WM_WINDOW_TYPE_DIALOG,
 	_NET_WM_WINDOW_TYPE_NORMAL,
+	_NET_WM_STRUT,
+	_NET_WM_STRUT_PARTIAL,
 	EWMH_NITEMS
 };
 enum net_wm_state {
@@ -534,6 +560,8 @@ void			 client_toggle_vmaximize(struct client_ctx *);
 void			 client_transient(struct client_ctx *);
 void			 client_urgency(struct client_ctx *);
 void			 client_wm_type(struct client_ctx *);
+void			 client_wm_strut(struct client_ctx *);
+int			 client_has_strut(struct client_ctx *);
 void 			 client_vtile(struct client_ctx *);
 void			 client_wm_hints(struct client_ctx *);
 
@@ -580,6 +608,8 @@ int			 ribbon_policy_height(int, int, int, int, int);
 int			 ribbon_policy_insert(int, int, int, int, int, int);
 int			 ribbon_policy_close(int, int, int, int);
 int			 ribbon_policy_output(int, int, int);
+int			 ribbon_policy_span(int, int, int, int);
+int			 ribbon_policy_reserve(int, int, int, int, int);
 
 struct ribbon		*ribbon_new(struct screen_ctx *, const char *);
 void			 ribbon_free(struct ribbon *);
@@ -624,6 +654,7 @@ void			 screen_prop_win_draw(struct screen_ctx *,
 			    __attribute__((__format__ (printf, 2, 3)))
 			    __attribute__((__nonnull__ (2)));
 void			 screen_update_geometry(struct screen_ctx *);
+void			 screen_update_struts(struct screen_ctx *);
 void			 screen_updatestackingorder(struct screen_ctx *);
 
 void			 kbfunc_cwm_status(void *, struct cargs *);

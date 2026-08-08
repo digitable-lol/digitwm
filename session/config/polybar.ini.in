@@ -1,0 +1,138 @@
+; SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
+; SPDX-License-Identifier: ISC
+;
+; Панель состояния сессии Digitable, палитра Digitable Focus @@PALETTE@@.
+;
+; Панель здесь внешняя, и это решение с числами: doc/panel.ru.md. Своей у
+; digitwm нет и не планируется, а место для чужой в модели есть - окно типа
+; dock, которое объявляет полосу _NET_WM_STRUT_PARTIAL, и лента эту полосу
+; отдаёт. Проверяется сценарием tools/measure-panel.sh.
+;
+; Цвета не выбираются здесь. Все до одного подставляются установщиком из
+; products/workbench/themes/focus-palettes.json - того же файла, из которого
+; красятся редактор, терминал и оболочка. Если правите цвет, правьте палитру.
+;
+; Значков в надписях нет намеренно. Набор иконок Digitable - это SVG-спрайт
+; портала (layouts/partials/icon-sprite.html), 36 фигур, и надпись Xft принять
+; его не может: панели нужен шрифтовой глиф, а не вектор с обводкой. Из тех
+; шести вещей, что показывает эта панель, в наборе есть ровно одна - network.
+; Пока нет шрифта Digitable, надписи - короткие слова цветом акцента: они
+; читаются в любой палитре и не зависят от того, какие шрифты стоят в системе.
+;
+; Свернуть и развернуть: polybar-msg cmd toggle, в cwmrc это 4S-b.
+
+[colors]
+background = @@BACKGROUND@@
+surface = @@SURFACE@@
+foreground = @@FOREGROUND@@
+muted = @@MUTED@@
+subtle = @@SUBTLE@@
+border = @@BORDER@@
+accent = @@ACCENT@@
+green = @@GREEN@@
+yellow = @@YELLOW@@
+orange = @@ORANGE@@
+red = @@RED@@
+blue = @@BLUE@@
+
+[bar/digitwm]
+; Монитор не задан: polybar берёт первый выход RandR. На двух мониторах
+; запускайте по экземпляру на выход - лента у каждого выхода своя, и полоса,
+; заявленная на один выход, второго не касается.
+width = 100%
+height = 28
+bottom = false
+fixed-center = true
+background = ${colors.background}
+foreground = ${colors.foreground}
+line-size = 2
+border-size = 0
+border-color = ${colors.border}
+padding-left = 2
+padding-right = 2
+module-margin = 2
+separator = "·"
+separator-foreground = ${colors.subtle}
+; Второй шрифт - не украшение, а страховка. Первый - тот же, что в терминале
+; и в подсказке оболочки, но сессия его не ставит (session/README.md, строка
+; про MesloLGS NF в недостающих), и на голой системе его нет. Без запасного
+; шрифта панель в этом случае теряет кириллицу.
+font-0 = @@FONT_FAMILY@@:size=10;2
+font-1 = DejaVu Sans Mono:size=10;2
+modules-left = title
+modules-center = date
+modules-right = cpu memory network volume battery
+; Без этого не работает polybar-msg, то есть не работает сворачивание.
+enable-ipc = true
+cursor-click = pointer
+
+[module/title]
+type = internal/xwindow
+label = %title:0:60:…%
+label-foreground = ${colors.muted}
+label-empty = digitwm
+label-empty-foreground = ${colors.subtle}
+
+[module/date]
+type = internal/date
+interval = 5
+date = %Y-%m-%d
+time = %H:%M
+label = %date% %time%
+label-foreground = ${colors.foreground}
+
+[module/cpu]
+type = internal/cpu
+interval = 2
+format = <label>
+format-prefix = "CPU "
+format-prefix-foreground = ${colors.accent}
+label = %percentage:2%%
+
+[module/memory]
+type = internal/memory
+interval = 3
+format = <label>
+format-prefix = "MEM "
+format-prefix-foreground = ${colors.accent}
+label = %percentage_used:2%%
+
+[module/network]
+type = internal/network
+interface-type = wired
+interval = 3
+format-connected = <label-connected>
+format-connected-prefix = "NET "
+format-connected-prefix-foreground = ${colors.accent}
+label-connected = %local_ip%
+format-disconnected = <label-disconnected>
+label-disconnected = "NET нет"
+label-disconnected-foreground = ${colors.subtle}
+
+[module/volume]
+type = internal/alsa
+format-volume = <label-volume>
+format-volume-prefix = "VOL "
+format-volume-prefix-foreground = ${colors.accent}
+label-volume = %percentage%%
+label-muted = "VOL тихо"
+label-muted-foreground = ${colors.subtle}
+
+; Носимый девайс: на настольной машине батареи нет, polybar сам выключает
+; модуль и пишет об этом в свой журнал. Имена BAT0 и ADP1 - самые частые в
+; Linux; свои смотрите в /sys/class/power_supply.
+[module/battery]
+type = internal/battery
+battery = BAT0
+adapter = ADP1
+full-at = 98
+poll-interval = 5
+format-charging = <label-charging>
+format-discharging = <label-discharging>
+format-full = <label-full>
+label-charging = "BAT %percentage%% +"
+label-discharging = "BAT %percentage%%"
+label-full = "BAT полна"
+label-charging-foreground = ${colors.green}
+label-discharging-foreground = ${colors.yellow}
+label-full-foreground = ${colors.subtle}

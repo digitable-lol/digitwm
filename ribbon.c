@@ -204,6 +204,61 @@ ribbon_policy_insert(int hasfocus, int transient, int dialog, int dock,
 }
 
 /*
+ * Do a panel's strut and one region meet at all?  A strut names the stretch of
+ * a screen edge it claims - span0 to span1, both ends inside the claim - and a
+ * region occupies pos to pos + len along that same edge.  A panel on the left
+ * monitor must not shorten the right one, and this is the whole of that rule.
+ *
+ * Ends touching count as meeting: a strut ending exactly where a region begins
+ * shares that one pixel column with it.
+ */
+int
+ribbon_policy_span(int span0, int span1, int pos, int len)
+{
+	if (span1 < span0)
+		return 0;
+	if (len <= 0)
+		return 0;
+
+	return ((span0 <= (pos + len - 1)) && (span1 >= pos));
+}
+
+/*
+ * How many pixels a strut takes off one edge of one region.  strut is the
+ * depth the panel claims measured from the screen edge, screen the size of the
+ * screen along that axis, pos and len the region's own extent along it; far
+ * says the edge in question is the far one (bottom or right) rather than the
+ * near one (top or left).
+ *
+ * The region is passed in already reduced by the configured gap, so a panel
+ * that fits inside a gap the user has already given away costs nothing more.
+ * That is deliberate: "gap 40 0 0 0" plus a panel 28 tall means 40 taken, not
+ * 68.  Nothing can be taken twice, and nothing can take more than the region
+ * has - a strut deeper than the whole region leaves it empty rather than
+ * negative.
+ */
+int
+ribbon_policy_reserve(int strut, int screen, int pos, int len, int far)
+{
+	int	 n;
+
+	if (strut <= 0)
+		return 0;
+
+	if (far)
+		n = (pos + len) - (screen - strut);
+	else
+		n = strut - pos;
+
+	if (n < 0)
+		n = 0;
+	if (n > len)
+		n = len;
+
+	return n;
+}
+
+/*
  * Which column holds focus after the window in column idx closed.  ncol is
  * the number of columns before the close, last says the column was the
  * rightmost, only says the window was the last one in it - that is, that the

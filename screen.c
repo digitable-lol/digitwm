@@ -33,6 +33,7 @@
 #include "calmwm.h"
 
 static struct geom screen_apply_gap(struct screen_ctx *, struct geom);
+static struct geom screen_apply_strut(struct screen_ctx *, struct geom);
 static void screen_scan(struct screen_ctx *);
 
 void
@@ -260,7 +261,97 @@ screen_apply_gap(struct screen_ctx *sc, struct geom geom)
 	geom.w -= (sc->gap.left + sc->gap.right);
 	geom.h -= (sc->gap.top + sc->gap.bottom);
 
+	return screen_apply_strut(sc, geom);
+}
+
+/*
+ * Take off what the panels reserve.  Every managed window may claim depth at
+ * the screen edges through _NET_WM_STRUT_PARTIAL, and the deepest claim on
+ * each edge wins - two panels on the top edge do not stack, the taller one
+ * decides.  A claim only touches a region its span reaches, so a panel across
+ * one monitor leaves the others their full height.
+ *
+ * The geometry arriving here has already lost the configured gap, and the
+ * arithmetic is deliberately done against that reduced rectangle: a panel that
+ * fits inside a gap the user has already given away costs nothing more.  See
+ * ribbon_policy_reserve() for the two lines that decide it.
+ *
+ * Hidden windows reserve nothing.  A panel that collapses by unmapping itself
+ * is gone from sc->clientq entirely by the time this runs, which is why hiding
+ * a panel gives the band back without a special case for it.
+ */
+static struct geom
+screen_apply_strut(struct screen_ctx *sc, struct geom geom)
+{
+	struct client_ctx	*cc;
+	struct gap		 res = { 0, 0, 0, 0 };
+	int			 sw, sh, n;
+
+	sw = DisplayWidth(X_Dpy, sc->which);
+	sh = DisplayHeight(X_Dpy, sc->which);
+
+	TAILQ_FOREACH(cc, &sc->clientq, entry) {
+		if (cc->flags & CLIENT_HIDDEN)
+			continue;
+
+		if (ribbon_policy_span(cc->strut.top_start_x,
+		    cc->strut.top_end_x, geom.x, geom.w)) {
+			n = ribbon_policy_reserve(cc->strut.top, sh,
+			    geom.y, geom.h, 0);
+			res.top = MAX(res.top, n);
+		}
+		if (ribbon_policy_span(cc->strut.bottom_start_x,
+		    cc->strut.bottom_end_x, geom.x, geom.w)) {
+			n = ribbon_policy_reserve(cc->strut.bottom, sh,
+			    geom.y, geom.h, 1);
+			res.bottom = MAX(res.bottom, n);
+		}
+		if (ribbon_policy_span(cc->strut.left_start_y,
+		    cc->strut.left_end_y, geom.y, geom.h)) {
+			n = ribbon_policy_reserve(cc->strut.left, sw,
+			    geom.x, geom.w, 0);
+			res.left = MAX(res.left, n);
+		}
+		if (ribbon_policy_span(cc->strut.right_start_y,
+		    cc->strut.right_end_y, geom.y, geom.h)) {
+			n = ribbon_policy_reserve(cc->strut.right, sw,
+			    geom.x, geom.w, 1);
+			res.right = MAX(res.right, n);
+		}
+	}
+
+	/*
+	 * Two panels facing each other cannot take more than there is.  The
+	 * clamp is here rather than in the policy because it is a fact about
+	 * the pair, and each half of the pair is decided on its own.
+	 */
+	if ((res.top + res.bottom) > geom.h) {
+		res.top = MIN(res.top, geom.h);
+		res.bottom = geom.h - res.top;
+	}
+	if ((res.left + res.right) > geom.w) {
+		res.left = MIN(res.left, geom.w);
+		res.right = geom.w - res.left;
+	}
+
+	geom.x += res.left;
+	geom.y += res.top;
+	geom.w -= (res.left + res.right);
+	geom.h -= (res.top + res.bottom);
+
 	return geom;
+}
+
+/*
+ * A panel came, went, or moved its edge: remeasure the screen and let every
+ * ribbon settle into what is left.  One entry point, because a strut is not a
+ * property of one ribbon - it takes the same band from all of them.
+ */
+void
+screen_update_struts(struct screen_ctx *sc)
+{
+	screen_update_geometry(sc);
+	ribbon_screen_update(sc);
 }
 
 /* Bring back clients which are beyond the screen. */
