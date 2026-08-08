@@ -11,7 +11,7 @@
 //   remainder     (viewport height - gaps) - share x window count
 //   last-height   even share + remainder
 //
-// The division here is the only place in all six models where the caller
+// The division here is the only place in all seven models where the caller
 // does something other than a difference.  There is no way around it: FTS
 // multiplies a field by a constant, but it neither divides a field by a
 // field nor takes a remainder, and the window count is a field.  What stays

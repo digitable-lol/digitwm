@@ -261,9 +261,15 @@ TAILQ_HEAD(region_q, region_ctx);
 /*
  * The ribbon: an endless row of columns, of which the viewport shows a
  * stretch.  A column keeps its own width and an ordered stack of windows;
- * the ribbon keeps the order of columns and one number, the offset of the
- * viewport along it.  Opening a window never changes the ribbon geometry of
+ * the ribbon keeps the order of columns and two numbers, the offsets of the
+ * viewport across it.  Opening a window never changes the ribbon geometry of
  * any window already there - it only ever appends to the row.
+ *
+ * Two offsets, because the row and the stacks together make a canvas and the
+ * viewport slides over both axes of it.  The canvas is as wide as the row of
+ * columns (len) and as tall as the tallest stack on it (canvas): a stack that
+ * outgrows the viewport used to end up below the edge with nothing able to
+ * reach it, and the vertical offset is what reaches it.
  */
 #define RIBBON_NPRESET		4
 
@@ -289,6 +295,7 @@ struct ribbon_col {
 	int			 preset; /* index into Conf.ribbonwidth */
 	int			 x;	/* left edge along the ribbon */
 	int			 w;	/* width in pixels */
+	int			 h;	/* height of the stack, gaps included */
 };
 TAILQ_HEAD(ribbon_col_q, ribbon_col);
 
@@ -300,7 +307,9 @@ struct ribbon {
 	char			*output; /* RandR output this ribbon belongs to */
 	struct geom		 view;	/* viewport, gap applied */
 	int			 offset; /* viewport offset along the ribbon */
+	int			 voffset; /* viewport offset down the canvas */
 	int			 len;	/* total ribbon length in pixels */
+	int			 canvas; /* canvas height: the tallest stack */
 	int			 active; /* the output is currently attached */
 };
 TAILQ_HEAD(ribbon_q, ribbon);
@@ -603,6 +612,7 @@ void			 search_print_text(struct menu *, int);
 void			 search_print_wm(struct menu *, int);
 
 int			 ribbon_policy_offset(int, int, int, int, int, int);
+int			 ribbon_policy_voffset(int, int, int, int, int, int);
 int			 ribbon_policy_width(int, int, int, int);
 int			 ribbon_policy_height(int, int, int, int, int);
 int			 ribbon_policy_insert(int, int, int, int, int, int);

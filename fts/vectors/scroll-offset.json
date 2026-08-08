@@ -10,6 +10,7 @@
 	{ "name": "колонка видна целиком, лента ровно во вьюпорт", "viewport-width": 1280, "column-left": 8, "column-width": 1264, "offset": 0, "gap": 8, "ribbon-length": 1280 },
 	{ "name": "колонка шире вьюпорта", "viewport-width": 1280, "column-left": 1000, "column-width": 1400, "offset": 0, "gap": 8, "ribbon-length": 3000 },
 	{ "name": "колонка шире вьюпорта в конце ленты", "viewport-width": 1280, "column-left": 1600, "column-width": 1400, "offset": 0, "gap": 8, "ribbon-length": 3000 },
+	{ "name": "устаревшая лента короче широкой колонки", "viewport-width": 1280, "column-left": 1500, "column-width": 1400, "offset": 0, "gap": 8, "ribbon-length": 1600 },
 	{ "name": "колонка ровно во вьюпорт", "viewport-width": 1280, "column-left": 500, "column-width": 1280, "offset": 0, "gap": 8, "ribbon-length": 3000 },
 	{ "name": "колонка уже вьюпорта меньше чем на зазор, ушла вправо", "viewport-width": 1280, "column-left": 1000, "column-width": 1276, "offset": 0, "gap": 8, "ribbon-length": 3000 },
 	{ "name": "колонка уже вьюпорта меньше чем на зазор, ушла влево", "viewport-width": 1280, "column-left": 100, "column-width": 1276, "offset": 200, "gap": 8, "ribbon-length": 3000 },

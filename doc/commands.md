@@ -32,10 +32,10 @@ live on a ribbon* — is answered for each group below.
 | Command | What it does |
 |---|---|
 | `ribbon-focus-left`, `ribbon-focus-right` | move focus to the neighbouring column; the viewport follows |
-| `ribbon-focus-up`, `ribbon-focus-down` | move focus inside the column's stack |
+| `ribbon-focus-up`, `ribbon-focus-down` | move focus inside the column's stack; the canvas scrolls to the window |
 | `ribbon-move-left`, `ribbon-move-right` | carry the window to the neighbouring column, making one at the edge if there is none |
 | `ribbon-width-cycle`, `ribbon-width-grow`, `ribbon-width-shrink` | step the column through the four width presets |
-| `ribbon-center` | put the focused column in the middle of the viewport |
+| `ribbon-center` | put the focus in the middle of the viewport, on both axes |
 | `ribbon-float-toggle` | drop a window out of the ribbon, or pick a floating one up into it |
 
 Default bindings are on `Mod4` (`4-h`, `4-l`, `4-k`, `4-j`, `4S-h`, `4S-l`,
