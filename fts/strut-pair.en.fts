@@ -1,0 +1,193 @@
+// What two panels facing each other are left with when together they ask for
+// more than there is.
+//
+// The third and last part of the panel decision.  "strut-span" answers
+// whether a claim touches this monitor; "strut-reserve" answers by how much
+// the monitor shrinks because of it.  Both look at ONE edge and know nothing
+// about the other.  So both let the overrun through: a panel 28 deep on top
+// is modest, a panel 28 deep on the bottom is modest, and on a region 40 tall
+// the two of them together are impossible.
+//
+// This is the fact about the PAIR, and it is written down as a model rather
+// than as a line in screen.c for exactly one reason: it is a number, and
+// until now it was the only ribbon arithmetic without a model
+// (doc/portability.md, "what to do next").
+//
+// The near edge wins the tie.  That is a choice, not a law: someone has to
+// give, and giving at the far edge keeps the top of the region where a reader
+// expects it and pushes the loss to the bottom - where the status bar lives
+// and where the loss is NOTICED rather than guessed at.
+//
+// Both depths arrive from "strut-reserve" and are therefore already
+// non-negative and each no larger than the region.  The model does not lean
+// on that - it repairs negatives too - but the reasoning about it does.
+//
+// The caller computes the differences and passes them as fields, because an
+// FTS condition compares one field with a constant or with a percent of one
+// field:
+//
+//   overrun     near strut + far strut - region length
+//   far-left    region length - near strut
+//
+// The measured case to check against: a region 800 pixels tall, a panel 28 on
+// top and 28 on the bottom - no overrun, each gets what it asked for, the
+// columns become 744.  The argument starts where the region is small: 40
+// pixels for two panels of 28 gives 28 at the top and 12 at the bottom.
+
+category "Ribbon layout"
+
+  object "Facing pair"
+    near-strut is number
+    far-strut is number
+    region-length is number
+    want-far is boolean
+    overrun is number
+    far-left is number
+
+  utility strut-pair
+    accepts "Facing pair"
+    returns number
+    starts with 0
+
+    // The order decides everything here: every rule whose condition holds
+    // runs, and the last "then result equals" overwrites the ones before it.
+    // First "they fit", then the argument - exactly the way the C reads top
+    // to bottom.
+
+    rule "They fit: the near edge gets all it asked for"
+      if overrun is at most 0
+      and want-far equals false
+      then result equals 100 percent of field near-strut
+
+    rule "They fit: the far edge gets all it asked for"
+      if overrun is at most 0
+      and want-far equals true
+      then result equals 100 percent of field far-strut
+
+    rule "Argument: the near edge keeps its own in full"
+      if overrun is greater than 0
+      and want-far equals false
+      then result equals 100 percent of field near-strut
+
+    rule "Argument: the near edge is deeper than the region and takes it whole"
+      if overrun is greater than 0
+      and want-far equals false
+      and near-strut is greater than 100 percent of field region-length
+      then result equals 100 percent of field region-length
+
+    rule "Argument: the far edge gets what the near one did not take"
+      if overrun is greater than 0
+      and want-far equals true
+      then result equals 100 percent of field far-left
+
+    rule "Argument: the near edge took everything and the far one gets none"
+      if overrun is greater than 0
+      and want-far equals true
+      and far-left is less than 0
+      then result equals 0
+
+    rule "There is no such thing as a negative near strut"
+      if near-strut is less than 0
+      and want-far equals false
+      then result equals 0
+
+    rule "There is no such thing as a negative far strut"
+      if far-strut is less than 0
+      and want-far equals true
+      then result equals 0
+
+    property "Nothing less than nothing is given up"
+      result is at least 0
+
+    property "Nothing more than the whole region is given up"
+      result is at most 100 percent of field region-length
+
+    example "Two panels of 28 on a screen of 800: no overrun, the near one keeps its own"
+      given near-strut equals 28
+      given far-strut equals 28
+      given region-length equals 800
+      given want-far equals false
+      given overrun equals -744
+      given far-left equals 772
+      expected result equals 28
+
+    example "Two panels of 28 on a screen of 800: no overrun, the far one keeps its own"
+      given near-strut equals 28
+      given far-strut equals 28
+      given region-length equals 800
+      given want-far equals true
+      given overrun equals -744
+      given far-left equals 772
+      expected result equals 28
+
+    example "A region of 40 for two panels of 28: the near one gets all 28"
+      given near-strut equals 28
+      given far-strut equals 28
+      given region-length equals 40
+      given want-far equals false
+      given overrun equals 16
+      given far-left equals 12
+      expected result equals 28
+
+    example "A region of 40 for two panels of 28: the far one gets the remaining 12"
+      given near-strut equals 28
+      given far-strut equals 28
+      given region-length equals 40
+      given want-far equals true
+      given overrun equals 16
+      given far-left equals 12
+      expected result equals 12
+
+    example "The near edge is deeper than the whole region: it takes the region"
+      given near-strut equals 50
+      given far-strut equals 10
+      given region-length equals 40
+      given want-far equals false
+      given overrun equals 20
+      given far-left equals -10
+      expected result equals 40
+
+    example "The near edge is deeper than the whole region: the far one gets zero"
+      given near-strut equals 50
+      given far-strut equals 10
+      given region-length equals 40
+      given want-far equals true
+      given overrun equals 20
+      given far-left equals -10
+      expected result equals 0
+
+    example "Together they fill the region exactly: no argument"
+      given near-strut equals 20
+      given far-strut equals 20
+      given region-length equals 40
+      given want-far equals true
+      given overrun equals 0
+      given far-left equals 20
+      expected result equals 20
+
+    example "Together they are one pixel over: the far edge pays that pixel"
+      given near-strut equals 20
+      given far-strut equals 21
+      given region-length equals 40
+      given want-far equals true
+      given overrun equals 1
+      given far-left equals 20
+      expected result equals 20
+
+    example "No panels at all"
+      given near-strut equals 0
+      given far-strut equals 0
+      given region-length equals 800
+      given want-far equals false
+      given overrun equals -800
+      given far-left equals 800
+      expected result equals 0
+
+    example "A region of zero length gives up nothing"
+      given near-strut equals 28
+      given far-strut equals 28
+      given region-length equals 0
+      given want-far equals false
+      given overrun equals 56
+      given far-left equals -28
+      expected result equals 0

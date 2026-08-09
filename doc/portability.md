@@ -27,10 +27,10 @@ The script puts a 17-line stub where the X11 headers go and builds the whole of
 | lines in `ribbon.c` | 1183 |
 | X11 names the resulting `ribbon.o` requires | **three**: `XSync`, `XCheckMaskEvent`, `X_Dpy` |
 | where those three are | all in `ribbon_settle()`, 7 lines |
-| the nine policies as their own translation unit | build with `-Wall -Wextra -Werror` and **not one X11 header** |
+| the ten policies as their own translation unit | build with `-Wall -Wextra -Werror` and **not one X11 header** |
 | undefined symbols of that unit | one: `Conf` |
 
-Agreement is not only a matter of compiling. The nine policies, extracted into a
+Agreement is not only a matter of compiling. The ten policies, extracted into a
 separate binary with no X11, and `layout-probe` out of a `cwm` linked against
 Xlib, Xft and Xrandr answer identically on **171 conformance vectors** from
 `fts/vectors/` and on a further **2700 random vectors** inside the models' domain.
@@ -94,12 +94,14 @@ code.
 (`Window`) the ribbon sees at all, and only for
 `xu_ptr_get(sc->rootwin, &x, &y)`. On macOS that is `NSEvent.mouseLocation`.
 
-And two leaks the other way — arithmetic that ended up outside the policy:
+And one leak the other way — arithmetic that ended up outside the policy:
 
-**4. The clamp on a facing pair of panels** — `screen.c:323-335`. Two panels
-opposite each other cannot take more than there is; the decision is about the
-pair, while each half of the pair is decided by its own policy. There is no
-model for this rule, and a port has to derive it again.
+**4. The clamp on a facing pair of panels — CLOSED.** It was `screen.c:323-335`:
+two panels opposite each other cannot take more than there is; the decision is
+about the pair, while each half of the pair is decided by its own policy, and
+the rule had no model. It is now `ribbon_policy_pair()` and the model
+`fts/strut-pair.fts` on both surfaces: 10 examples, 30 vectors, a mutation in
+`selftest.mjs`. Ten policies, ten models. A port has nothing left to derive.
 
 **5. `ribbon_policy_width()` reads `Conf.ribbonwidth[preset]`** — so it is not a
 function of its arguments alone. The model `fts/column-width.fts` keeps
@@ -187,9 +189,9 @@ user sees several tabs.
 
 **6. Struts will not be needed.** macOS has no `_NET_WM_STRUT_PARTIAL`, and does
 not need one: `NSScreen.visibleFrame` already returns the area without the Dock
-and the menu bar. Two of the nine policies — `ribbon_policy_span` and
-`ribbon_policy_reserve`, 26 lines — are simply never called on macOS. They stay
-in the tree for X11.
+and the menu bar. Three of the ten policies — `ribbon_policy_span`,
+`ribbon_policy_reserve` and `ribbon_policy_pair` — are simply never called on
+macOS. They stay in the tree for X11.
 
 ## Latency: the real work of the port, and it is in our code
 
