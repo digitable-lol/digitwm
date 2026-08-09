@@ -224,6 +224,48 @@ carbon:
   battery has not been seen on a live wearable device, and that is recorded
   honestly below.**
 
+## All four edges, and two panels facing each other
+
+Until 2026-08-09 this document held one measurement: a panel on the TOP edge.
+The strut arithmetic is symmetric on both axes, but the symmetry was an
+argument, not a measurement. All four edges are now measured against a live
+manager — `tools/measure-edges.sh`, Xvfb 1280x800, `ribbongap 8`, three
+columns, a panel 28 deep. `tools/strut-probe` gained
+`-e top|bottom|left|right`.
+
+| edge | columns without | with the panel | `_NET_WORKAREA` with it |
+|---|---|---|---|
+| top | `0,0 634x798` | `0,28 634x770` | `0, 28, 1280, 772` |
+| bottom | `0,0 634x798` | `0,0 634x770` | `0, 0, 1280, 772` |
+| left | `0,0 634x798` | `28,0 620x798` | `28, 0, 1252, 800` |
+| right | `0,0 634x798` | `0,0 620x798` | `0, 0, 1252, 800` |
+
+The panel leaving restores `634x798` and `0, 0, 1280, 800` in all four cases.
+A side panel takes off the column's WIDTH rather than its height: 634 becomes
+620, because the column is half of `1252 − 8`, not of `1280 − 8`.
+
+**Two panels facing each other.** The case a single panel never produces: 28
+on top and 28 on the bottom gives columns `0,28 634x742` and `_NET_WORKAREA =
+0, 28, 1280, 744` — each gets what it asked for. But if both ask for 500 on a
+screen of 800, together that is impossible and someone has to give.  Measured:
+`_NET_WORKAREA = 0, 500, 1280, 0`. The near edge takes its 500 in full, the
+far one is left with 300, and no work area is left at all.
+
+Which one gives is a **decision**, not a consequence. Until 2026-08-09 it
+lived as a line in `screen.c` with no name, no model and no vector: the only
+ribbon arithmetic without a contract (`doc/portability.md`, item 4 of the
+leaks). It is now `ribbon_policy_pair()` and the model `fts/strut-pair.fts` on
+both surfaces — 10 examples, 30 vectors, and a mutation in `selftest.mjs` that
+catches exactly a change of winner. Behaviour did not move by a pixel: the
+same numbers were taken on `origin/main` and on the branch with the policy, and
+they agree completely. That is the point — the number did not change, it became
+named and proved.
+
+Why the near edge wins: someone has to give, and giving at the far edge keeps
+the top of the region where a reader expects it and pushes the loss to the
+bottom — where the status bar lives and where the loss is NOTICED rather than
+guessed at.
+
 ## Icons: why the panel has none
 
 The owner asked for quality icons "in our system". The Digitable set is the
@@ -253,12 +295,14 @@ Digitable panel, and that is worse than words.
 ## What this document does not prove
 
 - **More than one monitor.** The claim is computed per span and the code knows
-  how, but Xvfb here has one output. Two live monitors are untested.
+  how, but Xvfb here has one output — and that is a limit of the tool, not
+  laziness: `Xvfb +xinerama` with two screens hands back a single Xinerama
+  head, while the manager takes its regions from XRandR (`screen.c:195-238`),
+  where Xvfb has exactly one CRTC. A software server has no second live
+  monitor; measuring one needs Xephyr, Xvnc or the Xorg dummy driver, and none
+  of the three is on this machine. Two live monitors are untested.
 - **The battery.** The measuring machine has none; the module switches itself
   off and says why, but nobody has seen a reading on a wearable device.
-- **Panels at the bottom and the sides.** The arithmetic is symmetric and
-  `tools/strut-probe -b` knows the bottom edge, but the measurement in this
-  document is the top one only.
 - **polybar on FreeBSD and NetBSD.** digitwm promises three systems; one was
   checked. Should polybar fail to build on the other two, the replacement is
   obvious: yambar on the same scheme, a different configuration file, the same

@@ -43,6 +43,7 @@
  *   output-change       "Смещение после смены монитора"
  *   strut-span          "Достаёт ли полоса до области"
  *   strut-reserve       "Сколько полоса отнимает у области"
+ *   strut-pair          "Что остаётся паре панелей"
  *
  * and "layout" answers with the geometry of every window of a whole
  * scenario.  Field names are English kebab-case on both surfaces, because
@@ -133,6 +134,7 @@ static const struct {
 	{ "output-change",	"Смещение после смены монитора" },
 	{ "strut-span",		"Достаёт ли полоса до области" },
 	{ "strut-reserve",	"Сколько полоса отнимает у области" },
+	{ "strut-pair",		"Что остаётся паре панелей" },
 	{ "layout",		"Раскладка" },
 	{ "outputs",		"Мониторы" },
 };
@@ -463,6 +465,12 @@ probe_scalar(struct probe_ctx *p, const char *util)
 		    probe_req(p, "region-start"),
 		    probe_req(p, "region-length"),
 		    probe_req(p, "far-edge"));
+	} else if (strcmp(util, "strut-pair") == 0) {
+		v = ribbon_policy_pair(
+		    probe_req(p, "near-strut"),
+		    probe_req(p, "far-strut"),
+		    probe_req(p, "region-length"),
+		    probe_req(p, "want-far"));
 	} else {
 		probe_error(p, "unknown utility \"%s\"", util);
 	}

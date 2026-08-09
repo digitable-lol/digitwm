@@ -2,11 +2,12 @@
 
 **Русская версия: [README.ru.md](README.ru.md).**
 
-Nine scalar decisions drive the ribbon — how far it scrolls along the row and
+Ten scalar decisions drive the ribbon — how far it scrolls along the row and
 down the canvas after a focus change, how wide a column is, how tall a window in it is, where a new window
 goes, what takes focus when a window closes, what happens to the offset when
 the monitor changes size, whether the strip a panel claims reaches this
-monitor at all and how much it takes off it. Each is an
+monitor at all, how much it takes off it, and what two facing panels are left
+with when together they ask for more than there is. Each is an
 [FTS](https://github.com/digitable-lol/fts)
 model here, on both surfaces, with checked properties and worked examples on
 the boundaries.
@@ -30,7 +31,7 @@ numbers of the panel strip lived in the code alone: the promise "the numbers of
 the ribbon are not buried in C" had a silent exception of two functions. Only
 reading could catch that, so the correspondence is now guarded by a check — the
 `ribbon_policy_*` names of `ribbon.c` are matched against the file names of the
-models, and a tenth policy without a model goes red by itself.
+models, and an eleventh policy without a model goes red by itself.
 
 `name.fts` is the Russian surface and `name.en.fts` the English one. They are
 not translations of each other: one parser, one canonical document, and CI

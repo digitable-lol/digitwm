@@ -630,6 +630,7 @@ int			 ribbon_policy_close(int, int, int, int);
 int			 ribbon_policy_output(int, int, int);
 int			 ribbon_policy_span(int, int, int, int);
 int			 ribbon_policy_reserve(int, int, int, int, int);
+int			 ribbon_policy_pair(int, int, int, int);
 
 struct ribbon		*ribbon_new(struct screen_ctx *, const char *);
 void			 ribbon_free(struct ribbon *);

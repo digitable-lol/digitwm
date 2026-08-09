@@ -284,7 +284,7 @@ static struct geom
 screen_apply_strut(struct screen_ctx *sc, struct geom geom)
 {
 	struct client_ctx	*cc;
-	struct gap		 res = { 0, 0, 0, 0 };
+	struct gap		 res = { 0, 0, 0, 0 }, pair;
 	int			 sw, sh, n;
 
 	sw = DisplayWidth(X_Dpy, sc->which);
@@ -321,18 +321,18 @@ screen_apply_strut(struct screen_ctx *sc, struct geom geom)
 	}
 
 	/*
-	 * Two panels facing each other cannot take more than there is.  The
-	 * clamp is here rather than in the policy because it is a fact about
-	 * the pair, and each half of the pair is decided on its own.
+	 * Two panels facing each other cannot take more than there is.  Each
+	 * half of the pair is decided on its own and neither can see the
+	 * overrun, so the pair gets a policy of its own - see
+	 * ribbon_policy_pair() and fts/strut-pair.fts.  Both answers are taken
+	 * from the granted pair before either is written back: the policy
+	 * needs the pair as it was asked for, not half of an update.
 	 */
-	if ((res.top + res.bottom) > geom.h) {
-		res.top = MIN(res.top, geom.h);
-		res.bottom = geom.h - res.top;
-	}
-	if ((res.left + res.right) > geom.w) {
-		res.left = MIN(res.left, geom.w);
-		res.right = geom.w - res.left;
-	}
+	pair.top = ribbon_policy_pair(res.top, res.bottom, geom.h, 0);
+	pair.bottom = ribbon_policy_pair(res.top, res.bottom, geom.h, 1);
+	pair.left = ribbon_policy_pair(res.left, res.right, geom.w, 0);
+	pair.right = ribbon_policy_pair(res.left, res.right, geom.w, 1);
+	res = pair;
 
 	geom.x += res.left;
 	geom.y += res.top;
