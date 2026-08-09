@@ -130,6 +130,14 @@ check_exec "$PREFIX/bin/digitwm-lock"        "блокировка экрана"
 check_exec "$PREFIX/bin/digitwm-dev-session" "рабочая сессия tmux"
 check_exec "$PREFIX/bin/rgfzf.sh"            "поиск по содержимому"
 
+if [ -f "$PREFIX/bin/digitwm-digit" ] \
+  && grep -q 'display\\.pet\\.slug:' "$PREFIX/bin/digitwm-digit" \
+  && grep -q 'digit pets install digitmorf --select' "$PREFIX/bin/digitwm-digit"; then
+  ok "Digitmorf выбирается офлайн только при незаданном pet slug"
+else
+  bad "интеграция Digitmorf" "нет first-run guard в $PREFIX/bin/digitwm-digit"
+fi
+
 section "Запись для менеджера входа"
 desktop_user="${XDG_DATA_HOME:-$HOME/.local/share}/xsessions/digitwm.desktop"
 desktop_system="/usr/share/xsessions/digitwm.desktop"
