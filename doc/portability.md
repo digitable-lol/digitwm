@@ -191,6 +191,73 @@ and the menu bar. Two of the nine policies — `ribbon_policy_span` and
 `ribbon_policy_reserve`, 26 lines — are simply never called on macOS. They stay
 in the tree for X11.
 
+## The flicker, in milliseconds
+
+"A new window appears in the wrong place and then jumps" is not a feeling, it
+is a number, and the decision about the port turns on it. **We have no Mac, so
+we did not measure it, and nothing below pretends we did.** What is here is
+three things: what the number is made of, what parts of it we could measure
+here, and a harness that produces the rest in one command on a machine that has
+a Mac — `tools/macos-flicker/`, `sh run.sh`.
+
+The flicker is a sum of four terms:
+
+| Term | What it is | Where its number comes from |
+|---|---|---|
+| 1. the window is drawn → we learn of it | the compositor has already shown it | **not ours, not measured by us** |
+| 2. the layout decision | the nine policies | **0.06 ms** per insertion, measured |
+| 3. the geometry writes | AX round trips into the app | **count measured: 9 writes / 18 round trips** per insertion |
+| 4. one screen refresh | the compositor shows the move | 8.3 ms at 120 Hz, 16.7 at 60 |
+
+Term 2 is measured on the same code compiled to WebAssembly (`node
+tools/wasm-layout/check.mjs`: eight insertions in 0.51 ms), and it is
+negligible. Term 3 is where our own work went: the count halved, above.
+
+Term 1 is the one that cannot be removed, and the published evidence about it
+is worth quoting rather than paraphrasing.
+
+- **It fires after the paint, by design.** yabai's author, on the issue about
+  exactly this ([yabai#1437](https://github.com/asmvik/yabai/issues/1437)):
+  *"Yabai doesn't know about the window before it is rendered on the screen, as
+  we cannot intercept the compositor."* And on why it varies: *"The amount of
+  time it takes for us to get notified about a window that we can manage varies
+  heavily between applications."*
+- **Even hiding it as fast as technically possible leaves 20–30 ms visible.**
+  Same thread, same author, testing a branch that hides the window the instant
+  it is detected: *"probably visible for like ~30ms, but I do notice it"*, and
+  of another case *"~20ms. It was very noticeable for me as a user"*. That
+  branch needs SIP off — see below — so 20–30 ms is a **lower bound**, not our
+  number.
+- **The earliest a manager can learn, without SIP, has been measured by
+  someone else.** alt-tab-macos subscribes to SkyLight's per-window
+  notifications (event 811 "created", 815 "ordered in") instead of the
+  Accessibility one, and its sources carry the measurement, taken on macOS 26.5
+  with the WindowServer driven to ~99 % CPU: the first per-window event **never
+  arrived earlier than 7.1 ms**, p50 7.2 ms, p99 12.7 ms
+  ([alt-tab-macos](https://github.com/lwouis/alt-tab-macos),
+  `src/switcher/state/Applications.swift`). Event 815 is, by that project's own
+  comment, *"the true 'pixels on screen' moment"*. This path needs no SIP off —
+  only Accessibility — but it is still a notification: you learn earlier, you
+  do not intercept.
+
+So without disabling system protection the flicker is bounded below by roughly
+**7 ms of learning plus one round trip plus a frame**, and the only thing that
+actually hides it — making the window transparent until it is placed — lives in
+yabai's Dock.app payload and therefore behind SIP, which Tahoe broke twice and
+the macOS 27 betas break again.
+
+The cost of a single round trip has **no published per-application number**;
+what is published are the extremes, and they are wide: the default AX messaging
+timeout is 6 s (yabai and alt-tab both cut it to 1 s), and one Accessibility
+read during a window animation is recorded at ~500 ms against 11 ms for the
+same fact asked of the WindowServer in a batch. That spread is exactly why
+term 3 is a count worth halving, and why the harness measures the unit cost per
+application rather than assuming one.
+
+**Nothing about any of this changed in macOS 15, 26 or the 27 betas as of
+August 2026**: no public placement or tiling API for third parties, no new
+entitlement, no pre-display hook. Apple's own tiling exposes no hooks.
+
 ## Latency: the real work of the port, and it is in our code
 
 Measured here (`doc/baseline.md`): the manager's own share of an insertion is
@@ -205,19 +272,34 @@ after the position — with the comment *"the accessibility APIs are really
 finicky with setting size… this still occasionally silently fails"*
 (`SIAccessibilityElement.m:195-226`).
 
-And our code is currently arranged to make that hurt. `ribbon_sync_one()`
-(`ribbon.c:685-721`) calls `client_resize()` for **every** window of **every**
-column on **every** call, without asking whether the geometry changed at all.
-And `client_init()` calls `ribbon_sync()` twice — `client.c:148` and
-`client.c:202`. With eight windows open, opening one more comes to
-2 × 8 × 3 = 48 synchronous IPC round-trips where X11 gets away with four
-buffered asynchronous requests per window and a single `XSync`.
+And our code was arranged to make that hurt. That is now **measured and
+fixed**, and the number is not an estimate: `tools/measure-syncs.sh` counts the
+wire rather than the code — `tools/count-geom.c` goes under `LD_PRELOAD` and
+records every call that reached libX11.
 
-**This is fixed in the ribbon, not in macOS**: compare `cc->geom` with what was
-last pushed and push only what moved. On an insertion that is the new window
-plus the columns to the right of it, not the whole ribbon. On X11 such a check
-buys nothing measurable — which is why it was never written; on macOS it is the
-difference between usable and not.
+Opening the ninth window with eight already open:
+
+| | geometry writes | of them repeating what was already there | AX round trips on macOS |
+|---|---|---|---|
+| before | 19 | 10 | 38 |
+| after | **9** | **0** | **18** |
+
+Over the whole nine-window session: 44 writes instead of 99, and 56 % of the
+old ones were restating a geometry the window already had. The estimate this
+document used to carry — "2 × 8 × 3 = 48" — was arithmetic on paper; the wire
+says 38, and this is the case where measuring was worth it.
+
+Fixed in the ribbon, not in macOS: `client_geom_current()` compares `cc->geom`
+against what the window was last given, and `ribbon_sync_one()` says nothing
+when nothing changed. The cache is safe because a window on the ribbon has one
+owner: a `ConfigureRequest` from it is denied (`xev_handle_configurerequest`),
+and the single path that changes geometry behind that record's back drops it
+itself.
+
+On X11 the check buys nothing measurable — an insertion is still 2–4 ms from
+`XMapWindow` and still redraws no neighbour (`tools/measure-insert.sh`, nine
+windows). Its point is elsewhere: on macOS each of those writes is a round trip
+into another process's event loop, and half of them are no longer made.
 
 ## Permissions, delivery, licences
 
@@ -268,8 +350,8 @@ The price:
 | edits inside `ribbon.c` | ~10 lines | the three leaks above |
 | a new input/output layer | **2500–4000 lines** | estimated from the neighbours: Silica — the whole AX wrapper — is 2434 lines; AeroSpace's helper layer 928; yabai's process and event attachment about 2400 |
 | dropped | 4880 lines of X11 mechanics, of which `xutil.c` (579, all EWMH) has no replacement at all: macOS has no EWMH | measured |
-| a new obligation | a "what changed" check in `ribbon_sync_one()` | see above |
-| impossible | insertion without a jump | `AXObserverCallback` returns `void` |
+| a new obligation | a "what changed" check in `ribbon_sync_one()` | **done**: 19 writes per insertion became 9 |
+| impossible | insertion without a jump | `AXObserverCallback` returns `void`; the jump is bounded below by ~7 ms + one round trip + a frame |
 
 The 2500–4000 is an estimate, not a measurement: it is taken from the sizes of
 other projects doing the same job, and it cannot be checked until there is a

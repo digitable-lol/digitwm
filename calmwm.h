@@ -174,6 +174,13 @@ struct client_ctx {
 	int			 bwidth; /* border width */
 	int			 obwidth; /* original border width */
 	struct geom		 geom, savegeom, fullgeom;
+	/*
+	 * The geometry this window was last actually given, as opposed to the
+	 * one it should have.  They differ only while a change is pending, and
+	 * the point of keeping the pair is to notice when they do not differ
+	 * at all: then there is nothing to send.  See client_resize().
+	 */
+	struct geom		 sentgeom;
 	struct {
 		long		 flags;	/* defined hints */
 		int		 basew;	/* desired width */
@@ -216,6 +223,7 @@ struct client_ctx {
 #define CLIENT_TYPE_DOCK		0x40000
 #define CLIENT_RIBBON			0x80000
 #define CLIENT_RIBBON_PARKED		0x100000
+#define CLIENT_GEOM_SENT		0x200000
 
 #define CLIENT_SKIP_CYCLE		(CLIENT_HIDDEN | CLIENT_IGNORE | \
 					 CLIENT_SKIP_TASKBAR | CLIENT_SKIP_PAGER)
@@ -543,6 +551,8 @@ void 			 client_htile(struct client_ctx *);
 int			 client_inbound(struct client_ctx *, int, int);
 struct client_ctx	*client_init(Window, struct screen_ctx *);
 void			 client_lower(struct client_ctx *);
+void			 client_geom_sent(struct client_ctx *);
+int			 client_geom_current(struct client_ctx *);
 void			 client_move(struct client_ctx *);
 void			 client_mtf(struct client_ctx *);
 struct client_ctx	*client_next(struct client_ctx *);
