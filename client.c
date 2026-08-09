@@ -148,7 +148,13 @@ client_init(Window win, struct screen_ctx *sc)
 		ribbon_sync(sc);
 
 	if ((wattr.map_state != IsViewable) || (cc->flags & CLIENT_RIBBON)) {
-		client_resize(cc, 0);
+		/*
+		 * The sync above has just placed this window along with its
+		 * neighbours; saying it a second time changes nothing here and
+		 * costs a round trip on a system where geometry is IPC.
+		 */
+		if (!client_geom_current(cc))
+			client_resize(cc, 0);
 		if ((wattr.map_state != IsViewable) && cc->initial_state)
 			xu_set_wm_state(cc->win, cc->initial_state);
 	}
@@ -538,6 +544,7 @@ client_resize(struct client_ctx *cc, int reset)
 
 	XMoveResizeWindow(X_Dpy, cc->win, cc->geom.x,
 	    cc->geom.y, cc->geom.w, cc->geom.h);
+	client_geom_sent(cc);
 	cc->dim.w = (cc->geom.w - cc->hint.basew) / cc->hint.incw;
 	cc->dim.h = (cc->geom.h - cc->hint.baseh) / cc->hint.inch;
 	client_config(cc);
@@ -547,7 +554,43 @@ void
 client_move(struct client_ctx *cc)
 {
 	XMoveWindow(X_Dpy, cc->win, cc->geom.x, cc->geom.y);
+	client_geom_sent(cc);
 	client_config(cc);
+}
+
+/*
+ * Remember what the window was actually given, and answer whether it already
+ * has what it should have.
+ *
+ * On X11 this pair buys nothing: XMoveResizeWindow goes into a buffer and
+ * leaves for the server in a batch, and nobody waits for a reply, which is why
+ * the check was never written.  It is here for the port: on macOS the same
+ * line is AXUIElementSetAttributeValue, a synchronous round trip into another
+ * application's event loop, and re-stating a geometry a window already has
+ * costs exactly as much as changing it.  Measured with tools/measure-syncs.sh:
+ * of the geometry writes an insertion made, more than half repeated what the
+ * window already had.
+ *
+ * The cache is safe to keep because the ribbon is the only writer: a
+ * ConfigureRequest from a window on the ribbon is denied
+ * (xev_handle_configurerequest), and the one path that configures a window
+ * behind this record's back drops the flag itself.
+ */
+void
+client_geom_sent(struct client_ctx *cc)
+{
+	cc->sentgeom = cc->geom;
+	cc->flags |= CLIENT_GEOM_SENT;
+}
+
+int
+client_geom_current(struct client_ctx *cc)
+{
+	if (!(cc->flags & CLIENT_GEOM_SENT))
+		return 0;
+
+	return (cc->geom.x == cc->sentgeom.x && cc->geom.y == cc->sentgeom.y &&
+	    cc->geom.w == cc->sentgeom.w && cc->geom.h == cc->sentgeom.h);
 }
 
 void

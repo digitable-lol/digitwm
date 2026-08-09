@@ -176,7 +176,13 @@ xev_handle_configurerequest(XEvent *ee)
 		wc.height = cc->geom.h;
 		wc.border_width = cc->bwidth;
 
+		/*
+		 * This is the one place a managed window's geometry reaches the
+		 * server without going through client_resize(), so the record
+		 * of what it was last given is stale from here on and says so.
+		 */
 		XConfigureWindow(X_Dpy, cc->win, e->value_mask, &wc);
+		cc->flags &= ~CLIENT_GEOM_SENT;
 		client_config(cc);
 	} else {
 		/* let it do what it wants, it'll be ours when we map it. */

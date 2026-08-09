@@ -10,3 +10,11 @@ parse.c
 cwm
 
 tools/__pycache__/
+
+# Продукт сборки WebAssembly: собирается tools/wasm-layout/build.sh, и
+# собранный в дерево не кладётся - иначе он молча разойдётся с исходником.
+tools/wasm-layout/layout.wasm
+
+# Замерщики macOS собираются на маке.
+tools/macos-flicker/axcost
+tools/macos-flicker/flicker

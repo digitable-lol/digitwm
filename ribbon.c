@@ -715,6 +715,16 @@ ribbon_sync_one(struct ribbon *rb)
 			    CLIENT_FULLSCREEN))
 				continue;
 
+			/*
+			 * A window that already stands where the model wants it
+			 * is not told so again.  On X11 the saving is a buffered
+			 * request; on macOS, where the same line is a
+			 * synchronous round trip into another process, it is
+			 * the difference this check was written for.
+			 */
+			if (client_geom_current(cc))
+				continue;
+
 			client_resize(cc, 0);
 		}
 	}
