@@ -54,9 +54,27 @@ licence or serve someone else's runtime from someone else's CDN on our own
 page. For a project whose licence contour has a gate of its own
 (`tools/check-licensing.py`, [NOTICE](../NOTICE)), that is not paperwork.
 
-What we did **not** check, and do not pass off as checked: whether CheerpX
-takes 64-bit binaries. Its documentation names no word size either way; until
-it does, nothing can be planned on it.
+And its word size is v86's word size: the CheerpX documentation says *"CheerpX
+does not currently support 64-bit executables"* (quoted in
+[webvm#165](https://github.com/leaningtech/webvm/issues/165)). Graphics in a
+browser arrived, but our x86-64 binary is out of its reach too — for two
+independent reasons at once, the licence and the word size.
+
+**A 64-bit x86 with graphics in a browser does now exist, and this has to be
+written down honestly: where "cannot" stood, "expensive" belongs.** The
+[ktock/qemu-wasm](https://github.com/ktock/qemu-wasm) fork builds
+`qemu-system-x86_64` for WebAssembly (a hybrid: hot translation blocks are
+compiled to Wasm, the rest runs on the TCI interpreter), and
+[issue #31](https://github.com/ktock/qemu-wasm/issues/31) carries a working
+demo with picture, keyboard and mouse. Measured by us rather than repeated:
+that demo serves a `qemu-system-x86_64.wasm` of **44 815 169 bytes** plus
+493 335 bytes of JavaScript. Its author's own verdict: *"this is extremely
+slow, but both graphics, keyboard and mouse work"*, and *"crashes on firefox"*.
+Upstream QEMU has only 32-bit TCI so far (10.1); 64-bit is "under discussion".
+
+Forty-five megabytes and "extremely slow" is not a refusal by impossibility, it
+is a price — six thousand times our bottom row. But it should be written as a
+price and not as "cannot": in a year the figure may be different.
 
 The remote desktop was not reconsidered and is not open to reconsideration for
 the same reason as before: it was about security, not about technique.
@@ -131,7 +149,8 @@ said there outright.
 
 ## What it does not solve
 
-Real windows in a browser stay impossible for the same reasons as before, and
-none of them is about the speed of our code. The refusal of the remote desktop
-is about security, and it stands. The refusal of emulation is about weight and
-about word size.
+Real windows in a browser stay impractical, and after the August 2026 check
+that is the word to use rather than "impossible": 64-bit emulation with a
+picture exists, weighs 45 MB and runs at a speed its own author calls extremely
+slow. None of those reasons is about the speed of our code. The refusal of the
+remote desktop is about security, and it stands.
