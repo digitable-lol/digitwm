@@ -34,7 +34,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y \
-            libx11-dev libxft-dev libxrandr-dev bison pkg-config
+            libx11-dev libxft-dev libxrandr-dev bison pkg-config \
+            clang lld
 
       - name: Собрать оконный менеджер
         run: make
@@ -92,3 +93,17 @@ jobs:
 
       - name: Харнесс мониторов умеет краснеть
         run: node fts/harness/hotplug.mjs --wm ./cwm --selfcheck
+
+      # Сборка ленты в WebAssembly - не отдельный продукт, а тот же ribbon.c,
+      # и единственное, что делает её честной, - совпадение ответов с двоичным
+      # файлом. Проверка здесь, чтобы модуль не мог разойтись с исходником
+      # молча: разойдётся - сборка покраснеет.
+      - name: Лента в WebAssembly отвечает как двоичный файл
+        run: |
+          sh tools/wasm-layout/build.sh
+          node tools/wasm-layout/check.mjs --wm ./cwm --cases 500
+
+      # Замерщик мелькания для macOS собрать здесь нечем, но согласовать его с
+      # тем, чем мы считаем Accessibility API, можно и на Linux.
+      - name: Замерщик macOS согласован с заголовками, какими мы их знаем
+        run: sh tools/macos-flicker/stub-build.sh
