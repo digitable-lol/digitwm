@@ -290,6 +290,48 @@ ribbon_policy_reserve(int strut, int screen, int pos, int len, int far)
 }
 
 /*
+ * What two panels facing each other are left with when together they claim
+ * more than the region has.  near is the depth already granted to the near
+ * edge (top or left), far to the far one (bottom or right), len the size of
+ * the region along that axis; want_far picks which of the two the answer is
+ * about.
+ *
+ * Each half of the pair is decided on its own by ribbon_policy_reserve(),
+ * which knows only its own edge and therefore cannot see the overrun: a panel
+ * 28 deep on top and another 28 deep on the bottom are each perfectly modest,
+ * and on a region 40 tall they are together impossible.  This is the fact
+ * about the PAIR, and it is a policy rather than a line in screen.c so that
+ * the number it decides is written down and proved like every other.
+ *
+ * The near edge wins the tie.  That is a choice, not a law: something has to
+ * give, and giving to the near edge keeps the top of a region where a reader
+ * expects it and pushes the loss to the bottom, which is where a status bar
+ * lives and where losing it is noticed rather than mysterious.
+ *
+ * Both arguments arrive from ribbon_policy_reserve() and are therefore never
+ * negative and never larger than the region on their own; the arithmetic here
+ * does not depend on that, but the reasoning about it does.
+ */
+int
+ribbon_policy_pair(int near, int far, int len, int want_far)
+{
+	if (len < 0)
+		len = 0;
+	if (near < 0)
+		near = 0;
+	if (far < 0)
+		far = 0;
+
+	if ((near + far) <= len)
+		return want_far ? far : near;
+
+	if (near > len)
+		near = len;
+
+	return want_far ? (len - near) : near;
+}
+
+/*
  * Which column holds focus after the window in column idx closed.  ncol is
  * the number of columns before the close, last says the column was the
  * rightmost, only says the window was the last one in it - that is, that the
