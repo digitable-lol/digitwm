@@ -36,7 +36,9 @@ fi
 MISSING_MESSAGE='printf "\n  Digit не установлен.\n\n  Поставить:\n    curl -fsSL https://raw.githubusercontent.com/digitable-lol/digit/main/scripts/install.sh | bash\n    digit setup\n\n  Или переставьте сессию с флагом:\n    session/install.sh --with-digit\n\n  Окно закроется по Enter.\n\n"; read -r _'
 
 if command -v digit >/dev/null 2>&1; then
-    # Digitmorf ships inside Digit, so selection is offline and idempotent.
+    # The complete living-form pack ships inside Digit, so selection is
+    # offline and idempotent. Digit owns state-driven form/animation changes;
+    # digitwm only gives the pet a permanent home in the agent window.
     # Only a genuinely unset slug is first-run state. `digit pets off` keeps
     # the slug, which is how an intentional disable survives the next login.
     case "${DIGITWM_DIGITMORF:-auto}" in
