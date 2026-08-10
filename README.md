@@ -66,7 +66,8 @@ shell, multiplexer and the Digit agent, all in one palette, installed with one
 command.
 
 On the first Digit window launch, the session selects Digit's bundled
-Digitmorf pet locally and offline. It does not override an existing pet choice
+Digitmorf pet locally and offline: eight living 3D forms with rigs and embedded
+animations. It does not override an existing pet choice
 or re-enable pets the user disabled; set `DIGITWM_DIGITMORF=off` to skip this
 one-time preparation.
 
