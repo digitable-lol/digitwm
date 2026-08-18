@@ -77,7 +77,15 @@ printf 'ribbon.c без Xlib: '
 }
 echo "собралась"
 
-x_syms=$(nm -u "$work/ribbon.o" | awk '{print $NF}' | grep -E '^(X[A-Z]|X_Dpy)' | sort || true)
+# LC_ALL=C у sort - не украшение, а условие сравнения ниже.
+#
+# Ожидаемый список записан в порядке C: XCheckMaskEvent, XSync, X_Dpy. В
+# русской локали sort ставит подчёркивание иначе и выдаёт XCheckMaskEvent,
+# X_Dpy, XSync - строки перестают совпадать, и скрипт объявляет "имена X11
+# изменились" на дереве, где не изменилось ничего. В CI локаль C, поэтому там
+# это невидимо: отказ ловится только на машине разработчика и выглядит как
+# настоящая поломка ленты.
+x_syms=$(nm -u "$work/ribbon.o" | awk '{print $NF}' | grep -E '^(X[A-Z]|X_Dpy)' | LC_ALL=C sort || true)
 expect_x="XCheckMaskEvent
 XSync
 X_Dpy"
@@ -140,7 +148,7 @@ printf 'десять политик отдельной единицей: '
 }
 echo "собрались (-Wall -Wextra -Werror, ни одного заголовка X11)"
 
-undef=$(nm -u "$work/policy.o" | awk '{print $NF}' | sort | tr '\n' ' ')
+undef=$(nm -u "$work/policy.o" | awk '{print $NF}' | LC_ALL=C sort | tr '\n' ' ')
 undef=${undef% }
 if [ "$undef" != "Conf" ]; then
 	echo "Политики перестали быть чистой арифметикой." >&2

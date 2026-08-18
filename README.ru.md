@@ -116,6 +116,7 @@ session/verify.sh             # проверить, что получилось
 | [doc/build.ru.md](doc/build.ru.md) | сборка, установка, запуск, проверка правки |
 | [doc/portability.ru.md](doc/portability.ru.md) | что здесь X11, а что арифметика — с числами — и во что обошёлся бы перенос на macOS |
 | [doc/browser.ru.md](doc/browser.ru.md) | что из этого можно показать в браузере по-настоящему, а что нельзя |
+| [doc/terminal.ru.md](doc/terminal.ru.md) | спецификация ленты в терминале: что переносится, чего не будет и чем это проверять |
 | [fts/README.ru.md](fts/README.ru.md) | модели, харнессы и то, где они кончаются |
 | [pkgsrc/README.ru.md](pkgsrc/README.ru.md) | пакет и то, чего в нём нет до первого релиза |
 | [CONTRIBUTING.ru.md](CONTRIBUTING.ru.md) | в каком порядке правится раскладка |

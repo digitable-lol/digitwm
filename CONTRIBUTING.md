@@ -85,6 +85,7 @@ link to the other in the first lines of each. The set is:
 | [doc/panel.md](doc/panel.md) / [doc/panel.ru.md](doc/panel.ru.md) | the panel: ours against someone else's, and what a panel does to the ribbon |
 | [doc/build.md](doc/build.md) / [doc/build.ru.md](doc/build.ru.md) | building, installing, running, checking |
 | [doc/portability.md](doc/portability.md) / [doc/portability.ru.md](doc/portability.ru.md) | what here is X11 and what is arithmetic, and what a macOS port would cost |
+| [doc/terminal.md](doc/terminal.md) / [doc/terminal.ru.md](doc/terminal.ru.md) | the ribbon in a terminal: the specification of route A |
 | [fts/README.md](fts/README.md) / [fts/README.ru.md](fts/README.ru.md) | the models and the harnesses |
 | [pkgsrc/README.md](pkgsrc/README.md) / [pkgsrc/README.ru.md](pkgsrc/README.ru.md) | the package |
 | [session/README.md](session/README.md) | the environment around the window manager |

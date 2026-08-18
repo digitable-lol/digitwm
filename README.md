@@ -114,6 +114,7 @@ things — a difference in facts is worse than a missing translation.
 | [doc/build.md](doc/build.md) | building, installing, running, checking a change |
 | [doc/portability.md](doc/portability.md) | what here is X11 and what is arithmetic, measured — and what a macOS port would cost |
 | [doc/browser.md](doc/browser.md) | what of this can be shown in a browser for real, and what cannot |
+| [doc/terminal.md](doc/terminal.md) | the specification of the ribbon in a terminal: what ports, what will not be there, and how it is checked |
 | [fts/README.md](fts/README.md) | the models, the harnesses, and where they stop |
 | [pkgsrc/README.md](pkgsrc/README.md) | the package, and what is missing until the first release |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | the order a layout change is made in |
