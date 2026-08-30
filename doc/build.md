@@ -84,10 +84,16 @@ starts `cwm -c` on it) or in `~/.cwmrc`. Every setting is described in
 
 ## Checking a change
 
+The FTS toolkit is cloned from the language repository by tag: it has no
+repository of its own any more, and the old address answers `Repository not
+found`. `fts-pered-udaleniem` is its state on the day it was moved out of the
+language tree; the tag is frozen, and `main` there does not carry it. Why that
+is so is in [`fts/README.md`](../fts/README.md).
+
 ```sh
 make                                    # it has to compile first
 
-git clone https://github.com/digitable-lol/fts ../fts
+git clone --branch fts-pered-udaleniem https://github.com/digitable-lol/flang ../fts
 (cd ../fts && npm ci && npm run build)
 
 for m in fts/*.fts; do node ../fts/dist/src/cli.js check "$m" >/dev/null; done

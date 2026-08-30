@@ -8,7 +8,7 @@ goes, what takes focus when a window closes, what happens to the offset when
 the monitor changes size, whether the strip a panel claims reaches this
 monitor at all, how much it takes off it, and what two facing panels are left
 with when together they ask for more than there is. Each is an
-[FTS](https://github.com/digitable-lol/fts)
+[FTS](https://github.com/digitable-lol/flang/tree/fts-pered-udaleniem)
 model here, on both surfaces, with checked properties and worked examples on
 the boundaries.
 
@@ -43,8 +43,18 @@ nothing here adds a runtime dependency on Node.
 
 ## Running it
 
+The clone is of the language repository, and it must be by tag. The toolkit has
+no repository of its own any more: the old address answers `Repository not
+found`, which is why the checks below never ran — the clone failed before any of
+them. The toolkit itself is kept in `digitable-lol/flang` under the tag
+`fts-pered-udaleniem`: the state on 16 August 2026, the day the old FTS project
+was moved out of the language tree. It is not on that repository's `main` —
+what lives there now is a language whose compiler is written in itself and which
+does not read `.fts` at all. The tag is frozen and does not move, so everyone
+builds the same toolkit.
+
 ```sh
-git clone https://github.com/digitable-lol/fts ../fts
+git clone --branch fts-pered-udaleniem https://github.com/digitable-lol/flang ../fts
 (cd ../fts && npm ci && npm run build)
 make
 

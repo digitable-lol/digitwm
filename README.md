@@ -41,7 +41,7 @@ The numbers that drive the layout — how far the ribbon shifts after a focus
 change, how wide a column is, where a new window is inserted, what gets focus
 when a window closes, how much of a monitor the strip under a panel takes —
 are not buried in C. They are written as
-[FTS](https://github.com/digitable-lol/fts) models under `fts/`, in Russian
+[FTS](https://github.com/digitable-lol/flang/tree/fts-pered-udaleniem) models under `fts/`, in Russian
 and in English, with worked examples on the boundaries.
 
 The loop over columns stays in C, because a loop is mechanical. The numbers the

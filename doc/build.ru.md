@@ -84,10 +84,16 @@ exec cwm                      # только оконный менеджер
 
 ## Как проверить правку
 
+Инструментарий FTS клонируется из репозитория языка и по тегу: своего
+репозитория у него больше нет, а прежний адрес отвечает «Repository not
+found». `fts-pered-udaleniem` — его состояние на день, когда его вынесли из
+дерева языка; тег заморожен, а на `main` там его нет. Почему так —
+в [`fts/README.ru.md`](../fts/README.ru.md).
+
 ```sh
 make                                    # сначала оно обязано собраться
 
-git clone https://github.com/digitable-lol/fts ../fts
+git clone --branch fts-pered-udaleniem https://github.com/digitable-lol/flang ../fts
 (cd ../fts && npm ci && npm run build)
 
 for m in fts/*.fts; do node ../fts/dist/src/cli.js check "$m" >/dev/null; done
