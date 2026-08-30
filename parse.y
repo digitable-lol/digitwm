@@ -75,7 +75,7 @@ typedef struct {
 %token	AUTOGROUP COMMAND IGNORE WM
 %token	YES NO BORDERWIDTH MOVEAMOUNT HTILE VTILE
 %token	RIBBON RIBBONHIDE RIBBONGAP RIBBONWIDTHS
-%token	RIBBONMINWIDTH RIBBONMINHEIGHT
+%token	RIBBONMINWIDTH RIBBONMINHEIGHT RIBBONRULE
 %token	COLOR SNAPDIST
 %token	ACTIVEBORDER INACTIVEBORDER URGENCYBORDER
 %token	GROUPBORDER UNGROUPBORDER
@@ -251,6 +251,28 @@ main		: FONTNAME STRING		{
 			conf_ignore(conf, $2);
 			free($2);
 		}
+		| RIBBONRULE STRING STRING {
+			if (!conf_ribbonrule(conf, $2, NULL, $3)) {
+				yyerror("invalid ribbonrule");
+				free($2);
+				free($3);
+				YYERROR;
+			}
+			free($2);
+			free($3);
+		}
+		| RIBBONRULE STRING STRING ',' STRING {
+			if (!conf_ribbonrule(conf, $2, $3, $5)) {
+				yyerror("invalid ribbonrule");
+				free($2);
+				free($3);
+				free($5);
+				YYERROR;
+			}
+			free($2);
+			free($3);
+			free($5);
+		}
 		| GAP NUMBER NUMBER NUMBER NUMBER {
 			if ($2 < 0 || $2 > INT_MAX ||
 			    $3 < 0 || $3 > INT_MAX ||
@@ -397,6 +419,7 @@ lookup(char *s)
 		{ "ribbonhide",		RIBBONHIDE},
 		{ "ribbonminheight",	RIBBONMINHEIGHT},
 		{ "ribbonminwidth",	RIBBONMINWIDTH},
+		{ "ribbonrule",		RIBBONRULE},
 		{ "ribbonwidths",	RIBBONWIDTHS},
 		{ "selfont", 		FONTSELCOLOR},
 		{ "snapdist",		SNAPDIST},

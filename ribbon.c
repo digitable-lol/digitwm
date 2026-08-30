@@ -901,6 +901,13 @@ ribbon_insert(struct ribbon *rb, int place, struct client_ctx *cc)
  * the window is mapped, so that it appears where it belongs instead of
  * appearing and then jumping.
  *
+ * The last argument is the only one that comes from cwmrc rather than from
+ * the window: conf_ribbonrule_match() answers with RIBBON_RULE_NONE unless a
+ * "ribbonrule" line names this window's class.  client_init() has already
+ * called client_class_hint() by this point, so WM_CLASS is there to match
+ * against; before it was wired up this call passed RIBBON_RULE_NONE outright
+ * and the policy's two rules about it were reachable only from the probe.
+ *
  * Returns 1 when the ribbon took the window.
  */
 int
@@ -922,7 +929,7 @@ ribbon_client_insert(struct client_ctx *cc)
 	    ((cc->flags & CLIENT_TYPE_DIALOG) != 0),
 	    ((cc->flags & CLIENT_TYPE_DOCK) != 0),
 	    ((cc->flags & CLIENT_FULLSCREEN) != 0),
-	    RIBBON_RULE_NONE);
+	    conf_ribbonrule_match(cc));
 
 	return (ribbon_insert(rb, place, cc) != NULL);
 }

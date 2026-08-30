@@ -227,6 +227,50 @@ The default is 60.
 .It Ic ribbonminwidth Ar pixels
 Narrowest a column may become.
 The default is 120.
+.It Ic ribbonrule Ar place Oo Ar windowname , Oc Ns Ar windowclass
+Open windows whose class property matches
+.Ar windowclass ,
+or whose name and class properties match
+.Ar windowname
+and
+.Ar windowclass
+respectively, at
+.Ar place
+on the ribbon.
+The more specific last match wins, as with
+.Ic autogroup .
+.Ar place
+is one of:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Ic stack
+Down the column that holds the focus, rather than in a column of its own.
+A second terminal then lands under the first instead of beside it, and the
+ribbon does not grow.
+With no window focused there is no column to stack into, and such a window
+opens a column as usual.
+.It Ic float
+Leave the window alone: the ribbon neither places nor resizes it.
+.It Ic none
+Open a new column to the right of the focus, which is what an unmatched
+window does.
+Useful to exempt one program from a rule written for its class.
+.El
+.Pp
+A window that asks not to be tiled is floated whichever
+.Ar place
+names it, and a window asking for fullscreen is made fullscreen unless
+.Ic float
+matched it; the whole order of precedence is
+.Pa fts/insertion.fts .
+.Pp
+The name and class values, respectively, for existing windows
+are both set in the WM_CLASS property and may be obtained using
+.Xr xprop 1 .
+This directive has no effect while
+.Ic ribbon
+is
+.Ic no .
 .It Ic ribbonwidths Ar first second third fourth
 The four column widths, in percent of the screen, that
 .Ic ribbon-width-cycle

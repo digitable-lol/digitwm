@@ -335,6 +335,7 @@ conf_init(struct conf *c)
 
 	TAILQ_INIT(&c->ignoreq);
 	TAILQ_INIT(&c->autogroupq);
+	TAILQ_INIT(&c->ribbonruleq);
 	TAILQ_INIT(&c->keybindq);
 	TAILQ_INIT(&c->mousebindq);
 	TAILQ_INIT(&c->cmdq);
@@ -373,6 +374,7 @@ conf_clear(struct conf *c)
 {
 	struct autogroup	*ag;
 	struct bind_ctx		*kb, *mb;
+	struct ribbonrule	*rr;
 	struct winname		*wn;
 	struct cmd_ctx		*cmd, *wm;
 	int			 i;
@@ -403,6 +405,12 @@ conf_clear(struct conf *c)
 		TAILQ_REMOVE(&c->ignoreq, wn, entry);
 		free(wn->name);
 		free(wn);
+	}
+	while ((rr = TAILQ_FIRST(&c->ribbonruleq)) != NULL) {
+		TAILQ_REMOVE(&c->ribbonruleq, rr, entry);
+		free(rr->class);
+		free(rr->name);
+		free(rr);
 	}
 	while ((mb = TAILQ_FIRST(&c->mousebindq)) != NULL) {
 		TAILQ_REMOVE(&c->mousebindq, mb, entry);
@@ -492,6 +500,108 @@ conf_ignore(struct conf *c, const char *name)
 	wn = xmalloc(sizeof(*wn));
 	wn->name = xstrdup(name);
 	TAILQ_INSERT_TAIL(&c->ignoreq, wn, entry);
+}
+
+/*
+ * Where a window matching this class - or this name and this class - is to
+ * be opened on the ribbon.  The place is spelled out and not numbered
+ * because the number belongs to the model, not to the person editing
+ * cwmrc: "stack", "float" and "none" are what a person means, and
+ * RIBBON_RULE_* is what ribbon_policy_insert() takes.  Nothing new is
+ * counted here - the three names are the three constants that policy has
+ * always accepted, and that fts/insertion.fts already describes.
+ *
+ * Returns 0 for a place that is none of the three, so that the parser can
+ * point at the offending line instead of quietly storing a rule the user
+ * did not write.
+ */
+int
+conf_ribbonrule(struct conf *c, const char *place, const char *name,
+    const char *class)
+{
+	static const struct {
+		const char	*place;
+		int		 rule;
+	} places[] = {
+		{ "none",	RIBBON_RULE_NONE },
+		{ "stack",	RIBBON_RULE_STACK },
+		{ "float",	RIBBON_RULE_FLOAT },
+	};
+	struct ribbonrule	*rr;
+	const char		*p;
+	unsigned int		 i;
+	int			 rule = -1;
+	size_t			 len;
+
+	for (i = 0; i < nitems(places); i++) {
+		if (strcmp(places[i].place, place) == 0) {
+			rule = places[i].rule;
+			break;
+		}
+	}
+	if (rule < 0)
+		return 0;
+
+	rr = xmalloc(sizeof(*rr));
+	if ((p = strchr(class, ',')) == NULL) {
+		rr->name = (name == NULL) ? NULL : xstrdup(name);
+		rr->class = xstrdup(class);
+	} else {
+		/*
+		 * "windowname,windowclass" reaches here as a single string
+		 * whenever it was quoted: the lexer splits a comma off as a
+		 * token of its own only outside quotes.  The halves are
+		 * copied out rather than cut in place, because the string
+		 * belongs to the caller.
+		 */
+		if (name == NULL) {
+			len = (size_t)(p - class) + 1;
+			rr->name = xmalloc(len);
+			(void)strlcpy(rr->name, class, len);
+		} else
+			rr->name = xstrdup(name);
+		rr->class = xstrdup(p + 1);
+	}
+	rr->rule = rule;
+	TAILQ_INSERT_TAIL(&c->ribbonruleq, rr, entry);
+
+	return 1;
+}
+
+/*
+ * Which rule a window falls under, as one of RIBBON_RULE_*.  The precedence
+ * is autogroup's, deliberately: whoever has learned one of the two has
+ * learned the other.  Every matching line is considered and the last one
+ * wins, except that a line naming both the name and the class beats one
+ * naming the class alone however late the latter stands.
+ *
+ * Called from ribbon_client_insert(), which is after client_class_hint()
+ * has read WM_CLASS and before the window is mapped; a window that never
+ * set WM_CLASS matches nothing and gets the answer it got before this
+ * queue existed.
+ */
+int
+conf_ribbonrule_match(struct client_ctx *cc)
+{
+	struct ribbonrule	*rr;
+	int			 rule = RIBBON_RULE_NONE, both_match = 0;
+
+	if (cc->res_class == NULL || cc->res_name == NULL)
+		return RIBBON_RULE_NONE;
+
+	TAILQ_FOREACH(rr, &Conf.ribbonruleq, entry) {
+		if (strcmp(rr->class, cc->res_class) != 0)
+			continue;
+		if (rr->name != NULL) {
+			if (strcmp(rr->name, cc->res_name) == 0) {
+				rule = rr->rule;
+				both_match = 1;
+			}
+		} else if (!both_match)
+			rule = rr->rule;
+	}
+
+	return rule;
 }
 
 void

@@ -292,6 +292,20 @@ TAILQ_HEAD(region_q, region_ctx);
 #define RIBBON_RULE_STACK	1
 #define RIBBON_RULE_FLOAT	2
 
+/*
+ * One "ribbonrule" line of cwmrc: the place a window whose class - or whose
+ * name and class - matches is opened in.  rule is one of the RIBBON_RULE_*
+ * above, so the queue carries no number of its own: it is the model's field
+ * "правило конфигурации" with a user in front of it.
+ */
+struct ribbonrule {
+	TAILQ_ENTRY(ribbonrule)	 entry;
+	char			*class;
+	char			*name;
+	int			 rule;
+};
+TAILQ_HEAD(ribbonrule_q, ribbonrule);
+
 TAILQ_HEAD(rb_client_q, client_ctx);
 
 struct ribbon_col {
@@ -407,6 +421,7 @@ struct conf {
 	struct mousebind_q	 mousebindq;
 	struct autogroup_q	 autogroupq;
 	struct ignore_q		 ignoreq;
+	struct ribbonrule_q	 ribbonruleq;
 	struct cmd_q		 cmdq;
 	struct wm_q		 wmq;
 	int			 ngroups;
@@ -752,6 +767,9 @@ void			 conf_grab_kbd(Window);
 void			 conf_grab_mouse(Window);
 void			 conf_init(struct conf *);
 void			 conf_ignore(struct conf *, const char *);
+int			 conf_ribbonrule(struct conf *, const char *,
+			     const char *, const char *);
+int			 conf_ribbonrule_match(struct client_ctx *);
 void			 conf_screen(struct screen_ctx *);
 void			 conf_group(struct screen_ctx *);
 
