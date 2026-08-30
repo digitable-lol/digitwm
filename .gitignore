@@ -18,3 +18,6 @@ tools/wasm-layout/layout.wasm
 # Замерщики macOS собираются на маке.
 tools/macos-flicker/axcost
 tools/macos-flicker/flicker
+
+# Харнесс проверяемой половины macOS-порта: собирается macos/check.sh.
+macos/wsicheck
