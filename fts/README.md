@@ -192,3 +192,124 @@ resolves it by order. The model relies on the same order — every rule whose
 condition holds runs, and the last `then result equals` wins — so the rules
 stand in increasing precedence. The comment in C is the thing that is wrong,
 not the code.
+
+## Porting to flang: a sample, measurements, and what follows
+
+The FTS toolchain no longer exists as a separate project, and `main` of that
+same repository now carries `fspec/` — specifications written in the flang
+language itself. Hence the question: does `fspec` replace this directory
+outright? The answer came from porting one model, not from reasoning. The
+sample lives in `fts/flang/`.
+
+### What the runs showed
+
+The compiler builds with a single `make -C bootstrap -j8`; the language's own
+specification check, `bootstrap/flang io fspec/guard.flang`, takes **1 min
+41 s** on this machine and answers: 42 specs, 295 claims, every one proved
+from zero axioms; 100 promises in the snapshot, each with the same goal; 2
+translation variants, each promising what the original does; 150 concepts,
+none carrying two meanings. This is a working machine, not a sketch. Three of
+its properties were checked against our own subject matter.
+
+**Scalar policy is expressible.** `fts/flang/output-change.flang` is the same
+policy as `output-change.fts`: 111 lines in place of 187 (93 Russian plus 94
+English), because there are no longer two surfaces.
+
+**Both places where FTS did not reach are closed in flang.** The arithmetic is
+complete — plus, minus, times, divide, remainder. Derived fields are therefore
+unnecessary: the scroll limit is not passed in by the caller but written as
+`ribbon-length minus viewport-width`. The model has three fields instead of
+four, and its input now equals the input of `layout-probe`. The same removes
+`equal share` and `remainder` from `window-height`. The second place — English
+names colliding with reserved phrases — disappears with the English file.
+
+**The language surface is solved differently, and better.** Here it is a second
+file plus `surfaces.mjs` comparing two canonical skeletons. In flang it is a
+**translation variant of the promise** in the same file: `обеспечивает «en:
+offset is not negative»` stands one line below the original, its goal is
+compared with the original's character for character, and language tags are a
+closed list of nine. Two files have room to diverge; two adjacent lines do not.
+
+### What the port costs: the kernel takes exactly half the properties
+
+A claim counts as proved only when the `check --proof` ledger says so. On our
+sample it says: **4 claims, 2 proved, 2 grid.** Both spellings of the lower
+bound are proved by the rule "goal split by condition". Both spellings of the
+upper bound — "offset is within the ribbon" — are not.
+
+The shape of the body is not neutral. `if offset < 0 then 0 else offset` with
+`offset: number` gets "stated, not proved": the kernel does not read a branch
+condition as an assumption. It discharges the goal when the branch condition
+*is* the goal narrowed to that branch. So the sample puts the guard the other
+way round — `offset not less than 0` first — and the promise becomes proved.
+The policy did not change; all ten vectors confirm it.
+
+Measured across all ten policies, holding **22** properties:
+
+| property shape | count | kernel today |
+|---|---|---|
+| `result not less than 0` | 9 | **takes it** — goal split by condition, or a declared natural |
+| `result not greater than <literal>` | 2 | **takes it** — boundedness rule |
+| `result greater than 0` | 1 | no: `not less than` requires zero on the right |
+| `result <comparison> <field>` | 10 | no: a TERM bound exists in the boundedness rule and not in the order rule |
+
+**Eleven of twenty-two**, established by running the compiler rather than by
+reading it: with body `if n not greater than limit then n else limit` the goal
+`result not greater than limit` stays "stated, not proved", while the same
+shape with a literal is proved. The property does not vanish — the runtime
+checks it after every return — but there is no promise about all inputs.
+
+### Checking against the live binary does not go away
+
+The main worry was that moving would trade 448 checks against a live `cwm` for
+proofs about text. It did not hold. The language's order dictionary contains
+`«Запустить процесс»` (run a process), so a flang plan does exactly what
+`conformance.mjs` does. `fts/flang/conformance.flang` is 152 lines with no
+JavaScript:
+
+```sh
+make -C bootstrap -j8                                   # in a flang clone
+bootstrap/flang check fts/flang/output-change.flang --proof
+bootstrap/flang test  fts/flang/output-change.flang
+bootstrap/flang io    fts/flang/conformance.flang
+```
+
+Answers: `4 claims: 2 proved, 2 grid`; `11 examples, 11 passed, 0 failed`;
+`model and cwm agree: 10 vectors, zero divergences` (10 orders, exit 0).
+
+The vectors are the same `fts/vectors/output-change.json`, and the utility is
+called by its Russian name in quotes exactly as `conformance.mjs` calls it —
+the name is part of the model. The check also goes red: a copy of the model
+with `+1` in one branch exits 1 and names **5 vectors out of 10**, with both
+numbers on each.
+
+One caveat: orders execute relative to the directory of the `.flang` file
+itself, so the plan says `../../cwm` — the same reason `fspec/settings.txt`
+says `../bootstrap/flang`.
+
+### What a full move costs, and what to do about it
+
+Ten policies, 20 model files, 3 740 lines, 87 rules, 81 examples, 22
+properties. Extrapolating from the sample: roughly half the lines (one surface
+instead of two), fewer fields by every derived one, and 11 of the 22
+properties become proved.
+
+Gained: proof over ALL inputs where today there are only vectors; one file
+instead of two, with surfaces compared by a line rather than by a harness; no
+Node in model checking; no pin to a frozen tag.
+
+Lost: half the properties move from "checked by the runtime" to the same thing
+without a promise; `derive.mjs` and its field table die together with derived
+fields, and with them the check that model fields match the harness table;
+whole scenarios (`layout-probe layout`) were not ported and stay in JavaScript.
+
+**Proposal for CI: two steps, not a replacement.** The old conformance run on
+tag `fts-pered-udaleniem` stays as it is — it gives 448 checks, 20 models and
+whole scenarios, and it is currently green. A flang gate is added beside it for
+what has already been ported. The argument against replacement is direct: one
+policy of ten is ported, 2 claims of 4 are proved on it, and retiring 448
+working checks for 11 future proofs is a losing trade. The argument against
+doing nothing: the tag is frozen, nothing behind it is developed any more, and
+a pin is a patch. Order of work: port one policy at a time, each with its own
+`conformance.flang`, and drop the pin on the day all ten and the whole
+scenarios are across.
