@@ -12,11 +12,22 @@
 
 set -u
 
+# Цвет замка — цвет фона палитры, а не чёрный. digitwm-session экспортирует
+# DIGITWM_PALETTE_BACKGROUND (см. session/config/env.example); вне сессии
+# переменной нет, и тогда остаётся чёрный, как было. Шестнадцатеричного кода
+# здесь не написано ни одного: он приходит из палитры Workbench.
+LOCK_COLOR="${DIGITWM_PALETTE_BACKGROUND:-#000000}"
+LOCK_COLOR="${LOCK_COLOR#\#}"
+case "$LOCK_COLOR" in
+    [0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]) ;;
+    *) LOCK_COLOR="000000" ;;
+esac
+
 for locker in xsecurelock xss-lock i3lock swaylock slock xtrlock xlock; do
     if command -v "$locker" >/dev/null 2>&1; then
         case "$locker" in
-            i3lock) exec i3lock -c 000000 ;;
-            xlock)  exec xlock -mode blank ;;
+            i3lock) exec i3lock -c "$LOCK_COLOR" ;;
+            xlock)  exec xlock -mode blank -bg "#$LOCK_COLOR" ;;
             *)      exec "$locker" ;;
         esac
     fi

@@ -95,7 +95,7 @@ Digitable Session — установка окружения вокруг digitwm
   --skip-themes           не раскладывать файлы тем
   --no-rc                 не трогать ~/.zshrc, ~/.vimrc, ~/.tmux.conf
   --system                положить .desktop в /usr/share/xsessions (нужен root)
-  --with-digit            поставить Digit официальным установщиком
+  --with-digit            поставить Digit официальным установщиком и выполнить digit setup
   --yes, -y               не спрашивать подтверждения
   --help, -h              эта справка
 
@@ -553,26 +553,32 @@ run_bootstrap() {
   bash "$BOOTSTRAP" $args || warn "bootstrap завершился с ошибкой, продолжаем со своей частью"
 }
 
-install_x_extras() {
-  [ "$SKIP_INSTALL" -eq 0 ] || return 0
-  [ "$OS_NAME" != "macos" ] || return 0
-
-  # Мелочи, без которых сессия стартует, но выглядит сырой: цвет фона,
-  # база ресурсов, раскладка мониторов. Ставим по возможности, молча
-  # переживаем неудачу — это не повод валить установку.
+# ensure_packages <проба> <метка> <apt> <dnf> <pacman>
+#
+# Ставит пакет, которого нет в toolchain.json Workbench, а значит и в
+# --tools общего bootstrap. Проба — имя команды: если она уже есть, ничего не
+# делаем. Если пакетный менеджер не из трёх известных или установка не
+# удалась, это не повод валить установку — но и молчать нельзя: строка уходит
+# в «Следующие шаги», потому что без пакета молча не работает целая ветка.
+ensure_packages() {
+  local probe="$1"
+  local label="$2"
   local pkgs=""
   case "$PKG_MANAGER" in
-    apt) pkgs="x11-xserver-utils xinit" ;;
-    dnf) pkgs="xorg-x11-server-utils xorg-x11-xinit" ;;
-    pacman) pkgs="xorg-xsetroot xorg-xrdb xorg-xset xorg-xinit" ;;
-    *) return 0 ;;
+    apt) pkgs="$3" ;;
+    dnf) pkgs="$4" ;;
+    pacman) pkgs="$5" ;;
   esac
 
-  if command -v xsetroot >/dev/null 2>&1 && command -v xrdb >/dev/null 2>&1; then
+  if [ -n "$probe" ] && command -v "$probe" >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -z "$pkgs" ]; then
+    NEXT_STEPS+=("$label: пакетный менеджер $PKG_MANAGER здесь не поддержан, поставьте $probe сами")
     return 0
   fi
   if [ "$PLAN_ONLY" -eq 1 ]; then
-    PLAN_LINES+=("  [пакеты]   $PKG_MANAGER: $pkgs (xsetroot, xrdb)")
+    PLAN_LINES+=("  [пакеты]   $PKG_MANAGER: $pkgs — $label")
     return 0
   fi
 
@@ -583,6 +589,45 @@ install_x_extras() {
     dnf) $runner dnf install -y $pkgs >>"$LOG_FILE" 2>&1 || warn "не поставились $pkgs" ;;
     pacman) $runner pacman -S --needed --noconfirm $pkgs >>"$LOG_FILE" 2>&1 || warn "не поставились $pkgs" ;;
   esac
+  if [ -n "$probe" ] && ! command -v "$probe" >/dev/null 2>&1; then
+    NEXT_STEPS+=("$label: $pkgs не поставились, см. $LOG_FILE")
+  fi
+}
+
+install_x_extras() {
+  [ "$SKIP_INSTALL" -eq 0 ] || return 0
+  [ "$OS_NAME" != "macos" ] || return 0
+
+  # Мелочи, без которых сессия стартует, но выглядит сырой: цвет фона,
+  # база ресурсов, раскладка мониторов. Ставим по возможности, молча
+  # переживаем неудачу — это не повод валить установку.
+  if ! command -v xsetroot >/dev/null 2>&1 || ! command -v xrdb >/dev/null 2>&1; then
+    local pkgs=""
+    case "$PKG_MANAGER" in
+      apt) pkgs="x11-xserver-utils xinit" ;;
+      dnf) pkgs="xorg-x11-server-utils xorg-x11-xinit" ;;
+      pacman) pkgs="xorg-xsetroot xorg-xrdb xorg-xset xorg-xinit" ;;
+    esac
+    if [ -n "$pkgs" ]; then
+      if [ "$PLAN_ONLY" -eq 1 ]; then
+        PLAN_LINES+=("  [пакеты]   $PKG_MANAGER: $pkgs (xsetroot, xrdb)")
+      else
+        local runner=""
+        [ "$(id -u)" = "0" ] || runner="$SUDO_BIN"
+        case "$PKG_MANAGER" in
+          apt) $runner env DEBIAN_FRONTEND=noninteractive apt-get install -y $pkgs >>"$LOG_FILE" 2>&1 || warn "не поставились $pkgs" ;;
+          dnf) $runner dnf install -y $pkgs >>"$LOG_FILE" 2>&1 || warn "не поставились $pkgs" ;;
+          pacman) $runner pacman -S --needed --noconfirm $pkgs >>"$LOG_FILE" 2>&1 || warn "не поставились $pkgs" ;;
+        esac
+      fi
+    fi
+  fi
+
+  # xdotool. Без него digitwm-digit не умеет поднять уже открытое окно, и
+  # Mod4+grave открывает второе окно Digit вместо того, чтобы вернуть первое.
+  # В toolchain.json Workbench его нет — ставим здесь.
+  ensure_packages xdotool "xdotool — Mod4+grave поднимает открытое окно Digit, а не открывает второе" \
+    xdotool xdotool xdotool
 }
 
 install_digit() {
@@ -596,15 +641,41 @@ install_digit() {
     return 0
   fi
   if [ "$PLAN_ONLY" -eq 1 ]; then
-    PLAN_LINES+=("  [digit]    официальный установщик digitable-lol/digit")
+    PLAN_LINES+=("  [digit]    официальный установщик digitable-lol/digit, затем digit setup")
     return 0
   fi
-  command -v curl >/dev/null 2>&1 || { warn "нет curl — Digit не поставлен"; return 0; }
+  command -v curl >/dev/null 2>&1 || {
+    warn "нет curl — Digit не поставлен"
+    NEXT_STEPS+=("Digit не поставлен: нет curl. Поставьте curl и повторите с --with-digit.")
+    return 0
+  }
   say ""
   say "== Digit =="
   say "  запускаем официальный установщик digitable-lol/digit"
-  curl -fsSL https://raw.githubusercontent.com/digitable-lol/digit/main/scripts/install.sh | bash \
-    || warn "установщик Digit завершился с ошибкой, см. вывод выше"
+  if ! curl -fsSL https://raw.githubusercontent.com/digitable-lol/digit/main/scripts/install.sh | bash; then
+    warn "установщик Digit завершился с ошибкой, см. вывод выше"
+    NEXT_STEPS+=("Установщик Digit завершился с ошибкой. После починки: digit setup")
+    return 0
+  fi
+
+  # Второй шаг официальной установки. Раньше он только печатался в «Следующие
+  # шаги», а --with-digit его не выполнял: обещание и действие расходились.
+  # Теперь шаг выполняется — но он диалоговый, и без терминала запускать
+  # диалог нечестно: тогда он остаётся в шагах, а не притворяется сделанным.
+  hash -r 2>/dev/null || true
+  if ! command -v digit >/dev/null 2>&1; then
+    NEXT_STEPS+=("Digit поставлен, но команда digit не появилась в PATH этого сеанса. Откройте новый терминал и выполните: digit setup")
+    return 0
+  fi
+  if [ -t 0 ] && [ -t 1 ]; then
+    say "  digit setup"
+    if ! digit setup; then
+      warn "digit setup завершился с ошибкой"
+      NEXT_STEPS+=("digit setup завершился с ошибкой — выполните его сами.")
+    fi
+  else
+    NEXT_STEPS+=("Digit поставлен. Остался диалоговый шаг: digit setup — он задаёт вопросы, поэтому в неинтерактивном запуске не выполняется.")
+  fi
 }
 
 build_wm() {
@@ -656,9 +727,20 @@ install_configs() {
   install_copy     "$SCRIPT_DIR/bin/digitwm-dev-session" "$PREFIX/bin/digitwm-dev-session" 755
   install_copy     "$SCRIPT_DIR/bin/rgfzf.sh"           "$PREFIX/bin/rgfzf.sh" 755
 
-  # Автозапуск — файл пользователя. Создаём один раз и больше не трогаем
-  # никогда: это единственное место, где человек пишет своё, и переписывать
-  # его при обновлении было бы предательством.
+  # Автозапуск и переменные окружения — файлы пользователя. Создаём их один
+  # раз и больше не трогаем никогда: это единственные два места, где человек
+  # пишет своё, и переписывать их при обновлении было бы предательством.
+  #
+  # Их именно два, и граница между ними жёсткая. env читает САМА сессия, до
+  # автозапуска и до окна Digit, поэтому переменные из него видят оба.
+  # autostart — отдельный фоновый потомок: экспорт из него не попадает ни в
+  # Digit, ни в оконный менеджер, и переменным там не место.
+  if [ -e "$CONFIG_DIR/env" ]; then
+    DONE_UNCHANGED+=("$CONFIG_DIR/env (ваш файл, не трогаем)")
+  else
+    install_copy "$SCRIPT_DIR/config/env.example" "$CONFIG_DIR/env" 644
+  fi
+
   if [ -e "$CONFIG_DIR/autostart" ]; then
     DONE_UNCHANGED+=("$CONFIG_DIR/autostart (ваш файл, не трогаем)")
   else

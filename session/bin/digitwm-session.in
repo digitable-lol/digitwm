@@ -16,6 +16,17 @@ CONFIG_DIR="@@CONFIG_DIR@@"
 PREFIX="@@PREFIX@@"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/digitwm"
 
+# --- Одна сессия на процесс -------------------------------------------------
+# DIGITWM_SESSION=1 в унаследованном окружении значит, что этот же скрипт уже
+# выполняется выше по дереву процессов. Вторая сессия внутри первой — это
+# второй оконный менеджер на том же дисплее (X пустит только один) и стёртый
+# журнал первой. Проверка стоит до того, как журнал обнуляется.
+if [ "${DIGITWM_SESSION:-0}" = "1" ]; then
+    printf 'digitwm-session: сессия уже запущена в этом окружении.\n' >&2
+    printf 'Второй оконный менеджер на дисплее %s не поднимется.\n' "${DISPLAY:-?}" >&2
+    exit 1
+fi
+
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 LOG="$STATE_DIR/session.log"
 
@@ -36,7 +47,37 @@ export PATH="$PREFIX/bin:$HOME/.local/bin:$PATH"
 export XDG_CURRENT_DESKTOP=digitwm
 export XDG_SESSION_DESKTOP=digitwm
 export DIGITWM_SESSION=1
-export DIGITWM_PALETTE="@@PALETTE@@"
+
+# Цвет фона палитры. Экспортируется, потому что его читает digitwm-lock:
+# экран блокировки должен быть того же цвета, что рабочий стол, а не чёрным
+# на светлой палитре paper. Пользовательский env может его переопределить.
+DIGITWM_PALETTE_BACKGROUND="@@BACKGROUND@@"
+
+# --- Переменные окружения пользователя --------------------------------------
+# Один файл, который читают ОБА потомка — и автозапуск, и Digit. Раньше место
+# для этих переменных было обещано в autostart, и обещание было ложным:
+# autostart — отдельный фоновый потомок, digitwm-digit — его сосед, а экспорт
+# из одного потомка в другого не попадает никогда. Поэтому переменные читаются
+# здесь, ДО обоих запусков.
+#
+# set -a делает экспортируемым всё, что присвоено в файле: писать export в
+# своём файле не нужно, достаточно DIGITWM_DIGITMORF=off.
+#
+# Файл сначала проверяется на разбор. Синтаксическая ошибка в нём иначе убила
+# бы сессию целиком — вход закончился бы чёрным экраном без объяснения.
+if [ -r "$CONFIG_DIR/env" ]; then
+    if sh -n "$CONFIG_DIR/env" >>"$LOG" 2>&1; then
+        log "переменные окружения: $CONFIG_DIR/env"
+        set -a
+        # shellcheck disable=SC1090
+        . "$CONFIG_DIR/env"
+        set +a
+    else
+        log "$CONFIG_DIR/env не разбирается — пропущен, переменные не применены"
+    fi
+fi
+
+export DIGITWM_PALETTE_BACKGROUND
 
 # --- Ресурсы X --------------------------------------------------------------
 if [ -r "$CONFIG_DIR/Xresources" ] && command -v xrdb >/dev/null 2>&1; then
@@ -45,8 +86,8 @@ fi
 
 # Фон рабочего стола — цвет фона палитры. Обоев сессия не ставит: картинка в
 # репозитории оконного менеджера — это лишние мегабайты и чужая лицензия.
-if [ -n "@@BACKGROUND@@" ] && command -v xsetroot >/dev/null 2>&1; then
-    xsetroot -solid "@@BACKGROUND@@" >>"$LOG" 2>&1 || log "xsetroot не отработал"
+if [ -n "$DIGITWM_PALETTE_BACKGROUND" ] && command -v xsetroot >/dev/null 2>&1; then
+    xsetroot -solid "$DIGITWM_PALETTE_BACKGROUND" >>"$LOG" 2>&1 || log "xsetroot не отработал"
 fi
 
 # Повтор клавиш и курсор — мелочь, которую иначе приходится настраивать руками.
@@ -66,6 +107,8 @@ fi
 if [ "${DIGITWM_NO_DIGIT:-0}" != "1" ]; then
     log "запускаем Digit"
     "$PREFIX/bin/digitwm-digit" >>"$LOG" 2>&1 &
+else
+    log "Digit не запускается: DIGITWM_NO_DIGIT=1"
 fi
 
 # --- Оконный менеджер -------------------------------------------------------

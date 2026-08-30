@@ -68,8 +68,10 @@ command.
 On the first Digit window launch, the session selects Digit's bundled
 Digitmorf pet locally and offline: eight living 3D forms with rigs and embedded
 animations. It does not override an existing pet choice
-or re-enable pets the user disabled; set `DIGITWM_DIGITMORF=off` to skip this
-one-time preparation.
+or re-enable pets the user disabled; put `DIGITWM_DIGITMORF=off` into
+`~/.config/digitwm/env` to skip this one-time preparation. That file — not
+`autostart` — is where the session's variables go: the session reads it before
+it starts either the autostart script or the Digit window, so both see it.
 
 ```sh
 sh bootstrap.sh --plan        # from a bare system: see what would happen
