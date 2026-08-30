@@ -133,3 +133,53 @@ jobs:
       # тем, чем мы считаем Accessibility API, можно и на Linux.
       - name: Замерщик macOS согласован с заголовками, какими мы их знаем
         run: sh tools/macos-flicker/stub-build.sh
+
+  # ВТОРОЙ ГЕЙТ, А НЕ ЗАМЕНА ПЕРВОМУ.  Инструментарий FTS выше берётся тегом и
+  # заморожен; на main того же репозитория живёт flang, и одна наша политика
+  # уже перенесена на него (fts/flang/, разбор - в fts/README.ru.md).
+  #
+  # Почему рядом, а не вместо: перенесена одна политика из десяти, и ядро
+  # доказательств берёт 11 свойств из 22 - остальные остаются проверкой в
+  # рантайме.  Снимать 448 работающих проверок ради 11 доказательств - размен
+  # в убыток.  Пин снимается в тот день, когда перенесены все десять политик
+  # и целые сценарии.
+  #
+  # Здесь берётся main, а не тег, и это намеренно: смысл этого гейта - в том,
+  # чтобы расхождение с живым языком было видно сразу, а не через полгода.
+  # Job отдельный, поэтому упасть он может только сам по себе.
+  flang-gate:
+    runs-on: ubuntu-latest
+    env:
+      FLANG_HOME: ${{ runner.temp }}/flang
+    steps:
+      - name: Забрать digitwm
+        uses: actions/checkout@v4
+
+      - name: Библиотеки для сборки оконного менеджера
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            libx11-dev libxft-dev libxrandr-dev bison pkg-config
+
+      - name: Собрать оконный менеджер
+        run: make
+
+      # Компилятор flang написан на самом себе; bootstrap - это его двоичная
+      # затравка на C, и собирается она одним make.  Node здесь не нужен ни
+      # на одном шаге - в этом половина смысла переноса.
+      - name: Собрать компилятор flang
+        run: |
+          git clone --depth 1 https://github.com/digitable-lol/flang "$FLANG_HOME"
+          make -C "$FLANG_HOME/bootstrap" -j"$(nproc)"
+
+      - name: Спека раскладки проверена, и ведомость доказательств напечатана
+        run: $FLANG_HOME/bootstrap/flang check fts/flang/output-change.flang --proof
+
+      - name: Примеры спеки сходятся
+        run: $FLANG_HOME/bootstrap/flang test fts/flang/output-change.flang
+
+      # То же, что делает conformance.mjs, но планом на flang: десять векторов
+      # из fts/vectors/output-change.json идут в живой cwm через
+      # `-C "layout-probe ..."`, и ответ сверяется с ответом спеки.
+      - name: Спека на flang против живого оконного менеджера
+        run: $FLANG_HOME/bootstrap/flang io fts/flang/conformance.flang
