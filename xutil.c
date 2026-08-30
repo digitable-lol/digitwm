@@ -31,6 +31,32 @@
 
 #include "calmwm.h"
 
+/*
+ * The X11 half of the ribbon's seam: swallow the crossing events the ribbon
+ * has just caused itself.  cwm gives focus to whatever the pointer is over,
+ * and a window sliding under a resting pointer is the ribbon talking to
+ * itself, not the user asking for anything.
+ *
+ * Three lines, and every one of them is X11 semantics rather than an X11
+ * name.  XSync() is a round trip, so when it returns the server has already
+ * processed every move the ribbon just sent; the protocol queues the events a
+ * request generates ahead of the reply to any later request, so the crossing
+ * events those moves caused are already ours to read.  Only then is draining
+ * the queue the same thing as "swallow what I caused" - the set is closed,
+ * and that is the whole trick.  A window system without a round trip has to
+ * keep the promise of wsi_settle() by some other means; wsi.h says which, and
+ * says it there rather than here because it is the contract that travels.
+ */
+void
+wsi_settle(void)
+{
+	XEvent	 ev;
+
+	XSync(X_Dpy, False);
+	while (XCheckMaskEvent(X_Dpy, EnterWindowMask, &ev))
+		;
+}
+
 void
 xu_ptr_get(Window win, int *x, int *y)
 {

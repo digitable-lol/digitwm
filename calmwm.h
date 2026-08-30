@@ -554,33 +554,34 @@ extern struct conf			 Conf;
 
 void			 usage(void);
 
+/*
+ * Everything the ribbon asks of the window system is declared in wsi.h and
+ * nowhere else - nine of the client_* prototypes that would otherwise stand
+ * in the list below, region_pointer() and wsi_settle().  Split out because
+ * that list is the contract a port to another window system implements, and a
+ * contract nobody can point at is not one.  The names and signatures did not
+ * change; only the header they live in did.
+ */
+#include "wsi.h"
+
 void			 client_apply_sizehints(struct client_ctx *);
 void			 client_close(struct client_ctx *);
 void			 client_config(struct client_ctx *);
-struct client_ctx	*client_current(struct screen_ctx *);
 void			 client_draw_border(struct client_ctx *);
 struct client_ctx	*client_find(Window);
 void			 client_get_sizehints(struct client_ctx *);
-void			 client_hide(struct client_ctx *);
 void 			 client_htile(struct client_ctx *);
 int			 client_inbound(struct client_ctx *, int, int);
 struct client_ctx	*client_init(Window, struct screen_ctx *);
 void			 client_lower(struct client_ctx *);
 void			 client_geom_sent(struct client_ctx *);
-int			 client_geom_current(struct client_ctx *);
 void			 client_move(struct client_ctx *);
 void			 client_mtf(struct client_ctx *);
 struct client_ctx	*client_next(struct client_ctx *);
 struct client_ctx	*client_prev(struct client_ctx *);
 void			 client_ptr_inbound(struct client_ctx *, int);
-void			 client_ptr_save(struct client_ctx *);
-void			 client_ptr_warp(struct client_ctx *);
-void			 client_raise(struct client_ctx *);
 void			 client_remove(struct client_ctx *);
-void			 client_resize(struct client_ctx *, int);
-void			 client_set_active(struct client_ctx *);
 void			 client_set_name(struct client_ctx *);
-void			 client_show(struct client_ctx *);
 int			 client_snapcalc(int, int, int, int, int);
 void			 client_toggle_hidden(struct client_ctx *);
 void			 client_toggle_hmaximize(struct client_ctx *);

@@ -66,7 +66,6 @@ static void		 ribbon_focus_extent(struct ribbon *, int *, int *);
 static void		 ribbon_sync_one(struct ribbon *);
 static void		 ribbon_activate(struct ribbon_col *);
 static void		 ribbon_warp(struct ribbon *);
-static void		 ribbon_settle(void);
 
 /*
  * Offset of the viewport once the focused column must be visible.
@@ -431,13 +430,11 @@ ribbon_current(struct screen_ctx *sc)
 	struct client_ctx	*cc;
 	struct region_ctx	*rc;
 	struct ribbon		*rb;
-	int			 x, y;
 
 	if (((cc = client_current(sc)) != NULL) && (cc->rbcol != NULL))
 		return cc->rbcol->rb;
 
-	xu_ptr_get(sc->rootwin, &x, &y);
-	if (((rc = region_find(sc, x, y)) != NULL) &&
+	if (((rc = region_pointer(sc)) != NULL) &&
 	    ((rb = ribbon_find(sc, rc->name)) != NULL) && rb->active)
 		return rb;
 
@@ -772,25 +769,7 @@ ribbon_sync_one(struct ribbon *rb)
 	}
 }
 
-/*
- * Swallow the crossing events the ribbon has just caused itself.  cwm gives
- * focus to whatever the pointer is over, and a window sliding under a
- * resting pointer is the ribbon talking to itself, not the user asking for
- * anything.  Left alone it oscillates: the scroll moves a window under the
- * pointer, the EnterNotify moves focus back, and the next scroll undoes the
- * first.
- */
-static void
-ribbon_settle(void)
-{
-	XEvent	 ev;
-
-	XSync(X_Dpy, False);
-	while (XCheckMaskEvent(X_Dpy, EnterWindowMask, &ev))
-		;
-}
-
-/* Push the model onto the server for every ribbon of a screen. */
+/* Push the model onto the window system for every ribbon of a screen. */
 void
 ribbon_sync(struct screen_ctx *sc)
 {
@@ -799,7 +778,7 @@ ribbon_sync(struct screen_ctx *sc)
 	TAILQ_FOREACH(rb, &sc->ribbonq, entry)
 		ribbon_sync_one(rb);
 
-	ribbon_settle();
+	wsi_settle();
 }
 
 void
@@ -843,10 +822,10 @@ ribbon_screen_relayout(struct screen_ctx *sc)
 }
 
 /*
- * The whole of it: the arithmetic above, and then the X calls that push it
- * onto the server.  They are apart because a monitor coming and going is
- * worth proving, and everything worth proving is in the half that needs no
- * display: "layout-probe outputs" replays a hotplug through
+ * The whole of it: the arithmetic above, and then the seam calls that push
+ * it onto the window system.  They are apart because a monitor coming and
+ * going is worth proving, and everything worth proving is in the half that
+ * needs no display: "layout-probe outputs" replays a hotplug through
  * ribbon_screen_relayout() and prints what became of every ribbon.
  */
 void
@@ -1018,7 +997,7 @@ ribbon_activate(struct ribbon_col *col)
 	client_raise(cc);
 	client_set_active(cc);
 	client_ptr_warp(cc);
-	ribbon_settle();
+	wsi_settle();
 }
 
 /*
@@ -1041,7 +1020,7 @@ ribbon_warp(struct ribbon *rb)
 		return;
 
 	client_ptr_warp(cc);
-	ribbon_settle();
+	wsi_settle();
 }
 
 void

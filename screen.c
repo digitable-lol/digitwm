@@ -157,6 +157,26 @@ region_find(struct screen_ctx *sc, int x, int y)
 	return rc;
 }
 
+/*
+ * The output the pointer is over - the ribbon's half of region_find(), with
+ * the query for where the pointer is folded in.
+ *
+ * Folded in on purpose: asking X where the pointer is needs a window to ask
+ * about, and the root window is a handle of the window system.  Kept apart,
+ * the two calls made ribbon.c name that handle, which is a dependency on X11
+ * that no symbol table shows - a type is not a symbol, and the guard in
+ * tools/no-x-build.sh reads symbols.  See wsi.h.
+ */
+struct region_ctx *
+region_pointer(struct screen_ctx *sc)
+{
+	int	 x, y;
+
+	xu_ptr_get(sc->rootwin, &x, &y);
+
+	return region_find(sc, x, y);
+}
+
 struct geom
 screen_area(struct screen_ctx *sc, int x, int y, int apply_gap)
 {
