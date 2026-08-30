@@ -10,6 +10,10 @@
 #   3. Применена ли палитра ко всем целям, а не к части.
 #   4. Не затёрт ли чужой файл без резервной копии.
 #
+# «Ко всем целям» — это тринадцать целей, а не одиннадцать: kitty и lazygit
+# выпадали из списка, хотя установщик их кладёт. Из спрашиваемого выпадали и
+# три файла целиком — polybar.ini, Xresources и конфигурация Neovim.
+#
 # Чего проверка НЕ делает: она не поднимает X11-сессию. Без дисплея нельзя
 # ни проверить, что окно Digit встало слева, ни что Mod4+h переключает фокус.
 # Здесь об этом сказано прямо, а не подменено зелёной строчкой.
@@ -122,11 +126,21 @@ check_file "$CONFIG_DIR/zshrc"          "конфигурация zsh"
 check_file "$CONFIG_DIR/alacritty.toml" "конфигурация alacritty"
 check_file "$CONFIG_DIR/keys.md"        "карта клавиш"
 check_file "$CONFIG_DIR/autostart"      "пользовательский автозапуск"
+check_file "$CONFIG_DIR/env"            "пользовательские переменные окружения"
+
+# Xresources и polybar.ini установщик кладёт только вместе с палитрой: у
+# polybar цвета обязательны, и пустые значения он принимает молча. Значит их
+# отсутствие — это не «так задумано», а установка без палитры, о которой
+# проверка и так скажет ниже одиннадцать раз. Молчать про ещё два файла,
+# которые обещаны и не положены, было бы поблажкой.
+check_file "$CONFIG_DIR/Xresources"     "ресурсы X (кладутся вместе с палитрой)"
+check_file "$CONFIG_DIR/polybar.ini"    "конфигурация панели (кладётся вместе с палитрой)"
 
 section "Скрипты сессии"
 check_exec "$PREFIX/bin/digitwm-session"     "точка входа сессии"
 check_exec "$PREFIX/bin/digitwm-digit"       "запуск Digit"
 check_exec "$PREFIX/bin/digitwm-lock"        "блокировка экрана"
+check_exec "$PREFIX/bin/digitwm-panel"       "панель"
 check_exec "$PREFIX/bin/digitwm-dev-session" "рабочая сессия tmux"
 check_exec "$PREFIX/bin/rgfzf.sh"            "поиск по содержимому"
 
@@ -257,6 +271,7 @@ expect_theme "$HOME/.vim/colors/digitable-focus-$PALETTE.vim"      "тема vim
 expect_theme "$CFG/nvim/colors/digitable-focus-$PALETTE.lua"       "тема neovim"
 expect_theme "$CFG/tmux/digitable-focus-$PALETTE.conf"             "тема tmux"
 expect_theme "$CFG/alacritty/digitable-focus-$PALETTE.toml"        "тема alacritty"
+expect_theme "$CFG/kitty/digitable-focus-$PALETTE.conf"           "тема kitty"
 expect_theme "$CFG/zsh/digitable-focus-$PALETTE.zsh"               "тема zsh"
 expect_theme "$CFG/starship/digitable-focus-$PALETTE.toml"         "тема starship"
 expect_theme "$CFG/fzf/digitable-focus-$PALETTE.sh"                "тема fzf"
@@ -264,6 +279,7 @@ expect_theme "$CFG/eza/digitable-focus-$PALETTE.sh"                "тема eza
 expect_theme "$CFG/bat/themes/Digitable-Focus-$PALETTE_CAP.tmTheme" "тема bat"
 expect_theme "$CFG/btop/themes/digitable-focus-$PALETTE.theme"     "тема btop"
 expect_theme "$CFG/git/digitable-focus-$PALETTE.gitconfig"         "тема git-delta"
+expect_theme "$CFG/lazygit/digitable-focus-$PALETTE.yml"          "тема lazygit"
 
 # Ссылка на тему должна быть не только в наличии файла, но и в конфигурации:
 # файл рядом, на который никто не ссылается, — это не применённая палитра.
@@ -325,12 +341,76 @@ if [ -f "$CONFIG_DIR/cwmrc" ]; then
   fi
 fi
 
+# Ресурсы X: их читают программы, у которых своей конфигурации нет вовсе —
+# xterm, xmessage, xclock. Пустое значение там означает чёрно-белое окно
+# посреди оформленного рабочего стола.
+if [ -f "$CONFIG_DIR/Xresources" ]; then
+  if grep -qE '^\*background:[[:space:]]+#[0-9A-Fa-f]{6}' "$CONFIG_DIR/Xresources"; then
+    ok "Xresources — цвет фона из палитры"
+  else
+    bad "Xresources" "нет строки *background с цветом вида #RRGGBB"
+  fi
+fi
+
+if [ -f "$CONFIG_DIR/polybar.ini" ]; then
+  if grep -qE '^background = #[0-9A-Fa-f]{6}' "$CONFIG_DIR/polybar.ini"; then
+    ok "polybar.ini — цвета из палитры"
+  else
+    bad "polybar.ini" "в [colors] нет background с цветом вида #RRGGBB"
+  fi
+  # Без enable-ipc панель не отвечает на polybar-msg, то есть Mod4+Shift+b
+  # перестаёт её сворачивать — и делает это молча.
+  if grep -qE '^enable-ipc = true' "$CONFIG_DIR/polybar.ini"; then
+    ok "polybar.ini — panel отвечает на polybar-msg (enable-ipc)"
+  else
+    bad "polybar.ini" "нет enable-ipc = true: Mod4+Shift+b не свернёт панель"
+  fi
+fi
+
+if [ -f "$CONFIG_DIR/cwmrc" ]; then
+  if grep -q 'digitwm-panel' "$CONFIG_DIR/cwmrc"; then
+    ok "cwmrc отдаёт панель клавише Mod4+Shift+b"
+  else
+    bad "cwmrc" "панель не привязана ни к одной клавише"
+  fi
+fi
+
+# --- Neovim -----------------------------------------------------------------
+# Установщик кладёт init.lua, только если своего нет; если свой есть — кладёт
+# рядом digitwm-session.lua и печатает строку подключения. Проверяем тот файл,
+# который в этой установке наш.
+section "Neovim"
+
+nvim_init="$CFG/nvim/init.lua"
+nvim_side="$CFG/nvim/digitwm-session.lua"
+nvim_ours=""
+if [ -f "$nvim_side" ]; then
+  nvim_ours="$nvim_side"
+  note "у вас свой $nvim_init — проверяется положенный рядом digitwm-session.lua"
+elif [ -f "$nvim_init" ]; then
+  nvim_ours="$nvim_init"
+fi
+
+if [ -z "$nvim_ours" ]; then
+  note "конфигурации Neovim нет — ни init.lua, ни digitwm-session.lua (установка с --no-rc?)"
+else
+  expect_reference "$nvim_ours" "$CONFIG_DIR/vimrc" \
+    "Neovim подключает тот же vimrc, что и vim"
+  expect_reference "$nvim_ours" "digitable-focus-$PALETTE" \
+    "Neovim берёт схему палитры $PALETTE"
+fi
+
+section "Плейсхолдеры"
+
 for f in "$CONFIG_DIR/vimrc" "$CONFIG_DIR/zshrc" "$CONFIG_DIR/tmux.conf" \
-         "$CONFIG_DIR/alacritty.toml" "$PREFIX/bin/digitwm-session" \
-         "$PREFIX/bin/digitwm-digit"; do
+         "$CONFIG_DIR/alacritty.toml" "$CONFIG_DIR/Xresources" \
+         "$CONFIG_DIR/polybar.ini" "$PREFIX/bin/digitwm-session" \
+         "$PREFIX/bin/digitwm-digit" ${nvim_ours:+"$nvim_ours"}; do
   [ -f "$f" ] || continue
   if grep -q '@@' "$f"; then
     bad "$(basename -- "$f")" "остались неподставленные плейсхолдеры @@…@@"
+  else
+    ok "$(basename -- "$f") — плейсхолдеров не осталось"
   fi
 done
 
@@ -422,6 +502,16 @@ if [ -x "$PREFIX/bin/digitwm-session" ]; then
     ok "сессия запускает Digit при входе"
   else
     bad "digitwm-session" "Digit не запускается вместе с сессией"
+  fi
+  # Переменные пользователя должны читаться ДО обоих потомков — иначе
+  # DIGITWM_DIGITMORF и геометрия окна Digit не доедут никуда, как это и было
+  # раньше, когда их предлагали писать в autostart.
+  # В установленном скрипте путь остаётся переменной ("$CONFIG_DIR/env"), а не
+  # разворачивается: ищем строку подключения, а не абсолютный путь.
+  if grep -q 'CONFIG_DIR/env' "$PREFIX/bin/digitwm-session"; then
+    ok "сессия читает файл переменных до запуска Digit и автозапуска"
+  else
+    bad "digitwm-session" "файл переменных $CONFIG_DIR/env не читается — они не дойдут до Digit"
   fi
 fi
 
