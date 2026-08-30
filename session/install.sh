@@ -990,6 +990,20 @@ install_desktop_entry() {
   fi
 }
 
+# Метка, которую несёт наш шаблон конфигурации Neovim. По ней повторный
+# запуск отличает «мой файл с прошлого прогона» от «файл человека». Манифест
+# для этого не годится: он переписывается в начале каждой установки и
+# прошлого прогона не помнит вовсе.
+NVIM_MARKER="digitwm-session: managed file"
+
+# Наш ли это файл конфигурации Neovim. Второй признак — шапка шаблона: файлы,
+# положенные до появления метки, тоже наши, и обновление не должно их удваивать.
+nvim_file_is_ours() {
+  [ -f "$1" ] || return 1
+  grep -qF "$NVIM_MARKER" "$1" 2>/dev/null && return 0
+  grep -qF "Digitable Session — Neovim." "$1" 2>/dev/null
+}
+
 install_rc_blocks() {
   if [ "$TOUCH_RC" -eq 0 ]; then
     NEXT_STEPS+=("Подключение не дописано (--no-rc). Добавьте сами: source $CONFIG_DIR/zshrc в ~/.zshrc; source $CONFIG_DIR/vimrc в ~/.vimrc; source-file $CONFIG_DIR/tmux.conf в ~/.tmux.conf")
@@ -1014,18 +1028,42 @@ install_rc_blocks() {
   fi
 
   # Neovim: init.lua — тоже не текстовый rc, куда можно дописать строку.
-  local nvim_init="${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.lua"
-  if [ -e "$nvim_init" ]; then
-    install_rendered "$SCRIPT_DIR/config/nvim-init.lua" \
-      "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/digitwm-session.lua" 644
+  # Вопрос здесь ровно один: чей это файл. Чужой — кладём свою конфигурацию
+  # рядом и печатаем строку подключения. Свой, с прошлой установки, — просто
+  # обновляем: раньше установщик своего файла не узнавал, уходил в «чужую»
+  # ветку и на каждом повторном запуске плодил лишний digitwm-session.lua.
+  local nvim_dir="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+  local nvim_init="$nvim_dir/init.lua"
+  local nvim_side="$nvim_dir/digitwm-session.lua"
+  if [ -e "$nvim_init" ] && ! nvim_file_is_ours "$nvim_init"; then
+    install_rendered "$SCRIPT_DIR/config/nvim-init.lua" "$nvim_side" 644
     NEXT_STEPS+=("У вас свой $nvim_init. Подключите сессию строкой: dofile(vim.fn.expand('~/.config/nvim/digitwm-session.lua'))")
   else
     install_rendered "$SCRIPT_DIR/config/nvim-init.lua" "$nvim_init" 644
+    # Файл, оставшийся от установок, которые своего init.lua не узнавали: он
+    # наш, он лишний, и пока он лежит рядом, verify.sh проверяет его вместо
+    # настоящей конфигурации. Чужой файл под этим именем не трогаем — метки
+    # в нём нет, и nvim_file_is_ours скажет «нет».
+    if nvim_file_is_ours "$nvim_side"; then
+      if [ "$PLAN_ONLY" -eq 1 ]; then
+        PLAN_LINES+=("  [удаляем]  $nvim_side (лишняя копия прошлой установки)")
+      else
+        rm -f -- "$nvim_side"
+        DONE_WRITTEN+=("$nvim_side (удалён: лишняя копия прошлой установки)")
+        record removed "$nvim_side"
+      fi
+    fi
   fi
 
   # ~/.xinitrc — для запуска через startx, если менеджера входа нет.
+  # Свой же файл с прошлого прогона узнаём по строке запуска сессии: иначе
+  # каждая повторная установка советовала дописать то, что там уже есть.
   if [ -e "$HOME/.xinitrc" ]; then
-    NEXT_STEPS+=("У вас свой ~/.xinitrc. Для запуска через startx последней строкой должно быть: exec $PREFIX/bin/digitwm-session")
+    if grep -qF "$PREFIX/bin/digitwm-session" "$HOME/.xinitrc" 2>/dev/null; then
+      DONE_UNCHANGED+=("$HOME/.xinitrc (запуск сессии уже прописан)")
+    else
+      NEXT_STEPS+=("У вас свой ~/.xinitrc. Для запуска через startx последней строкой должно быть: exec $PREFIX/bin/digitwm-session")
+    fi
   else
     install_content "$(printf '#!/bin/sh\n# Digitable Session\nexec "%s/bin/digitwm-session"' "$PREFIX")" \
       "$HOME/.xinitrc" 755
