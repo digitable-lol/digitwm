@@ -26,9 +26,11 @@
  * собранный компилятором в WebAssembly.  Все решения - куда встанет окно,
  * какой ширины колонка, куда уедет вьюпорт, кто получит фокус после закрытия -
  * принимает он, а не JavaScript.  Что это возможно, доказано не здесь:
- * tools/no-x-build.sh показывает, что арифметика ленты не берёт у X11 ничего,
- * а десять функций механики перечислены в `nm -u ribbon.o`.  Этот файл и есть
- * те десять функций, написанные заново для другой механики.
+ * tools/no-x-build.sh показывает, что лента не берёт у X11 ни одного имени, а
+ * весь её договор с оконной системой - одиннадцать операций, перечисленных в
+ * wsi.h.  Этот файл и есть те одиннадцать, написанные заново для другой
+ * механики: первая реализация контракта, которая не X11, и потому первое
+ * свидетельство, что контракт вообще переносим.
  *
  * НЕ НАСТОЯЩЕЕ: окна.  В браузере нет ни приложений, ни X-сервера; окно здесь
  * - прямоугольник на странице.  Страница обязана говорить это прямо, иначе
@@ -62,7 +64,6 @@ extern void js_show(unsigned long id);
 extern void js_focus(unsigned long id);
 
 struct conf		 Conf;
-Display			*X_Dpy;
 
 static struct screen_ctx	 dgt_sc;
 static struct client_ctx	*dgt_win[DGT_MAXWIN];
@@ -255,39 +256,24 @@ client_ptr_warp(struct client_ctx *cc)
 	(void)cc;
 }
 
+/* Выход один, страница им и является. */
 struct region_ctx *
-region_find(struct screen_ctx *sc, int x, int y)
+region_pointer(struct screen_ctx *sc)
 {
 	(void)sc;
-	(void)x;
-	(void)y;
 	return &dgt_region;
 }
 
+/*
+ * Гасить события пересечения указателя здесь нечего: их нет.  Обещание
+ * wsi.h - «когда вызов вернулся, ни одна перемена фокуса, вызванная только
+ * что разосланной геометрией, не идёт следом» - страница держит даром: она
+ * не двигает фокус за указателем вовсе.  Это и есть законный способ
+ * выполнить контракт ничем, и второй такой случай в wsi.h назван прямо.
+ */
 void
-xu_ptr_get(Window win, int *x, int *y)
+wsi_settle(void)
 {
-	(void)win;
-	*x = dgt_sc.view.w / 2;
-	*y = dgt_sc.view.h / 2;
-}
-
-/* Гасить события пересечения указателя здесь нечего: их нет. */
-int
-XSync(Display *dpy, int discard)
-{
-	(void)dpy;
-	(void)discard;
-	return 0;
-}
-
-int
-XCheckMaskEvent(Display *dpy, long mask, XEvent *ev)
-{
-	(void)dpy;
-	(void)mask;
-	(void)ev;
-	return 0;
 }
 
 static struct ribbon *
