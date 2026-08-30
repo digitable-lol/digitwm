@@ -19,26 +19,100 @@ make install
 tarball yet** — no tag has been pushed — so there is nothing to take a checksum
 of, and a made-up hash would be worse than a missing file: it would fail at
 fetch time with a message about corruption rather than about a missing release.
-`make makesum` writes it in one step once `v0.1.0` exists.
 
-For the same reason `DISTNAME` says `0.1.0` and `GITHUB_TAG` says
-`v${PKGVERSION_NOREV}`: the version is the one the first release will carry, not
-one that has already been published.
+Which file the checksums will cover is already fixed. `DISTNAME` is
+`digitwm-0.1.0` and `GITHUB_TAG` is `v${PKGVERSION_NOREV}`, and for a tag
+pkgsrc's `mk/fetch/github.mk` builds the name as `${DISTNAME}${EXTRACT_SUFX}`:
+it will fetch `https://github.com/digitable-lol/digitwm/archive/v0.1.0.tar.gz`
+and store it as `digitwm-0.1.0.tar.gz`. So two steps, in this order:
+
+1. whoever owns the release pushes the tag `v0.1.0`;
+2. in a pkgsrc tree, one command writes the file:
+
+```sh
+cd /usr/pkgsrc/wm/digitwm && make makesum
+```
+
+That writes `distinfo` with the `BLAKE2s`, `SHA512` and `Size` lines for
+`digitwm-0.1.0.tar.gz`. Step 2 cannot run before step 1: the version in the
+Makefile is the one the first release will carry, not one already published.
 
 ## What has and has not been checked
 
-**Checked:** the package builds nothing unusual. The Makefile in the repository
-root is portable BSD/GNU make, uses `pkg-config` for the three X libraries and
-`yacc` for the configuration parser, honours `PREFIX`, `DESTDIR` and
-`MANPREFIX`, and installs exactly the three files `PLIST` lists. `make install
-PREFIX=…` into an empty directory was run and produced `bin/cwm`,
-`share/man/man1/cwm.1` and `share/man/man5/cwmrc.5`.
+Everything below was measured on Linux. **There is no NetBSD machine here**, so
+none of it says that the port has been built by pkgsrc.
 
-**Not checked:** the port has not been built by pkgsrc. There is no pkgsrc tree
-and no NetBSD machine here; `bmake`, `pkgin` and `pkglint` are all absent. What
-the port says is right by construction and by reading the guide, not by having
-gone green. Do not report it as tested until someone has run `pkglint` and
-`make install` on it.
+**Measured.** From the repository root, into an empty staging directory, with
+the very flags the package passes (`INSTALL_MAKE_FLAGS`: `PREFIX` and
+`MANPREFIX=${PREFIX}/${PKGMANDIR}`):
+
+```sh
+make                                                        # exit 0
+make install PREFIX="$PWD/stage" MANPREFIX="$PWD/stage/man"
+( cd stage && find . -type f -o -type l )
+```
+
+`make` exits 0 (with four compiler warnings), and the install puts exactly three
+files in place:
+
+```
+bin/cwm
+man/man1/cwm.1
+man/man5/cwmrc.5
+```
+
+That is `PLIST`, line for line, checked both ways: nothing is installed that
+`PLIST` does not list, and nothing is listed that is not installed. The `man/`
+at the start of a `PLIST` line is not a guess about the layout — pkgsrc rewrites
+it to `${PKGMANDIR}/` itself (`mk/plist/plist-man.awk`), so the same `PLIST` is
+right whether `PKGMANDIR` is `man`, as it is by default, or `share/man`; both
+were run and both produced the three files. `DESTDIR` was run too and is
+honoured; the package does not have to pass it, because pkgsrc appends it to the
+install command (`mk/install/install.mk`).
+
+**Measured: `pkglint` is clean apart from the missing `distinfo`.** `pkglint`
+is a portable Go program, so it does not need NetBSD — only a pkgsrc checkout to
+read the infrastructure from:
+
+```sh
+go install github.com/rillig/pkglint/v23/cmd/pkglint@v23.21.1
+cp -r pkgsrc/wm/digitwm /usr/pkgsrc/wm/digitwm
+cd /usr/pkgsrc/wm/digitwm && pkglint -Wall .
+```
+
+Against a pkgsrc checkout of April 2026 (`mk/bsd.pkg.mk` 1.2061), version
+23.21.1 — the one pkgsrc itself packages — prints one warning and nothing else:
+
+```
+WARN: distinfo: A package that downloads files should have a distinfo file.
+```
+
+which is the missing `distinfo` of the section above, and cannot be removed
+before the tag exists. The dependencies, the categories, the licence, the
+`MASTER_SITES` spelling and the `PLIST` all pass.
+
+**Not checked.** The port itself has never been built or installed by pkgsrc:
+`bmake` and `pkgin` are absent here, and so is a NetBSD machine. Each of these
+is a command for whoever has one — run them in the copied package directory
+`/usr/pkgsrc/wm/digitwm`:
+
+```sh
+make makesum      # only after v0.1.0 is pushed; writes distinfo
+make              # the port has never been built by pkgsrc
+make install      # the port has never been installed by pkgsrc
+make package      # no binary package has ever been made
+make clean        # and then check the tree is as it was
+```
+
+and, after installing, that the window manager actually comes up on NetBSD:
+
+```sh
+cwm -c ~/.cwmrc
+```
+
+Do not report the port as tested until `make install` above has gone green on a
+NetBSD machine. What is written here is right by measurement where a measurement
+is given and by reading the guide everywhere else.
 
 ## The name of the binary
 
@@ -51,6 +125,35 @@ Whether the fork should eventually rename its binary is a decision with a cost
 on both sides — a rename breaks every configuration file, session script and
 `.xinitrc` that already says `cwm`; keeping the name blocks installing the two
 together — and it belongs to the owner, not to the port.
+
+## The dependencies, and why they are so few
+
+The package declares three libraries through buildlink and two tools, and
+nothing else:
+
+```
+USE_LANGUAGES=	c
+USE_TOOLS+=	pkg-config yacc
+.include "../../x11/libX11/buildlink3.mk"
+.include "../../x11/libXft/buildlink3.mk"
+.include "../../x11/libXrandr/buildlink3.mk"
+```
+
+That is the same list `bootstrap.sh` installs for a source build — a C
+compiler and make, the headers of x11, xft and xrandr, `bison` and
+`pkg-config` — expressed the way pkgsrc expects it. `USE_TOOLS+= yacc` covers
+what `bootstrap.sh` calls `bison`: on NetBSD it resolves to `/usr/bin/yacc`
+from the base system, elsewhere pkgsrc pulls in `devel/bison`, and the parser
+needs no more than that, since `parse.y` uses classic yacc constructs only.
+`USE_TOOLS+= pkg-config` resolves to `devel/pkgconf`. No `DEPENDS` line is
+needed: the three buildlink includes are full dependencies, at build time and
+at run time both, and the sources include no X headers beyond those three
+libraries.
+
+What `bootstrap.sh` installs on top of that — editor, terminal, shell,
+multiplexer, themes, agent — is deliberately not in `DEPENDS`; see below. The
+FTS models under `fts/` are checked in CI and are neither built nor installed,
+which is what keeps this package free of a Node dependency on NetBSD.
 
 ## The whole environment, rather than the window manager
 
