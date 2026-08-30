@@ -92,8 +92,48 @@ xev_handle_maprequest(XEvent *ee)
 	if ((cc = client_find(e->window)) == NULL)
 		cc = client_init(e->window, NULL);
 
-	if ((cc != NULL) && (!(cc->flags & CLIENT_IGNORE)))
+	if ((cc != NULL) && (!(cc->flags & CLIENT_IGNORE))) {
 		client_ptr_warp(cc);
+
+		/*
+		 * The warp alone does not hand over the keyboard, and that it
+		 * usually looked as if it did hid the defect for as long as
+		 * the ribbon fit on the screen.  Focus moves in exactly three
+		 * places - the startup scan (screen.c), a ribbon command
+		 * (ribbon_activate), and xev_handle_enternotify below - and a
+		 * window arriving is none of them.  So a newcomer got the
+		 * keyboard only when the warp happened to cross a window
+		 * boundary and the crossing event did the work.
+		 *
+		 * Once the ribbon is longer than the viewport that stops
+		 * happening.  Every insertion scrolls the new column to the
+		 * same place at the right edge, and cc->ptr is the same for
+		 * every window that asks for the same size, so the warp aims
+		 * at the very point the pointer is already resting on.  A
+		 * pointer that does not move crosses nothing, X sends no
+		 * EnterNotify, and _NET_ACTIVE_WINDOW keeps naming whatever
+		 * was focused before.
+		 *
+		 * Measured with harness/ribbon-smoke.sh, Xvfb 1280x800, six
+		 * xterms: windows 1 and 2 moved the pointer 640,400 ->
+		 * 243,159 -> 887,159 and each took the keyboard; windows 3
+		 * through 6 every one of them warped 887,159 -> 887,159, no
+		 * EnterNotify arrived for any of them, and the keyboard stayed
+		 * with window 2 while the viewport carried that window out to
+		 * [-1932,-1296].  Three insertions of six ended with the
+		 * window holding the keyboard outside the viewport.
+		 *
+		 * The ribbon has already decided this window is the focus:
+		 * ribbon_insert() put rb->focus on its column and scrolled the
+		 * viewport there.  Telling the server the same thing is what
+		 * makes the promise in doc/ribbon.md - the focused column lies
+		 * whole inside the viewport - true of the keyboard and not
+		 * only of the model.  Windows the ribbon declined - docks,
+		 * dialogs, floats - are left exactly as they were.
+		 */
+		if (cc->flags & CLIENT_RIBBON)
+			client_set_active(cc);
+	}
 }
 
 static void
