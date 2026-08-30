@@ -40,7 +40,12 @@ FONT_FAMILY=""
 FONT_SIZE="12"
 PALETTE_FILE=""
 THEMES_DIR=""
+THEMES_SOURCE=""
+PALETTE_SOURCE=""
 BOOTSTRAP=""
+FETCH_CONFIGS=0
+CONFIGS_URL="https://courses.digitable.life/workbench/configs"
+JSON_TOOL=""
 PLAN_ONLY=0
 SKIP_INSTALL=0
 SKIP_BOOTSTRAP=0
@@ -88,6 +93,9 @@ Digitable Session — установка окружения вокруг digitwm
   --font-size N           кегль терминала (по умолчанию 12)
   --themes-dir DIR        каталог themes/ Workbench (сгенерированный или из архива)
   --palette-file FILE     путь к focus-palettes.json
+  --fetch-configs         скачать темы и палитру с открытого портала, ЕСЛИ их
+                          не нашлось на диске (без флага — ни одного запроса)
+  --configs-url URL       откуда именно скачивать (по умолчанию портал Digitable)
   --bootstrap FILE        путь к products/workbench/toolchain/bootstrap.sh
   --skip-bootstrap        не звать общий bootstrap Workbench
   --skip-install          не ставить пакеты вообще
@@ -98,6 +106,15 @@ Digitable Session — установка окружения вокруг digitwm
   --with-digit            поставить Digit официальным установщиком и выполнить digit setup
   --yes, -y               не спрашивать подтверждения
   --help, -h              эта справка
+
+Откуда берутся темы, три источника, в порядке предпочтения:
+
+  1. локальный клон Workbench рядом с репозиторием или в ~/projects/courses;
+  2. --themes-dir и --palette-file — любой каталог, который вы укажете;
+  3. --fetch-configs — открытый портал, только по этому флагу и только когда
+     первых двух нет. Без флага установщик в сеть не ходит вовсе.
+
+Что выбрано в этом запуске, печатает строка «темы из» — и в --plan тоже.
 
 Идемпотентность. Повторный запуск ничего не портит: совпадающие файлы не
 переписываются, отличающиеся сохраняются рядом с суффиксом
@@ -126,6 +143,9 @@ parse_args() {
       --palette-file=*) PALETTE_FILE="${1#--palette-file=}" ;;
       --bootstrap) [ $# -ge 2 ] || die "--bootstrap требует значение"; BOOTSTRAP="$2"; shift ;;
       --bootstrap=*) BOOTSTRAP="${1#--bootstrap=}" ;;
+      --fetch-configs) FETCH_CONFIGS=1 ;;
+      --configs-url) [ $# -ge 2 ] || die "--configs-url требует значение"; CONFIGS_URL="$2"; FETCH_CONFIGS=1; shift ;;
+      --configs-url=*) CONFIGS_URL="${1#--configs-url=}"; FETCH_CONFIGS=1 ;;
       --skip-bootstrap) SKIP_BOOTSTRAP=1 ;;
       --skip-install) SKIP_INSTALL=1 ;;
       --skip-build) SKIP_BUILD=1 ;;
@@ -177,6 +197,161 @@ detect_platform() {
 # ничего не скачиваем из сети: молчаливая загрузка чужого файла установщиком —
 # ровно то, за что ругают curl | sh.
 
+# Тринадцать целей, которые сессия раскладывает (install_all_themes). Имена
+# совпадают с идентификаторами целей на портале — проверено по его index.json.
+CONFIG_TARGETS="vim neovim tmux alacritty kitty zsh starship fzf eza bat btop delta lazygit"
+
+fetch_url() {
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$1" -o "$2"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q -O "$2" "$1"
+  else
+    return 127
+  fi
+}
+
+# json_items <файл> [путь]
+#   без пути  — печатает пути всех файлов выбранной палитры и общих;
+#   с путём   — печатает текст ровно этого файла, без лишнего перевода строки.
+json_items() {
+  case "$JSON_TOOL" in
+    jq)
+      if [ $# -ge 2 ]; then
+        jq -j --arg p "$PALETTE" --arg f "$2" \
+          '([.shared[]?] + [.palettes[]?|select(.id==$p)|.files[]?])[]|select(.path==$f)|.text' "$1"
+      else
+        jq -r --arg p "$PALETTE" \
+          '([.shared[]?] + [.palettes[]?|select(.id==$p)|.files[]?])[]|.path' "$1"
+      fi
+      ;;
+    *)
+      python3 -c '
+import json, sys
+data = json.load(open(sys.argv[1], encoding="utf-8"))
+items = list(data.get("shared") or [])
+for pal in data.get("palettes") or []:
+    if pal.get("id") == sys.argv[2]:
+        items += pal.get("files") or []
+if len(sys.argv) > 3:
+    for item in items:
+        if item.get("path") == sys.argv[3]:
+            sys.stdout.write(item.get("text", ""))
+            break
+else:
+    for item in items:
+        print(item.get("path", ""))
+' "$1" "$PALETTE" ${2+"$2"}
+      ;;
+  esac
+}
+
+# --- открытый источник конфигов --------------------------------------------
+# Только по явному флагу и только когда на диске ничего не нашлось. Правило,
+# ради которого этот блок написан именно так, — тремя абзацами выше: молчаливая
+# загрузка чужого файла установщиком есть ровно то, за что ругают curl | sh.
+# Без --fetch-configs отсюда не уходит ни одного запроса.
+#
+# Отдельного focus-palettes.json на портале нет (404 — проверено). Палитра там
+# при этом есть целиком: тема helix несёт блок [palette] с ровно теми именами
+# ключей, которых ждёт этот установщик, а два терминальных чёрных лежат в теме
+# alacritty — colors.normal.black и colors.bright.black. Собранный так файл
+# сверен с products/workbench/themes/focus-palettes.json: 17 ключей на каждую
+# из трёх палитр совпадают до символа. Если формат портала изменится, палитра
+# соберётся неполной, и об этом будет сказано, а не подставлено молча.
+fetch_configs() {
+  local dest="$STATE_DIR/workbench-configs"
+  local target path json count=0
+
+  JSON_TOOL=""
+  if command -v jq >/dev/null 2>&1; then JSON_TOOL=jq
+  elif command -v python3 >/dev/null 2>&1; then JSON_TOOL=python3
+  else die "--fetch-configs: нужен jq или python3, чтобы разобрать конфиги портала"
+  fi
+  command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 \
+    || die "--fetch-configs: нужен curl или wget"
+
+  say ""
+  say "== Конфигурации Workbench с портала =="
+  say "  источник: $CONFIGS_URL"
+  say "  палитра:  $PALETTE"
+  mkdir -p -- "$dest"
+
+  for target in $CONFIG_TARGETS; do
+    json="$dest/$target.json"
+    if ! fetch_url "$CONFIGS_URL/$target.json" "$json"; then
+      warn "не скачалось: $CONFIGS_URL/$target.json"
+      rm -f -- "$json"
+      continue
+    fi
+    while IFS= read -r path; do
+      [ -n "$path" ] || continue
+      mkdir -p -- "$dest/$target/$(dirname -- "$path")"
+      json_items "$json" "$path" >"$dest/$target/$path"
+      count=$((count + 1))
+    done <<INNER
+$(json_items "$json")
+INNER
+  done
+
+  if [ "$count" -eq 0 ]; then
+    warn "с $CONFIGS_URL не удалось взять ни одного файла темы"
+    return 1
+  fi
+  say "  файлов тем: $count"
+
+  fetch_palette "$dest" || return 1
+
+  THEMES_DIR="$dest"
+  PALETTE_FILE="$dest/focus-palettes.json"
+  return 0
+}
+
+# fetch_palette <каталог> — собирает focus-palettes.json из тем helix и
+# alacritty. Ни одного шестнадцатеричного кода здесь не написано: все
+# приходят с портала.
+fetch_palette() {
+  local dest="$1"
+  local helix="$dest/helix.json"
+  local alacritty="$dest/alacritty.json"
+  local theme_file="digitable-focus-$PALETTE.toml"
+
+  fetch_url "$CONFIGS_URL/helix.json" "$helix" || { warn "не скачалась тема helix — палитру собрать не из чего"; return 1; }
+  [ -f "$alacritty" ] || fetch_url "$CONFIGS_URL/alacritty.json" "$alacritty" \
+    || { warn "не скачалась тема alacritty — палитру собрать не из чего"; return 1; }
+
+  local body
+  body=$(json_items "$helix" "$theme_file" \
+    | sed -n '/^\[palette\]/,$p' \
+    | sed -n 's/^\([A-Za-z]*\)[[:space:]]*=[[:space:]]*"\(#[0-9A-Fa-f]\{6,8\}\)".*/  "\1": "\2",/p')
+  [ -n "$body" ] || { warn "в теме helix нет блока [palette] — формат портала изменился"; return 1; }
+
+  local black bright
+  black=$(json_items "$alacritty" "$theme_file" | sed -n '/^\[colors\.normal\]/,/^\[colors\.bright\]/p' \
+    | sed -n 's/^black[[:space:]]*=[[:space:]]*"\(#[0-9A-Fa-f]\{6\}\)".*/\1/p' | head -n 1)
+  bright=$(json_items "$alacritty" "$theme_file" | sed -n '/^\[colors\.bright\]/,$p' \
+    | sed -n 's/^black[[:space:]]*=[[:space:]]*"\(#[0-9A-Fa-f]\{6\}\)".*/\1/p' | head -n 1)
+  if [ -z "$black" ] || [ -z "$bright" ]; then
+    warn "в теме alacritty не нашлись терминальные чёрные — формат портала изменился"
+    return 1
+  fi
+
+  {
+    printf '{\n'
+    printf '  "version": "%s",\n' "собрано session/install.sh --fetch-configs из $CONFIGS_URL"
+    printf '  "palettes": {\n'
+    printf '    "%s": {\n' "$PALETTE"
+    printf '%s\n' "$body" | sed 's/^  /      /'
+    printf '      "terminalBlack": "%s",\n' "$black"
+    printf '      "terminalBrightBlack": "%s"\n' "$bright"
+    printf '    }\n'
+    printf '  }\n'
+    printf '}\n'
+  } >"$dest/focus-palettes.json"
+  say "  палитра $PALETTE собрана из тем helix и alacritty"
+  return 0
+}
+
 resolve_workbench() {
   local candidate
 
@@ -190,18 +365,21 @@ resolve_workbench() {
     done
   fi
 
+  [ -z "$THEMES_DIR" ] || THEMES_SOURCE="указан флагом --themes-dir"
+  [ -z "$PALETTE_FILE" ] || PALETTE_SOURCE="указан флагом --palette-file"
+
   if [ -z "$THEMES_DIR" ] && [ -n "$BOOTSTRAP" ]; then
     local product_root
     product_root=$(cd -- "$(dirname -- "$BOOTSTRAP")/.." && pwd)
     for candidate in "$product_root/themes" "$product_root/tmp/generated/themes"; do
-      if [ -d "$candidate/vim" ]; then THEMES_DIR="$candidate"; break; fi
+      if [ -d "$candidate/vim" ]; then THEMES_DIR="$candidate"; THEMES_SOURCE="локальный клон Workbench"; break; fi
     done
   fi
   if [ -z "$THEMES_DIR" ]; then
     for candidate in \
       "$HOME/.local/share/digitable-workbench/themes" \
       "$REPO_ROOT/../courses/products/workbench/tmp/generated/themes"; do
-      if [ -d "$candidate/vim" ]; then THEMES_DIR="$candidate"; break; fi
+      if [ -d "$candidate/vim" ]; then THEMES_DIR="$candidate"; THEMES_SOURCE="локальный клон Workbench"; break; fi
     done
   fi
 
@@ -211,9 +389,34 @@ resolve_workbench() {
       "$REPO_ROOT/../courses/products/workbench/themes/focus-palettes.json" \
       "$HOME/projects/courses/products/workbench/themes/focus-palettes.json" \
       "$HOME/.local/share/digitable-workbench/themes/focus-palettes.json"; do
-      if [ -n "$candidate" ] && [ -f "$candidate" ]; then PALETTE_FILE="$candidate"; break; fi
+      if [ -n "$candidate" ] && [ -f "$candidate" ]; then
+        PALETTE_FILE="$candidate"
+        PALETTE_SOURCE="локальный клон Workbench"
+        break
+      fi
     done
   fi
+
+  # Третий источник — открытый портал, и только если первых двух не нашлось.
+  # По умолчанию сюда не заходят никогда: нужен явный --fetch-configs.
+  if [ -z "$THEMES_DIR" ] && [ "$FETCH_CONFIGS" -eq 1 ]; then
+    if [ "$PLAN_ONLY" -eq 1 ]; then
+      THEMES_SOURCE="открытый портал $CONFIGS_URL (--fetch-configs)"
+      PALETTE_SOURCE="$THEMES_SOURCE, собирается из тем helix и alacritty"
+      PLAN_LINES+=("  [сеть]     скачать 13 целей и палитру $PALETTE с $CONFIGS_URL")
+      PLAN_LINES+=("  [кэш]      $STATE_DIR/workbench-configs")
+    elif fetch_configs; then
+      THEMES_SOURCE="открытый портал $CONFIGS_URL (--fetch-configs)"
+      PALETTE_SOURCE="$THEMES_SOURCE, собрана из тем helix и alacritty"
+    else
+      NEXT_STEPS+=("--fetch-configs ничего не принёс с $CONFIGS_URL. Темы не разложены: укажите каталог флагом --themes-dir.")
+    fi
+  fi
+
+  if [ -z "$THEMES_DIR" ] && [ "$FETCH_CONFIGS" -eq 0 ]; then
+    NEXT_STEPS+=("Тем Workbench на диске нет. Три источника: локальный клон courses рядом с репозиторием; свой каталог через --themes-dir; открытый портал через --fetch-configs — по флагу, молча в сеть установщик не ходит.")
+  fi
+
   [ -z "$PALETTE_FILE" ] || [ -f "$PALETTE_FILE" ] || die "не найден файл палитры: $PALETTE_FILE"
 }
 
@@ -626,7 +829,7 @@ install_x_extras() {
   # xdotool. Без него digitwm-digit не умеет поднять уже открытое окно, и
   # Mod4+grave открывает второе окно Digit вместо того, чтобы вернуть первое.
   # В toolchain.json Workbench его нет — ставим здесь.
-  ensure_packages xdotool "xdotool — Mod4+grave поднимает открытое окно Digit, а не открывает второе" \
+  ensure_packages xdotool "Mod4+grave поднимает открытое окно Digit, а не открывает второе" \
     xdotool xdotool xdotool
 
   # polybar. Установщик кладёт для него готовую конфигурацию, cwmrc отдаёт ему
@@ -634,7 +837,7 @@ install_x_extras() {
   # некому: в toolchain.json Workbench его тоже нет (0 вхождений). Панель при
   # этом сама не запускается: строка для неё есть в autostart, но
   # закомментированная, а Mod4+Shift+b поднимает её и без автозапуска.
-  ensure_packages polybar "polybar — панель, которой сессия отдаёт Mod4+Shift+b" \
+  ensure_packages polybar "панель, которой сессия отдаёт Mod4+Shift+b" \
     polybar polybar polybar
 }
 
@@ -840,13 +1043,19 @@ print_header() {
   say "  скрипты     : $PREFIX/bin"
   if [ -n "$PALETTE_FILE" ]; then
     say "  палитра из  : $PALETTE_FILE"
+    [ -z "$PALETTE_SOURCE" ] || say "                ($PALETTE_SOURCE)"
+  elif [ -n "$PALETTE_SOURCE" ]; then
+    say "  палитра из  : $PALETTE_SOURCE"
   else
     say "  палитра из  : НЕ НАЙДЕНА — цвета останутся стандартными"
   fi
   if [ -n "$THEMES_DIR" ]; then
     say "  темы из     : $THEMES_DIR"
+    [ -z "$THEMES_SOURCE" ] || say "                ($THEMES_SOURCE)"
+  elif [ -n "$THEMES_SOURCE" ]; then
+    say "  темы из     : $THEMES_SOURCE"
   else
-    say "  темы из     : НЕ НАЙДЕНЫ — файлы тем не раскладываются"
+    say "  темы из     : НЕ НАЙДЕНЫ — ни клона Workbench, ни --themes-dir, ни --fetch-configs"
   fi
   if [ -n "$BOOTSTRAP" ]; then
     say "  bootstrap   : $BOOTSTRAP"

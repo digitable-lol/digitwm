@@ -115,6 +115,7 @@ things — a difference in facts is worse than a missing translation.
 | [doc/offscreen.md](doc/offscreen.md) | windows outside the viewport, and the numbers behind the default |
 | [doc/baseline.md](doc/baseline.md) | flicker, insertion latency, hidden windows — measured, and what is still missing |
 | [doc/panel.md](doc/panel.md) | the panel: ours against someone else's, the numbers behind the choice, and what a panel does to the ribbon |
+| [doc/themes.md](doc/themes.md) | where the installer gets Workbench themes: three sources, and the line it does not cross |
 | [doc/build.md](doc/build.md) | building, installing, running, checking a change |
 | [doc/portability.md](doc/portability.md) | what here is X11 and what is arithmetic, measured — and what a macOS port would cost |
 | [doc/browser.md](doc/browser.md) | what of this can be shown in a browser for real, and what cannot |
