@@ -98,7 +98,9 @@ The panel is external, and that is a decision with numbers behind it —
 type `dock` declares a strut through `_NET_WM_STRUT_PARTIAL`, and the ribbon
 hands that band over — to every column at once, taking it back when the panel
 collapses without losing the viewport offset. The session installer lays down a
-ready polybar configuration painted in your palette.
+ready polybar configuration painted in your palette, installs polybar itself
+where the package manager knows it, and puts `Mod4+Shift+b` on a script that
+raises the panel, collapses it, or says out loud that polybar is missing.
 
 ## Documentation
 

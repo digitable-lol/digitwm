@@ -1,0 +1,70 @@
+#!/bin/sh
+# Digitable Session — панель.
+#
+# Одна клавиша (Mod4+Shift+b) на три состояния, и ни одного молчаливого:
+#
+#   панель работает      → свернуть/развернуть (polybar-msg cmd toggle);
+#   панель не запущена   → запустить с конфигурацией сессии;
+#   polybar не стоит     → сказать вслух, как сказано про блокировщик экрана.
+#
+# Раньше на этой клавише висела прямая команда `polybar-msg cmd toggle`.
+# polybar сессия не ставила ничем, и клавиша молча не делала ничего: ни
+# панели, ни ошибки, ни строки в журнале. Теперь polybar ставит установщик
+# сессии (session/install.sh, install_x_extras), а этот скрипт отвечает за
+# оставшиеся два случая.
+#
+# Панель здесь внешняя, и это решение с числами: doc/panel.ru.md. Своей у
+# digitwm нет и не планируется; место для чужой в модели есть — окно типа
+# dock объявляет полосу _NET_WM_STRUT_PARTIAL, и лента её отдаёт.
+
+set -u
+
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/digitwm/polybar.ini"
+BAR="digitwm"
+
+say_loud() {
+    if command -v xmessage >/dev/null 2>&1; then
+        printf '%s\n' "$1" | xmessage -center -file - 2>/dev/null && return 0
+    fi
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "digitwm" "$1" 2>/dev/null && return 0
+    fi
+    printf '%s\n' "$1" >&2
+    return 1
+}
+
+if ! command -v polybar >/dev/null 2>&1; then
+    say_loud 'Панель не установлена.
+Своей панели у digitwm нет — решение с числами в doc/panel.ru.md.
+Поставьте polybar (пакет так и называется) или перезапустите
+session/install.sh без --skip-install: конфигурация панели уже
+лежит в ~/.config/digitwm/polybar.ini.'
+    exit 1
+fi
+
+if [ ! -r "$CONFIG" ]; then
+    say_loud 'Конфигурация панели не установлена.
+~/.config/digitwm/polybar.ini кладётся только вместе с палитрой:
+у polybar цвета обязательны, и пустые значения он принимает молча,
+выкрашивая бар в чужие умолчания. Переустановите сессию с палитрой
+(session/install.sh --palette carbon), и панель появится.'
+    exit 1
+fi
+
+# Панель уже работает — сворачиваем или разворачиваем её саму. polybar
+# снимает своё окно с экрана, лента забирает освободившуюся полосу обратно.
+if pgrep -x polybar >/dev/null 2>&1; then
+    if polybar-msg cmd toggle >/dev/null 2>&1; then
+        exit 0
+    fi
+    say_loud 'Панель запущена, но polybar-msg до неё не достучался.
+В конфигурации должно быть enable-ipc = true — в нашей оно есть,
+значит панель подняли другой командой или другим файлом.'
+    exit 1
+fi
+
+# Не запущена — запускаем. Панель переживает выход этого скрипта: cwm ждёт
+# завершения команды, привязанной к клавише, и без отвязки клавиша осталась
+# бы нажатой до конца жизни панели.
+polybar --reload -c "$CONFIG" "$BAR" >/dev/null 2>&1 &
+exit 0

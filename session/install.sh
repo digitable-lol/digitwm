@@ -628,6 +628,14 @@ install_x_extras() {
   # В toolchain.json Workbench его нет — ставим здесь.
   ensure_packages xdotool "xdotool — Mod4+grave поднимает открытое окно Digit, а не открывает второе" \
     xdotool xdotool xdotool
+
+  # polybar. Установщик кладёт для него готовую конфигурацию, cwmrc отдаёт ему
+  # Mod4+Shift+b, doc/panel.md выбирает его числами — а поставить его было
+  # некому: в toolchain.json Workbench его тоже нет (0 вхождений). Панель при
+  # этом сама не запускается: строка для неё есть в autostart, но
+  # закомментированная, а Mod4+Shift+b поднимает её и без автозапуска.
+  ensure_packages polybar "polybar — панель, которой сессия отдаёт Mod4+Shift+b" \
+    polybar polybar polybar
 }
 
 install_digit() {
@@ -724,6 +732,7 @@ install_configs() {
   install_rendered "$SCRIPT_DIR/bin/digitwm-session.in" "$PREFIX/bin/digitwm-session" 755
   install_rendered "$SCRIPT_DIR/bin/digitwm-digit.in"   "$PREFIX/bin/digitwm-digit" 755
   install_copy     "$SCRIPT_DIR/bin/digitwm-lock"       "$PREFIX/bin/digitwm-lock" 755
+  install_copy     "$SCRIPT_DIR/bin/digitwm-panel"      "$PREFIX/bin/digitwm-panel" 755
   install_copy     "$SCRIPT_DIR/bin/digitwm-dev-session" "$PREFIX/bin/digitwm-dev-session" 755
   install_copy     "$SCRIPT_DIR/bin/rgfzf.sh"           "$PREFIX/bin/rgfzf.sh" 755
 
