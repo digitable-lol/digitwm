@@ -350,7 +350,8 @@ of 24 — more than apt or dnf manage. The one thing that does not install is th
 window manager; `bootstrap.sh` currently refuses on `Darwin`, with a reason.
 
 **Licences.** yabai, Amethyst, Silica, AeroSpace, soffes/HotKey — all MIT,
-compatible with our ISC as long as their notices are kept. Copying an idea —
+compatible with our BSD-2-Clause, and with the ISC of the inherited files, as
+long as their notices are kept. Copying an idea —
 which call, in which order — creates no obligation at all.
 
 Two traps:

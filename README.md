@@ -108,6 +108,7 @@ things — a difference in facts is worse than a missing translation.
 | [session/README.md](session/README.md) | the environment around the window manager: what you get and what you do not |
 | [pkgsrc/README.md](pkgsrc/README.md) | the package, and what is missing until the first release |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | the order a layout change is made in |
+| [LICENSE-EN.md](LICENSE-EN.md) | the licence in plain words: what you may do, what we ask, and why the tree holds three licences |
 
 ## Status
 
@@ -119,9 +120,12 @@ without a battery ([doc/panel.md](doc/panel.md)), and the delivery paths
 rather than on every system they claim. Each document says which of its
 statements were measured and which were not.
 
-Licence: the terms of the tree are in [LICENSE](LICENSE); the provenance of the
-inherited [cwm](https://github.com/leahneukirchen/cwm) code and the single
-exception (`queue.h`, BSD-3) are in [NOTICE](NOTICE). Upstream's headers are
+Licence: our own files are **BSD-2-Clause** — the verbatim text is in
+[LICENSE](LICENSE). The files inherited from
+[cwm](https://github.com/leahneukirchen/cwm) stay **ISC**, and their notice with
+every copyright holder is in [LICENSE.upstream](LICENSE.upstream); `queue.h`
+alone is BSD-3-Clause. Which file is which, and why the licence changed, are in
+[NOTICE](NOTICE) and [LICENSE-EN.md](LICENSE-EN.md). Upstream's headers are
 never touched, our own files carry their own, and `tools/check-licensing.py` is
 what keeps the two apart. Part of [Digitable](https://digitable.life); the
 write-up with the numbers from the harnesses is at

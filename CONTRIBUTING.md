@@ -11,9 +11,18 @@ upstream commits kept intact. Two things follow, and they are not negotiable.
   ratpoison** (GPL-2.0-or-later). Reading them to understand an idea is fine.
   Copying a line is not: it would relicense this tree, close the path of patches
   back to cwm, and undo the work of changing the base. See [NOTICE](NOTICE).
-- **Do not touch the copyright headers** of existing files, and do not edit
-  `LICENSE`. It carries the verbatim ISC text and nothing else, so that the
-  licence is recognised automatically.
+- **Do not touch the copyright headers** of the inherited files, and do not
+  edit `LICENSE` or `LICENSE.upstream`. `LICENSE` carries the verbatim BSD
+  2-Clause text of our own code and nothing else, so that the licence is
+  recognised automatically; `LICENSE.upstream` carries the ISC notice of the
+  code inherited from cwm with all nine copyright lines. Which file is which is
+  in [NOTICE](NOTICE).
+- **A new file of ours opens with two lines**: `SPDX-FileCopyrightText: 2026
+  Digitable <https://digitable.life>` and `SPDX-License-Identifier:
+  BSD-2-Clause`. `ISC` there is a failure and not a small one: ISC is the
+  licence of the inherited files, and marking one of ours with it misstates
+  where the file came from. `tools/check-licensing.py` fails on both, and names
+  the file.
 - **Do not add a dependency.** `x11`, `xft`, `xrandr`, a C compiler and `yacc`
   are the whole list, and NetBSD is reachable exactly because of that. In
   particular, nothing under `fts/` may become a runtime dependency: **FTS runs
@@ -72,7 +81,9 @@ before it goes green — that is what the `--selfcheck` mode of each is for.
 ## Documentation
 
 Every document exists twice: `X.md` in English and `X.ru.md` in Russian, with a
-link to the other in the first lines of each. The set is:
+link to the other in the first lines of each. One pair is spelled differently —
+`LICENSE-EN.md` and `LICENSE-RU.md` — because the bare `LICENSE` is the
+operative text and neither surface may take that name. The set is:
 
 | Document | About |
 |---|---|
@@ -92,6 +103,7 @@ link to the other in the first lines of each. The set is:
 | [fts/README.md](fts/README.md) / [fts/README.ru.md](fts/README.ru.md) | the models and the harnesses |
 | [pkgsrc/README.md](pkgsrc/README.md) / [pkgsrc/README.ru.md](pkgsrc/README.ru.md) | the package |
 | [session/README.md](session/README.md) | the environment around the window manager |
+| [LICENSE-EN.md](LICENSE-EN.md) / [LICENSE-RU.md](LICENSE-RU.md) | the licence in plain words: what you may do, what we ask, and why the tree holds three licences |
 
 The models are the source of truth for anything about layout: a document
 describes what a model says and links to it, rather than restating the rule in

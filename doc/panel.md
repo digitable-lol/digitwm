@@ -95,8 +95,8 @@ the difference still matters.
   archive that is sold, that is separate work and a separate risk. **We do not
   take it.**
 
-digitwm's own licence (ISC) is unchanged by any of these: the panel stays
-outside.
+digitwm's own licences (BSD-2-Clause for our files, ISC for the inherited
+cwm ones) are unchanged by any of these: the panel stays outside.
 
 ## The room for a panel, and how it works
 

@@ -9,7 +9,10 @@ GITHUB_TAG=	v${PKGVERSION_NOREV}
 MAINTAINER=	noreply@digitable.life
 HOMEPAGE=	https://github.com/digitable-lol/digitwm/
 COMMENT=	Scrollable-tiling window manager for X11, forked from cwm
-LICENSE=	isc
+# Three licences in one binary: our own files are BSD-2-Clause, the files
+# inherited from cwm stay ISC, and queue.h is sys/queue.h from OpenBSD.  See
+# LICENSE, LICENSE.upstream and NOTICE in the distribution.
+LICENSE=	2-clause-bsd AND isc AND modified-bsd
 
 USE_LANGUAGES=	c
 USE_TOOLS+=	pkg-config yacc

@@ -296,7 +296,8 @@ manage. The one thing that does not install is the window manager, which is what
 this plan is about.
 
 **Licences.** yabai, Amethyst, Silica, AeroSpace are all MIT and compatible with
-our ISC as long as their notices are kept; copying an idea — which call, in
+our BSD-2-Clause — and with the ISC of the inherited files — as long as their
+notices are kept; copying an idea — which call, in
 which order — creates no obligation. Two things must stay out of the tree:
 **AltTab is GPL-3.0** (read it for facts, take no code — `tools/check-licensing.py`
 would fail the build), and the `CGSInternal` headers have no licence file at

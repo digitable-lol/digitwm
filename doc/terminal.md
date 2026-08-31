@@ -251,7 +251,8 @@ build without X11 and already answer in cells.
 All three come from the research; not one tree was opened here. **The first
 question to any of them is the licence**, and it is not rhetorical:
 `tools/check-licensing.py` fails the build on GPL text under version control,
-because digitwm is ISC and stays ISC ([NOTICE](../NOTICE)). Whoever writes the
+because digitwm is permissive and stays permissive — BSD-2-Clause for our
+files, ISC for the inherited ones ([NOTICE](../NOTICE)). Whoever writes the
 first line must check the licence of the base; it is not checked here, and this
 document will not invent it.
 

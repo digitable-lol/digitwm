@@ -108,6 +108,7 @@ python3 tools/check-licensing.py                # лицензионный шл�
 | [session/README.md](session/README.md) | окружение вокруг оконного менеджера: что вы получите и чего не получите |
 | [pkgsrc/README.ru.md](pkgsrc/README.ru.md) | пакет и то, чего в нём нет до первого релиза |
 | [CONTRIBUTING.ru.md](CONTRIBUTING.ru.md) | в каком порядке правится раскладка |
+| [LICENSE-RU.md](LICENSE-RU.md) | лицензия по-человечески: что можно, о чём мы просим и почему лицензий в дереве три |
 
 ## Состояние
 
@@ -119,11 +120,14 @@ pkgsrc) прогнаны на Debian и вычитаны глазами, а не
 системе, которую они называют. В каждом документе сказано, что в нём измерено,
 а что нет.
 
-Лицензия: условия, на которых распространяется дерево, — в [LICENSE](LICENSE);
-происхождение унаследованного от [cwm](https://github.com/leahneukirchen/cwm)
-кода и единственное исключение (`queue.h`, BSD-3) — в [NOTICE](NOTICE). Шапки
-апстрима не трогаются, наши файлы несут свою, и разделяет эти два множества
-`tools/check-licensing.py`. Часть [Digitable](https://digitable.life); разбор с
+Лицензия: наши файлы — под **BSD-2-Clause**, дословный текст в
+[LICENSE](LICENSE). Унаследованные от
+[cwm](https://github.com/leahneukirchen/cwm) остаются под **ISC**, их
+уведомление со всеми правообладателями — в
+[LICENSE.upstream](LICENSE.upstream); `queue.h` один под BSD-3-Clause. Что к
+чему относится и почему лицензия сменилась — в [NOTICE](NOTICE) и
+[LICENSE-RU.md](LICENSE-RU.md). Шапки апстрима не трогаются, наши файлы несут
+свою, и разделяет эти два множества `tools/check-licensing.py`. Часть [Digitable](https://digitable.life); разбор с
 числами прогонов — на
 [courses.digitable.life/digitwm](https://courses.digitable.life/digitwm/), там
 же сказано, почему digitwm не входит в платный архив Workbench, хотя лицензия
