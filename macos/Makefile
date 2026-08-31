@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
-# SPDX-License-Identifier: ISC
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Собирается только на macOS: здесь два фреймворка, которых больше нигде нет.
 # На Linux проверяется другое и другим:

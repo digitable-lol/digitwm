@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
-# SPDX-License-Identifier: ISC
+# SPDX-License-Identifier: BSD-2-Clause
 # Digitable Session — поиск по содержимому: ripgrep + fzf + bat.
 #
 # Это тот самый rgfzf.sh, который в конфигурации vim из dotfiles висит на

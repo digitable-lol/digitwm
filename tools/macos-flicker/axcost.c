@@ -1,5 +1,5 @@
 /* SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life> */
-/* SPDX-License-Identifier: ISC */
+/* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * digitwm - что стоит на macOS одна выдача геометрии и как поздно приходит
  * известие о новом окне

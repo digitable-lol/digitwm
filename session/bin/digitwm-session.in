@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
+# SPDX-License-Identifier: BSD-2-Clause
 # Digitable Session — точка входа X11-сессии.
 #
 # Этот скрипт запускает менеджер входа (через session/digitwm.desktop) или

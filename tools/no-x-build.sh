@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
-# SPDX-License-Identifier: ISC
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Сколько X11 в арифметике ленты - проверка сборкой, а не чтением.
 #

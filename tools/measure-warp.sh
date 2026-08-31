@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
-# SPDX-License-Identifier: ISC
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # digitwm - прыгает ли указатель за фокусом ленты, и держится ли фокус, когда
 # он не прыгает

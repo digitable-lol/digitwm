@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
+# SPDX-License-Identifier: BSD-2-Clause
 # Digitable Session — рабочая сессия tmux.
 #
 # Повторяет configs/tmux.sh из dotfiles владельца: те же шесть окон с теми
