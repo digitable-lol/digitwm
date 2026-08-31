@@ -132,8 +132,8 @@ None of it has to be taken on trust. The probe replays the same model calls
 the commands make, with no X server in the room:
 
 ```sh
-./cwm -C "layout-probe layout viewport=1280x800 columns=1,3,1 presets=0,2,3 focus=1 swap=left"
-./cwm -C "layout-probe layout viewport=1280x800 columns=3 focus=0 focus-window=1 reorder=down"
+./cwm -C "layout-probe layout viewport=1280x800 columns=1,3,1 presets=0,2,3 focus=1 swap=left ids=1"
+./cwm -C "layout-probe layout viewport=1280x800 columns=3 focus=0 focus-window=1 reorder=down ids=1"
 ```
 
 Each prints the ribbon before and after, and each window line ends with the

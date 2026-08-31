@@ -111,6 +111,14 @@ static int		 probe_dim(struct probe_ctx *, const char *, int *,
 			     int *);
 static int		 probe_scalar(struct probe_ctx *, const char *);
 static void		 probe_report(struct ribbon *, int, const char *);
+
+/*
+ * Window identity is off unless a scenario asks for it with "ids=1".
+ * The default output is a documented sample (doc/terminal.md) and a
+ * byte-for-byte baseline other trees are compared against, so a field
+ * that only reordering needs does not belong in it by default.
+ */
+static int		 probe_ids;
 static int		 probe_layout(struct probe_ctx *);
 static int		 probe_outs(struct probe_ctx *, const char *,
 			     struct probe_out *, int);
@@ -530,12 +538,15 @@ probe_report(struct ribbon *rb, int border, const char *stage)
 			 * number.
 			 */
 			(void)printf("window %d %d ribbon %d %d %d %d "
-			    "screen %d %d %d %d id %lu\n", i, j,
+			    "screen %d %d %d %d", i, j,
 			    cc->rbgeom.x, cc->rbgeom.y,
 			    cc->rbgeom.w, cc->rbgeom.h,
 			    cc->geom.x, cc->geom.y,
-			    cc->geom.w, cc->geom.h,
-			    (unsigned long)cc->win);
+			    cc->geom.w, cc->geom.h);
+			if (probe_ids)
+				(void)printf(" id %lu",
+				    (unsigned long)cc->win);
+			(void)printf("\n");
 			j++;
 		}
 		i++;
@@ -583,6 +594,7 @@ probe_layout(struct probe_ctx *p)
 		return -1;
 	}
 
+	probe_ids = probe_opt(p, "ids", 0);
 	Conf.ribbongap = probe_opt(p, "gap", Conf.ribbongap);
 	Conf.ribbonminw = probe_opt(p, "min-width", Conf.ribbonminw);
 	Conf.ribbonminh = probe_opt(p, "min-height", Conf.ribbonminh);

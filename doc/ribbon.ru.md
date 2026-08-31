@@ -129,8 +129,8 @@ digitwm собирается компилятором C, `yacc` и тремя б
 делают команды, и без всякого X-сервера:
 
 ```sh
-./cwm -C "layout-probe layout viewport=1280x800 columns=1,3,1 presets=0,2,3 focus=1 swap=left"
-./cwm -C "layout-probe layout viewport=1280x800 columns=3 focus=0 focus-window=1 reorder=down"
+./cwm -C "layout-probe layout viewport=1280x800 columns=1,3,1 presets=0,2,3 focus=1 swap=left ids=1"
+./cwm -C "layout-probe layout viewport=1280x800 columns=3 focus=0 focus-window=1 reorder=down ids=1"
 ```
 
 Каждая печатает ленту до и после, и каждая строка окна кончается его
