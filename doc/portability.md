@@ -22,19 +22,39 @@ sh tools/no-x-build.sh
 The script puts a 17-line stub where the X11 headers go and builds the whole of
 `ribbon.c` against it. The result:
 
-| What | How much |
-|---|---|
-| lines in `ribbon.c` | 1183 |
-| X11 names the resulting `ribbon.o` requires | **three**: `XSync`, `XCheckMaskEvent`, `X_Dpy` |
-| where those three are | all in `ribbon_settle()`, 7 lines |
-| the ten policies as their own translation unit | build with `-Wall -Wextra -Werror` and **not one X11 header** |
-| undefined symbols of that unit | one: `Conf` |
+| What | How much | Measured by |
+|---|---|---|
+| lines in `ribbon.c` | 1221 | `wc -l ribbon.c` |
+| X11 names the resulting `ribbon.o` requires | **zero** | `sh tools/no-x-build.sh` |
+| what the ribbon does ask of the window system | **11 operations**, every one declared in `wsi.h` | `sh tools/no-x-build.sh` |
+| the ten policies as their own translation unit | build with `-Wall -Wextra -Werror` and **not one X11 header** | `sh tools/no-x-build.sh` |
+| undefined symbols of that unit | one: `Conf` | `sh tools/no-x-build.sh` |
 
-Agreement is not only a matter of compiling. The ten policies, extracted into a
-separate binary with no X11, and `layout-probe` out of a `cwm` linked against
-Xlib, Xft and Xrandr answer identically on **171 conformance vectors** from
-`fts/vectors/` and on a further **2700 random vectors** inside the models' domain.
-Not one mismatch.
+Agreement is not only a matter of compiling, and two runs measure two different
+things. Neither of them is "2871 vectors": that number was a conformance count
+taken before `fts/strut-pair.fts` existed, plus a random run no command in this
+tree produces. What the tree prints today is below, and each number names the
+command that prints it.
+
+**The models against the live window manager.** `node fts/harness/conformance.mjs
+--fts ../fts --wm ./cwm` prints `проверок: 448` and not one mismatch. Those 448
+are 2 language surfaces × (10 field checks + 201 scalar vectors) + 2 × 13
+whole-layout scenarios. The vectors are counted in the tree rather than asserted:
+`jq -s 'map(length)|add' fts/vectors/*.json` gives **214**, of which
+`jq 'length' fts/vectors/layout.json` gives **13** scenarios and the remaining
+**201** are scalar.
+
+**A build with no X11 at all, against the X11-linked one.** The same `ribbon.c`
+compiled to WebAssembly and `layout-probe` out of a `cwm` linked against Xlib,
+Xft and Xrandr answer identically on **500 random cases — 4386 windows** —
+inside the models' domain. That is the run CI performs:
+
+```sh
+sh tools/wasm-layout/build.sh
+node tools/wasm-layout/check.mjs --wm ./cwm --cases 500
+# случаев:  500, окон в них: 4386
+# двоичный файл и WebAssembly ответили одинаково везде
+```
 
 `tools/no-x-build.sh` is also a guard. It fails and names the line if a call to
 Xlib reaches the arithmetic: checked by planting `XFlush(X_Dpy)` inside
@@ -46,29 +66,35 @@ Lines are function bodies in `ribbon.c`, without comments or the file header.
 
 | Layer | Lines | What it is | Cost to port |
 |---|---|---|---|
-| policy | **142** | the nine `ribbon_policy_*`: numbers in, a number out | 0 |
+| policy | **142** | the ten `ribbon_policy_*`: numbers in, a number out | 0 |
 | ribbon model | **256** | columns, stacks, `ribbon_measure`, `ribbon_place`, `ribbon_scroll` | 0, except the two places below |
 | mechanics inside `ribbon.c` | **359** | everything that calls `client_*` and X | rewrite |
 | mechanics outside `ribbon.c` | **4880** | `client.c`, `xutil.c`, `xevents.c`, `screen.c`, `kbfunc.c`, `menu.c`, `group.c`, `calmwm.c` | rewrite or drop |
 
 The contract between the ribbon and the mechanics is narrow and wholly visible
-in `nm -u ribbon.o`: ten functions — `client_current`, `client_hide`,
-`client_show`, `client_resize`, `client_raise`, `client_set_active`,
-`client_ptr_save`, `client_ptr_warp`, `region_find`, `xu_ptr_get` — plus `Conf`
-and libc. That is the layer a macOS build writes anew, and its size is the
-measure of the port.
+in `nm -u ribbon.o`: **11 window-system operations** — `client_current`,
+`client_geom_current`, `client_hide`, `client_ptr_save`, `client_ptr_warp`,
+`client_raise`, `client_resize`, `client_set_active`, `client_show`,
+`region_pointer`, `wsi_settle` — plus `Conf`, `conf_ribbonrule_match`, `xcalloc`,
+`xstrdup` and libc. Every one of the eleven is declared in `wsi.h`, and
+`tools/no-x-build.sh` fails if the ribbon calls a twelfth. That is the layer a
+macOS build writes anew, and its size is the measure of the port.
 
-Separately: **the conformance harness ports for free.** `probe.c` (1076 lines)
-builds against the same stub and requires no X11 name at all — only `ribbon_*`,
-`Conf`, `xcalloc`, `xstrdup` and libc. So `ribbon.o + probe.o + xmalloc.o` is
-`layout-probe` on any system, with no window server. The FTS models, the vectors
-and all four harnesses prove the layout on macOS exactly as they do here.
+Separately: **the conformance harness ports for free.** `probe.c` (1084 lines,
+`wc -l probe.c`) builds against the same stub and requires no X11 name at all —
+only `ribbon_*`, `Conf`, `xcalloc`, `xstrdup` and libc. So
+`ribbon.o + probe.o + xmalloc.o` is `layout-probe` on any system, with no window
+server. The FTS models, the vectors and all five harnesses — `conformance.mjs`,
+`selftest.mjs`, `surfaces.mjs`, `invariants.mjs`, `hotplug.mjs` — prove the
+layout on macOS exactly as they do here.
 
 ## Where Xlib did leak into the arithmetic
 
-Three places, and only the first costs anything.
+One place is still open, and it is the one that costs something. Two more were
+closed by the platform seam: `ribbon.o` now requires **zero** X11 names
+(`sh tools/no-x-build.sh`).
 
-**1. Border width inside the geometry.** `ribbon_place()`, `ribbon.c:623-624`:
+**1. Border width inside the geometry.** `ribbon_place()`, `ribbon.c:662-663`:
 
 ```c
 cc->geom.w = MAX(1, col->w - (cc->bwidth * 2));
@@ -84,15 +110,16 @@ on top of everything — which is no longer an "input/output layer" but a new
 thing. In the arithmetic `bwidth` goes to zero and both lines become an
 assignment.
 
-**2. `ribbon_settle()`, `ribbon.c:731-739.`** `XSync` plus draining
-`EnterWindowMask`: the ribbon swallowing the `EnterNotify` events it caused
-itself. Seven lines, pure mechanics that ended up next door to the model. The
-macOS counterpart is suppressing our own pointer events — same job, different
-code.
+**2. `ribbon_settle()` — CLOSED.** `XSync` plus draining `EnterWindowMask` — the
+ribbon swallowing the `EnterNotify` events it caused itself — is now
+`wsi_settle()` in `xutil.c`, on the far side of the seam, and the ribbon calls it
+as an operation of `wsi.h`. The macOS counterpart is suppressing our own pointer
+events: same job, different code, and no edit to the ribbon.
 
-**3. `sc->rootwin` in `ribbon_current()`, `ribbon.c:397`** — the only Xlib type
-(`Window`) the ribbon sees at all, and only for
-`xu_ptr_get(sc->rootwin, &x, &y)`. On macOS that is `NSEvent.mouseLocation`.
+**3. `sc->rootwin` and `xu_ptr_get()` — CLOSED.** The only Xlib type (`Window`)
+the ribbon ever saw is gone: the ribbon now asks `region_pointer()`, another
+operation of `wsi.h`. On macOS that is `NSEvent.mouseLocation`, written once
+behind the seam.
 
 And one leak the other way — arithmetic that ended up outside the policy:
 
@@ -207,7 +234,7 @@ The flicker is a sum of four terms:
 | Term | What it is | Where its number comes from |
 |---|---|---|
 | 1. the window is drawn → we learn of it | the compositor has already shown it | **not ours, not measured by us** |
-| 2. the layout decision | the nine policies | **0.06 ms** per insertion, measured |
+| 2. the layout decision | the ten policies | **0.06 ms** per insertion, measured |
 | 3. the geometry writes | AX round trips into the app | **count measured: 9 writes / 18 round trips** per insertion |
 | 4. one screen refresh | the compositor shows the move | 8.3 ms at 120 Hz, 16.7 at 60 |
 
@@ -340,16 +367,19 @@ Two traps:
 ## The answer
 
 **This is a port, not a new product — and here is what proves it.** What a macOS
-build would share is not "the idea of a ribbon" but 1183 lines of `ribbon.c` and
-1076 lines of `probe.c`, which build without a single X11 header and answer with
-the same numbers on 2871 vectors. Zero lines of arithmetic need rewriting.
+build would share is not "the idea of a ribbon" but 1221 lines of `ribbon.c` and
+1084 lines of `probe.c` (`wc -l ribbon.c probe.c`), which build without a single
+X11 header and answer with the same numbers on the **214 vectors** of
+`fts/vectors/` — 448 checks, `conformance.mjs` — and on **500 random cases**
+besides (`tools/wasm-layout/check.mjs --cases 500`). Zero lines of arithmetic
+need rewriting.
 
 The price:
 
 | Item | Estimate | What it rests on |
 |---|---|---|
 | the arithmetic | **0 lines** | measured |
-| edits inside `ribbon.c` | ~10 lines | the three leaks above |
+| edits inside `ribbon.c` | ~10 lines | the one leak still open above |
 | a new input/output layer | **2500–4000 lines** | estimated from the neighbours: Silica — the whole AX wrapper — is 2434 lines; AeroSpace's helper layer 928; yabai's process and event attachment about 2400 |
 | dropped | 4880 lines of X11 mechanics, of which `xutil.c` (579, all EWMH) has no replacement at all: macOS has no EWMH | measured |
 | a new obligation | a "what changed" check in `ribbon_sync_one()` | **done**: 19 writes per insertion became 9 |
@@ -360,4 +390,13 @@ other projects doing the same job, and it cannot be checked until there is a
 Mac.
 
 What is **not** in that price, and would have cost the most if it were:
-disabling system protection. The ribbon needs it for nothing.
+disabling system protection. The ribbon needs it for nothing — except one thing:
+without it the flicker on insertion cannot be hidden, so the flicker stays.
+
+**Is a port like that good enough.** Yes, in everything but one promise, and the
+promise is named: insertion without a jump. The jump is neither a trifle nor
+fatal — it is ~7 ms of learning (a third party's measurement, macOS 26.5) plus
+one IPC round trip plus a frame, which is visible to the eye and not removable
+with SIP on. The exact number for a given machine and given applications is what
+`tools/macos-flicker/` produces in one command; our own half of it is already
+halved.

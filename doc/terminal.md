@@ -67,7 +67,7 @@ Read it as a 200×50 terminal: four columns of 99 cells, a one-cell gap, a ribbo
 399 long inside a 200 viewport, offset 199, and a stack of four panes splitting
 50 rows into 11, 11, 11 and 14. **Not one fractional number**:
 `ribbon_policy_width()` computes `((vw - gap) * pct) / 100` in integers
-(`ribbon.c`), and the same is true of all nine policies. To this arithmetic
+(`ribbon.c`), and the same is true of all ten policies. To this arithmetic
 "pixel" and "cell" are the same word: unit.
 
 Column width in cells on typical terminals, computed by the same utility
@@ -106,27 +106,30 @@ LC_ALL=C sh tools/no-x-build.sh
 
 ```
 ribbon.c без Xlib: собралась
-  имена X11 в ribbon.o: XSync, XCheckMaskEvent, X_Dpy - все в ribbon_settle()
-девять политик отдельной единицей: собрались (-Wall -Wextra -Werror, ни одного заголовка X11)
+  имён X11 в ribbon.o: ноль
+  операций оконной системы: 11, все объявлены в wsi.h
+десять политик отдельной единицей: собрались (-Wall -Wextra -Werror, ни одного заголовка X11)
   неопределённых имён: Conf - и больше ничего
 ```
 
-*(`LC_ALL=C` is not decoration here: the guard compares a sorted list of names,
-and in a Russian locale `sort` puts `X_Dpy` before `XSync`, so the check fails on
-a correct tree. CI runs in the C locale, which is why this is invisible there.)*
+*(`LC_ALL=C` is not decoration here: the guard compares two sorted lists of
+names, and a Russian locale sorts the underscore differently, so the lists stop
+matching and the check fails on a tree where nothing changed. CI runs in the C
+locale, which is why this is invisible there.)*
 
 | Layer | Lines | Cost of the move into a terminal |
 |---|---|---|
-| policy — nine `ribbon_policy_*` | 142 | **0**: numbers in, a number out, not one X11 header |
+| policy — ten `ribbon_policy_*` | 142 | **0**: numbers in, a number out, not one X11 header |
 | ribbon model — columns, stacks, `ribbon_measure`, `ribbon_place`, `ribbon_scroll` | 256 | **0**, except the two places below |
 | mechanics inside `ribbon.c` — everything that calls `client_*` | 359 | rewrite |
 | mechanics outside `ribbon.c` | 4,880 | throw away whole: `xutil.c`, `xevents.c`, `screen.c` are about X11 and EWMH, which a terminal does not have |
 
 The line counts come from [portability.md](portability.md), where they were
-measured; `ribbon.c` as a whole is 1,183 lines.
+measured; `ribbon.c` as a whole is 1,221 lines (`wc -l ribbon.c`).
 
 The ribbon's contract with the outside world is visible in full in
-`nm -u ribbon.o`: ten functions plus `Conf` and libc.
+`nm -u ribbon.o`: **11 window-system operations**, every one declared in
+`wsi.h`, plus `Conf`, `conf_ribbonrule_match`, `xcalloc`, `xstrdup` and libc.
 
 | Contract function | Calls in `ribbon.c` | What it becomes in a terminal |
 |---|---|---|
@@ -138,15 +141,17 @@ The ribbon's contract with the outside world is visible in full in
 | `client_raise` | 2 | output order; ribbon panes never overlap, so nothing |
 | `client_ptr_save` | 1 | **stub** |
 | `client_ptr_warp` | 2 | **stub** |
-| `xu_ptr_get` | 1 | **stub** |
-| `region_find` | 1 | one viewport: always that one |
+| `client_geom_current` | 1 | the pane's current frame in cells |
+| `region_pointer` | 1 | **stub**: a terminal has no pointer |
+| `wsi_settle` | 3 | **stub**: there are no self-caused pointer events to swallow |
 
-The two places where X11 leaked into the model are the same ones the macOS port
-named: `bwidth` in `ribbon_place()` (in a terminal a border is zero or one cell,
-and both lines become plain assignments) and `ribbon_settle()` — seven lines
-that swallow the `EnterNotify` events the ribbon caused itself. A terminal has
-no pointer and nothing to swallow: **the function disappears, and the three X11
-names disappear from `ribbon.o` with it.**
+(Call counts: `grep -c` on `ribbon.c` for each name.)
+
+The one place where X11 still leaks into the model is the one the macOS port
+named: `bwidth` in `ribbon_place()` — in a terminal a border is zero or one
+cell, and both lines become plain assignments. The other two leaks are already
+gone: `ribbon_settle()` is now `wsi_settle()` behind the seam, and `ribbon.o`
+requires **zero** X11 names as it stands.
 
 And a free gift, verified here against the same stub the ribbon is built
 against:
@@ -156,7 +161,7 @@ probe.c без Xlib: собралась
 неопределённые имена probe.o: Conf ribbon_col_add … ribbon_scroll xcalloc xstrdup strtonum … libc
 ```
 
-`probe.c` — 1,076 lines — needs not one X11 name. So `ribbon.o + probe.o +
+`probe.c` — 1,084 lines (`wc -l probe.c`) — needs not one X11 name. So `ribbon.o + probe.o +
 xmalloc.o` is a `layout-probe` inside the terminal build, and **the whole
 conformance harness moves across for zero lines** (see "How it is checked").
 
@@ -225,15 +230,15 @@ rendering           frame, diff, input     written from scratch
 control sequence, the name `libvterm`, or a file descriptor. What guards this is
 not a promise but a twin of `tools/no-x-build.sh`: the same build of `ribbon.c`
 against a stub and the same list of permitted external names. Today there are
-ten of them and three are X11's; in the terminal build seven must remain and not
-one foreign name.
+eleven of them, all declared in `wsi.h`, and not one is X11's; in the terminal
+build all eleven must remain and not one foreign name.
 
 **One `ribbon.c` across both surfaces is what route A *is*.** If the terminal
 version grows a copy of the arithmetic, the product becomes a second product,
 and within half a year two answers to one question will differ. What the X11 and
-terminal versions share is not "the idea of a ribbon" but 1,183 lines of
-`ribbon.c` and 1,076 lines of `probe.c`, which already build without X11 and
-already answer in cells.
+terminal versions share is not "the idea of a ribbon" but 1,221 lines of
+`ribbon.c` and 1,084 lines of `probe.c` (`wc -l ribbon.c probe.c`), which already
+build without X11 and already answer in cells.
 
 **What to build the window model on.** Three options, each with its price:
 
@@ -367,12 +372,14 @@ gets for free, and the ones that have to be written.
 ### Free: the same conformance, the same arithmetic
 
 `probe.c` builds without X11 — verified here. So the terminal build gets its own
-`layout-probe`, and **the very vectors that run today** run through it: 171
-scalar vectors over nine models in `fts/vectors/*.json` plus 13 layout scenarios
-in `layout.json` (counted in the tree). The requirement is hard:
+`layout-probe`, and **the very vectors that run today** run through it: 201
+scalar vectors over ten models in `fts/vectors/*.json` plus 13 layout scenarios
+in `layout.json` — 214 in all, counted in the tree with
+`jq -s 'map(length)|add' fts/vectors/*.json`. Run against both language surfaces
+they make the 448 checks that `conformance.mjs` prints. The requirement is hard:
 
 ```
-the terminal build must answer all 184 vectors with the same numbers as the
+the terminal build must answer all 214 vectors with the same numbers as the
 X11 build.  One mismatch = the arithmetic has forked = route A is broken.
 ```
 
@@ -434,8 +441,9 @@ thing (graphics) it can do while we are only planning it. Hence three possible
 answers, and the choice is the owner's:
 
 **(a) Write our own — justified by exactly one argument.** In digitwm the layout
-numbers are not buried in code: nine policies are described by FTS models on two
-surfaces, and CI proves the code agrees with the models over 184 vectors. A
+numbers are not buried in code: ten policies are described by FTS models on two
+surfaces, and CI proves the code agrees with the models over 214 vectors — the
+448 checks of `conformance.mjs`. A
 multiplexer built on `ribbon.c` inherits all of that for free — one arithmetic,
 one conformance suite, two kinds of surface. tuios has a policy of its own
 (visible already in the presets: 33/50/55/67/90 against our 33/50/67/100), and
@@ -447,7 +455,7 @@ and the answer to "what about a terminal" is a link to tuios. That is cheaper by
 the whole window model and the whole renderer, and more honest than a third
 multiplexer in the world.
 
-**(c) Bring our policy into tuios.** Our nine functions are 142 lines of integer
+**(c) Bring our policy into tuios.** Our ten functions are 142 lines of integer
 arithmetic and are not hard to restate in Go. But conformance needs a utility of
 `layout-probe`'s level inside someone else's tree and the agreement of someone
 else's maintainer to keep it green. That is a negotiation, not a piece of work,
