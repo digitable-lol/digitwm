@@ -32,6 +32,14 @@ change to NOTICE.
      becoming the first unmarked one. An `ISC` identifier left in one of our
      files is named as such: it is the old licence, and the file is ours.
 
+  2b. The files of ours that carry no header — prose, the FTS models, the
+     vectors, the config templates: 87 of our files, by NOTICE's own count —
+     say nothing that contradicts LICENSE. Not having a header is a decision
+     about where the licence is written down; it is not permission for the
+     file to name someone else's licence or someone else's copyright. Check 2
+     cannot reach them without demanding the header NOTICE says they must not
+     have, so this one demands the opposite of a header.
+
   3. Inherited files carry neither `BSD-2-Clause` nor a Digitable copyright,
      and still carry the notice they arrived with. Both halves matter and
      they fail for different reasons. Writing ourselves into a header held by
@@ -50,6 +58,7 @@ Usage:  python3 tools/check-licensing.py
 Exits 1 and names every file that fails.
 """
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -116,6 +125,17 @@ UPSTREAM_HOLDERS = (
     "Owain G. Ainsworth",
     "Todd C. Miller",
 )
+
+# Check 2b scans for a licence claim, so prose that *names* licences is exempt
+# for the same reason it is exempt from the GPL scan below: `doc/portability.md`
+# says AltTab is GPL-3.0, `LICENSE-EN.md` names all three licences, and neither
+# is a claim about the file it stands in. This file is exempt because it holds
+# the patterns themselves and would match its own scan.
+CLAIM_SCAN_EXEMPT_SUFFIXES = {".md"}
+CLAIM_SCAN_EXEMPT_NAMES = {"NOTICE", ".gitignore", "check-licensing.py"}
+
+SPDX_LINE = re.compile(r"SPDX-License-Identifier:\s*([^\s*/#]+)")
+COPYRIGHT_LINE = re.compile(r"^.{0,12}(?:Copyright|\(c\)\s+\d{4})\b.*$", re.M)
 
 ISC_FORMULA = "Permission to use, copy, modify, and distribute this software"
 BSD2_CONDITION = "Redistributions in binary form must reproduce the above"
@@ -226,6 +246,72 @@ if missing_header:
 else:
     passed.append(
         f"all {len(ours)} source files of our own carry SPDX BSD-2-Clause headers"
+    )
+
+# 2b. Files of ours that carry no header say nothing that contradicts LICENSE.
+#
+# NOTICE draws the boundary by the commit that added the file, and says outright
+# that prose, the FTS models, the vectors and the config templates are *not*
+# marked with a header — 87 of our 137 files carry none, and LICENSE covers them.
+# That is a decision about where the licence is written down, not a decision to
+# stop caring what those files say. Nothing checked it, so the 22 `.fts` and
+# `.flang` models — our authorship, the specification the C is checked against,
+# and in `fts/flang/output-change.flang` a policy written a second time, which
+# is exactly the file another project would want to copy — could carry anyone's
+# terms and pass in silence:
+#
+#     // Copyright (c) 2026 Some Other Corp. All rights reserved.
+#     // SPDX-License-Identifier: LicenseRef-Proprietary
+#
+# Check 2 cannot catch that without demanding a header NOTICE says these files
+# must not have. So this check demands the opposite of a header: a file of ours
+# left to LICENSE must not name another licence or another copyright holder.
+# Red in both directions, like check 2 — and by the same reasoning, since a
+# file that says `ISC` is making the claim aeee0a0 already refuses to accept
+# from a headered file.
+headered = set(ours)
+foreign_claim = []
+for relative in files:
+    path = Path(relative)
+    if relative in INHERITED or relative in LICENCE_FILES or relative in headered:
+        continue
+    if path.suffix in CLAIM_SCAN_EXEMPT_SUFFIXES or path.name in CLAIM_SCAN_EXEMPT_NAMES:
+        continue
+    try:
+        text = read(relative)
+    except (OSError, UnicodeError):
+        continue
+    for identifier in SPDX_LINE.findall(text):
+        if identifier != "BSD-2-Clause":
+            foreign_claim.append(
+                f"{relative}: says `SPDX-License-Identifier: {identifier}` — this "
+                f"file is ours (NOTICE draws the boundary by the commit that "
+                f"added it) and is covered by LICENSE, which is BSD-2-Clause. "
+                f"Either the identifier is wrong or the file is not ours."
+            )
+            break
+    for line in COPYRIGHT_LINE.findall(text):
+        if "Digitable" not in line:
+            foreign_claim.append(
+                f"{relative}: carries a copyright line that is not ours — "
+                f"`{line.strip()[:70]}`. A file of ours covered by LICENSE cannot "
+                f"also be someone else's; if it really is theirs, it belongs in "
+                f"NOTICE and in the inherited list, not here."
+            )
+            break
+
+unheadered = [
+    f for f in files
+    if f not in INHERITED and f not in LICENCE_FILES and f not in headered
+    and Path(f).suffix not in CLAIM_SCAN_EXEMPT_SUFFIXES
+    and Path(f).name not in CLAIM_SCAN_EXEMPT_NAMES
+]
+if foreign_claim:
+    failures.extend(foreign_claim)
+else:
+    passed.append(
+        f"none of the {len(unheadered)} files of ours that LICENSE covers "
+        f"without a header claims another licence or another holder"
     )
 
 # 3. Inherited files are not relicensed and not claimed.
