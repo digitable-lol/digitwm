@@ -101,7 +101,7 @@ void
 group_show(struct group_ctx *gc)
 {
 	struct screen_ctx	*sc = gc->sc;
-	struct client_ctx	*cc;
+	struct client_ctx	*cc, *shown = NULL;
 	int			 moved = 0;
 
 	TAILQ_FOREACH(cc, &sc->clientq, entry) {
@@ -110,14 +110,29 @@ group_show(struct group_ctx *gc)
 		if (!(cc->flags & CLIENT_STICKY) &&
 		     (cc->flags & CLIENT_HIDDEN)) {
 			client_show(cc);
+			if (shown == NULL)
+				shown = cc;
 			moved = 1;
 		}
 	}
 	group_restack(gc);
 	group_set_active(gc);
 
-	if (moved)
+	if (moved) {
 		ribbon_group_update(sc);
+		/*
+		 * ribbon_group_update() ends in wsi_settle(), and settle
+		 * drains every crossing event already on its way in - not
+		 * only the ones the ribbon's own moves caused.  Among them
+		 * is the crossing that un-hiding these windows just caused,
+		 * which is a focus change a human asked for, and wsi.h is
+		 * explicit that settle is not asked to touch those.  With it
+		 * swallowed nothing holds the keyboard afterwards, so put
+		 * the focus back on a window this call actually revealed.
+		 */
+		if ((shown != NULL) && (client_current(sc) == NULL))
+			client_set_active(shown);
+	}
 }
 
 static void
