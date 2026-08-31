@@ -35,9 +35,12 @@ nearly nine to one.** And that one-off comparison understates it: a foreign
 panel brings its own battery, network and volume modules, while our own would
 need another one written every time the owner wants another number on the bar.
 
-What we pay: one session dependency and someone else's configuration style. The
-panel starts from `~/.config/digitwm/autostart`, and without it the ribbon works
-exactly as before, just with no bar.
+What we pay: one session dependency and someone else's configuration style. **At
+login the panel does not come up — that is a decision, not forgetfulness**
+(`session/README.md`): the bar is not wanted in every session, and
+`Mod4+Shift+b` raises it in a fraction of a second and hides it with the same
+key. Wanted from login — uncomment the line in `~/.config/digitwm/autostart`.
+Without the panel the ribbon works exactly as before, just with no bar.
 
 ## Which one, and why
 
@@ -78,9 +81,9 @@ of it done well. Then:
 
 ### What the licence means for the paid archive
 
-The panel is a separate program the session starts like any other; its code is
-not linked into digitwm and never enters our binary. But the Workbench archive
-is sold, and the difference still matters.
+The panel is a separate program, not a part of digitwm; its code is not linked
+into digitwm and never enters our binary. But the Workbench archive is sold, and
+the difference still matters.
 
 - **polybar, yambar, dzen2, lemonbar are Expat (MIT).** Putting the binary in a
   paid archive is allowed, with one requirement: keep the licence text and the
