@@ -4,34 +4,108 @@
 
 digitwm — форк **cwm (calmwm)**, оконного менеджера из базовой системы OpenBSD,
 через переносимую сборку https://github.com/leahneukirchen/cwm. История
-апстрима сохранена в этом репозитории целиком (1146 коммитов на момент форка,
-базовый коммит `a343cc9`), чтобы авторство читалось из `git log`, а не только
+апстрима сохранена в этом репозитории целиком: 1146 коммитов до нашего первого,
+базовый коммит `6d9bc38`, — чтобы авторство читалось из `git log`, а не только
 из этого файла.
+
+    git rev-list --count 6d9bc38     # 1146 — коммиты апстрима до нашего первого
 
 digitwm is a fork of **cwm (calmwm)**, the window manager from the OpenBSD base
 system, taken through the portable build at
 https://github.com/leahneukirchen/cwm. The upstream history is preserved here in
-full (1146 commits at the time of the fork, base commit `a343cc9`) so that
+full — 1146 commits before our first one, base commit `6d9bc38` — so that
 authorship is readable from `git log`, not only from this file.
 
-## Лицензии / Licences
+## Что унаследовано от cwm / Inherited from cwm
 
-**ISC** — 17 из 18 файлов `.c` и `.h`. Формула стоит в шапке каждого файла;
-отдельного файла лицензии в апстриме нет, поэтому `LICENSE` в этом репозитории
-воспроизводит её дословно и перечисляет всех правообладателей.
+Граница проведена **по коммиту, которым файл добавлен**, а не по шапке файла:
+
+    git log --diff-filter=A --follow --format='%an' -- <файл> | tail -1
+
+Шапку с `SPDX-License-Identifier` несут 50 наших файлов, а 87 — не несут вовсе:
+в JSON комментария нет, в `.fts` шапка попала бы в сверяемый скелет, а проза
+метится лицензионным файлом, а не строкой. По шапке делится не дерево, а треть
+его. Файлы апстрима SPDX-идентификатора не несут ни одного: у них полный текст
+ISC в шапке.
+
+Унаследованных файлов **26**:
+
+    Makefile          calmwm.c   client.c   cwm.1      group.c
+    README            calmwm.h   conf.c     cwm.pub    kbfunc.c
+    menu.c            parse.y    screen.c   strlcat.c  strtonum.c
+    migrate-config.pl queue.h    search.c   strlcpy.c  update.sh
+    util.c            xevents.c  xmalloc.c  xutil.c
+    reallocarray.c
+
+Наших — **137**. Всего под контролем версий 164 файла: 26 унаследованных, 137
+наших и `LICENSE.upstream`, который не код, а уведомление апстрима.
+
+The boundary is drawn by **the commit that added the file**, not by its header:
+50 of our files carry an `SPDX-License-Identifier` and 87 carry none, while
+upstream's carry none at all — they hold the full ISC text instead. Of 164
+tracked files, 26 are inherited, 137 are ours, and one is `LICENSE.upstream`.
+
+## Три лицензии / Three licences
+
+**BSD-2-Clause** — наши файлы, все 137. Дословный текст в `LICENSE`; в исходниках
+и скриптах — `SPDX-License-Identifier: BSD-2-Clause` в шапке. Прозу, модели FTS,
+векторы и шаблоны конфигов шапкой не метим: комментария в JSON нет, а в `.fts`
+шапка попала бы в сверяемый скелет. Их покрывает `LICENSE`.
+
+**ISC** — 25 из 26 унаследованных файлов. У двадцати формула стоит прямо в
+шапке; пять (`Makefile`, `README`, `cwm.pub`, `migrate-config.pl`, `update.sh`)
+пришли из апстрима без собственного уведомления и покрыты общим. Отдельного
+файла лицензии в апстриме нет, поэтому `LICENSE.upstream` воспроизводит её
+дословно и перечисляет всех правообладателей — девять строк `Copyright`, ни
+одна из которых не потеряна при смене лицензии:
+
+    grep -c Copyright LICENSE.upstream     # 9
 
 **BSD-3-Clause** — единственное исключение: `queue.h`. Это `sys/queue.h` из
-OpenBSD, копирайт The Regents of the University of California, 1991, 1993.
-Условия BSD-3 совместимы с ISC; файл не изменяется без крайней необходимости,
-чтобы оставаться синхронным с апстримом.
+OpenBSD, копирайт The Regents of the University of California, 1991, 1993. Текст
+лежит в самом файле. Условия BSD-3 совместимы и с ISC, и с BSD-2; файл не
+изменяется без крайней необходимости, чтобы оставаться синхронным с апстримом.
 
-**ISC** covers 17 of the 18 `.c` and `.h` files, with the notice in each file
-header. Upstream ships no separate licence file, so `LICENSE` here reproduces
-the notice verbatim and lists every copyright holder.
+**BSD-2-Clause** covers all 137 files of our own (`LICENSE`, plus an SPDX header
+in sources and scripts). **ISC** covers 25 of the 26 inherited files — twenty
+carry the formula in the header, five arrived from upstream without a notice of
+their own. Upstream ships no separate licence file, so `LICENSE.upstream`
+reproduces the notice verbatim with every copyright holder — nine `Copyright`
+lines, none lost in the change of licence. **BSD-3-Clause** covers the single
+exception, `queue.h`, which is `sys/queue.h` from OpenBSD; its text lives in the
+file. Both BSD-3 and ISC are compatible with BSD-2.
 
-**BSD-3-Clause** covers the single exception, `queue.h`, which is `sys/queue.h`
-from OpenBSD, copyright The Regents of the University of California, 1991, 1993.
-BSD-3 is compatible with ISC.
+Собранный `cwm` — это все три лицензии сразу. Тот, кто его распространяет,
+сохраняет все три уведомления: `LICENSE`, `LICENSE.upstream` и шапку `queue.h`.
+The built binary carries all three licences at once, and whoever redistributes
+it keeps all three notices.
+
+## Наши строки в чужих файлах / Our lines in upstream's files
+
+Лента входит в cwm через файлы апстрима, и наших строк там немало: `screen.c` —
+135 из 442, `calmwm.h` — 211 из 837, `client.c` — 234 из 1279, `conf.c` — 157 из
+867 (`git blame --line-porcelain <файл> | grep -c '^author Marat Zimnurov'`). Ни
+в одном файле мы не перевалили за половину.
+
+Эти файлы остаются под **ISC**, и шапки их не тронуты ни одной. Причины две.
+Первая: сменить в них идентификатор — сказать неправду о происхождении файла,
+где от двух третей до девяти десятых строк чужие. Вторая: путь патчей обратно в
+cwm дороже строки нашего имени в чужой шапке — диффа, дописывающего Digitable в
+копирайт файла OpenBSD, апстрим не примет.
+
+Наш копирайт на эти строки от этого не исчезает: он записан девятой строкой в
+`LICENSE.upstream`, рядом с восемью строками апстрима, и означает ровно это —
+вклад Digitable в унаследованные файлы выходит под ISC вместе с ними.
+
+The ribbon reaches into upstream's files, and our share there is real —
+135 of 442 lines in `screen.c`, 211 of 837 in `calmwm.h`, 234 of 1279 in
+`client.c` — but never a majority. Those files stay **ISC** and not one of their
+headers is touched: changing the identifier would misstate the provenance of a
+file that is mostly someone else's, and the path of patches back to cwm is worth
+more than our name in an OpenBSD header. Our copyright in those lines is the
+ninth `Copyright` line of `LICENSE.upstream`, standing beside upstream's eight,
+and it means what it says: Digitable's contribution to the inherited files goes
+out under ISC with them.
 
 ## Чего здесь нет намеренно / Deliberate omissions
 
@@ -51,15 +125,19 @@ upstream cwm. Watching the ideas is fine; copying the code is not.
 
 ## Вклад Digitable / Digitable's contribution
 
-Новый код Digitable выходит под той же ISC — чтобы файл лицензии оставался
-одним на весь репозиторий, а патчи могли уходить в апстрим без препятствий.
+Новый код Digitable выходит под **BSD-2-Clause**. Почему сменили и что смена
+значит для тех, кто уже получил код по ISC, — в
+[LICENSE-RU.md](LICENSE-RU.md) и [LICENSE-EN.md](LICENSE-EN.md); коротко: ISC
+досталась дереву по наследству от cwm, а не была выбрана, а смена действует
+вперёд и ничего ни у кого не отзывает.
+
 Правила раскладки дополнительно описаны исполняемыми спецификациями FTS в
 `fts/`; они не исполняются внутри оконного менеджера и нужны только сборке.
 
-New code by Digitable is released under the same ISC licence, so that one
-licence covers the whole repository and patches can flow upstream unimpeded.
-Layout rules are additionally described by executable FTS specifications in
-`fts/`; they never run inside the window manager and are used by CI only.
+New code by Digitable is released under **BSD-2-Clause**. Why the licence
+changed, and what the change means for anyone who already has the code under
+ISC, is in [LICENSE-EN.md](LICENSE-EN.md) — in short: ISC was inherited from cwm
+rather than chosen, and the change applies forwards and revokes nothing.
 
 ## Сессия не вносит сюда чужой код / The session vendors nothing
 
@@ -67,33 +145,38 @@ Layout rules are additionally described by executable FTS specifications in
 neovim, tmux, alacritty, zsh, fzf, bat и остальной набор. **Ни один из этих
 инструментов в репозиторий не кладётся — ни исходниками, ни бинарниками, ни
 вендорингом.** Они распространяются под своими лицензиями (GPL, Apache, MIT,
-BSD в разных редакциях), и внесение их сюда превратило бы репозиторий с одной
-строкой в `LICENSE` в смесь лицензий: патчи перестали бы уходить в апстрим
-cwm, а проект стал бы дистрибутивом, который спецификация `DGT-OS` уже
+BSD в разных редакциях), и внесение их сюда превратило бы дерево с тремя
+известными лицензиями в смесь неизвестно чего: патчи перестали бы уходить в
+апстрим cwm, а проект стал бы дистрибутивом, который спецификация `DGT-OS` уже
 отклонила. Всё стороннее ставится пакетным менеджером целевой системы.
 
 Своего в `session/` только конфигурация, шаблоны и скрипты установки и
-проверки — под той же ISC. Цветовые схемы не дублируются: они генерируются
+проверки — под **BSD-2-Clause**. Цветовые схемы не дублируются: они генерируются
 Digitable Workbench из `focus-palettes.json` и подключаются ссылкой на
 установленный файл. Причина и подробности — в `session/README.md`.
 
 The `session/` directory configures the environment around the window manager.
 **None of those tools is vendored here — not as sources, not as binaries.**
-They ship under their own licences; bringing them in would turn a
-single-licence repository into a licence mixture, close the path of patches
+They ship under their own licences; bringing them in would turn a tree with
+three known licences into a mixture of unknown ones, close the path of patches
 back to upstream cwm, and make this a distribution, which `DGT-OS` has already
 rejected. Third-party software is installed by the target system's package
 manager. Only configuration, templates and the install/verify scripts live
-here, under the same ISC.
+here, under **BSD-2-Clause**.
 
-## Почему LICENSE выглядит именно так / Why LICENSE looks the way it does
+## Почему LICENSE и LICENSE.upstream разделены / Why the two licence files
 
-Файл `LICENSE` содержит только дословный текст ISC и список правообладателей,
-без единой пояснительной строки. Это сделано намеренно: детекторы лицензий
-(GitHub licensee, SPDX-сканеры, корпоративные проверки) опознают лицензию
-сравнением с эталоном, и любая приписка сверху превращает её в
-«не определена». Всё, что нужно объяснить, объясняется здесь.
+Файл `LICENSE` содержит только дословный текст BSD 2-Clause и одну строку
+копирайта, без единой пояснительной строки. Это сделано намеренно: детекторы
+лицензий (GitHub licensee, SPDX-сканеры, корпоративные проверки) опознают
+лицензию сравнением с эталоном, и любая приписка сверху превращает её в
+«не определена». Поэтому уведомление cwm не разделом внутри `LICENSE`, а
+отдельным файлом `LICENSE.upstream` — он на опознание не претендует, и потому у
+него есть право на две поясняющие фразы сверху. Всё остальное объясняется здесь.
 
-`LICENSE` holds nothing but the verbatim ISC text and the copyright lines.
-That is deliberate: licence detectors match against a reference text, and any
-preamble turns a well-known licence into "unrecognised". Explanations live here.
+`LICENSE` holds nothing but the verbatim BSD 2-Clause text and one copyright
+line. That is deliberate: licence detectors match against a reference text, and
+any preamble turns a well-known licence into "unrecognised". The cwm notice is
+therefore a separate `LICENSE.upstream` rather than a section inside `LICENSE`:
+that file makes no claim on detection, which is exactly why it may carry two
+explanatory lines at the top. Everything else is explained here.
