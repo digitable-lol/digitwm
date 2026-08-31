@@ -34,12 +34,13 @@ It adds no measurement of its own. Every number below is taken from
 published by someone else, or an estimate. Where a number is missing, this
 document says which command produces it rather than guessing it.
 
-The plan starts from a fact rather than from a wish: **not one line of the port
-exists.** Nothing in the tree calls the Accessibility API — `client.c:568` and
-`tools/count-geom.c:26` only mention it in comments. The whole of macOS here is
-`tools/macos-flicker/`, a harness written so that a person with a Mac can get
-the missing numbers with one command. And **nobody here has a Mac**
-(`portability.md:13`), which is why the first stage below is not code.
+The plan starts from a fact rather than from a wish: when it was written, **not
+one line of the port existed.** That has since changed — `macos/` now holds the
+contract implemented over the Accessibility API, and "The state of the code"
+below says how much of it is checked without a Mac and how much is not. What
+has not changed is why the first stage below is not code: **nobody here has a
+Mac** (`portability.md:13`), so `tools/macos-flicker/` is still a harness
+waiting for someone who does.
 
 ## The contract: what the ribbon asks of the window system
 
@@ -329,6 +330,135 @@ all, so the private symbols we need are declared ourselves, as AeroSpace does.
 - anything about the permission dialogue, the TCC grant surviving a rebuild, or
   the brew formula on a clean machine.
 
+## The state of the code
+
+The plan above was written before there was any code. There is code now, in
+`macos/`, and this section says how much, what of it is checked on a machine
+with no macOS, and what waits for the owner's Mac. Two sentences elsewhere in
+this document — "not one line of the port exists" near the top, and the closing
+one — were brought in line with it and say nothing else new. The plan itself is
+unchanged, and the stages below stage 4 are still the stages.
+
+**What was written: 3527 lines in `macos/`, 1991 of them code** (the rest is
+commentary, as everywhere in this tree). Not one line of `ribbon.c` and not
+one line of `calmwm.h` was touched, and the X11 build still ends with the
+same four warnings it ended with before.
+
+| Part | Files | Lines | Code | Checked where |
+|---|---|---|---|---|
+| the contract, platform-independent | `wsi_platform.h`, `wsi_core.h`, `wsi_core.c` | 1131 | 548 | here |
+| the check: a window system of memory, and a harness | `wsi_fake.h`, `wsi_fake.c`, `wsicheck.c`, `check.sh` | 1416 | 947 | here |
+| the Accessibility layer | `wsi_ax.m` | 749 | 371 | **the Mac** |
+| agreeing that layer with the API | `stub-build.sh` | 198 | 116 | here |
+| building it on a Mac | `Makefile` | 33 | 9 | **the Mac** |
+| | | **3527** | **1991** | **2745 here, 782 waiting** |
+
+The split is one header, `macos/wsi_platform.h`: eleven calls down into
+macOS, five notices up out of it. Everything else — which window belongs to
+which column, which move is ours and which is the user's, where a parked
+window goes, how the displays become the region list — is above that line,
+in ordinary C, and is checked here. Of the 2500–4000 lines
+`portability.md` estimates for the input/output layer, **1880 now exist**
+(1131 above the line, 749 below); hotkeys, configuration and delivery are
+not among them.
+
+**The check, and its numbers** — `make macos-check`, or the two scripts by
+hand:
+
+`sh macos/check.sh 400` builds the ribbon the live way — windows opened one
+by one, focus moved, widths changed, windows closed, every step pushed
+through the eleven calls — and then asks the X11 binary the same question
+with `cwm -C 'layout-probe layout ...'`. It is the proof
+`tools/wasm-layout/check.mjs` makes for the browser, made the same way.
+
+- **400 cases, 2680 windows** compared against the binary: **0 divergences**;
+- **1213 of those windows** compared a second time against what the window
+  system actually holds — a move the port decided not to send, or sent
+  wrong, shows up here and nowhere else: **0 divergences**;
+- the reverse mechanism, one scenario run twice: with the tagging, **40
+  geometry writes, 40 notices, 40 recognised as ours, 0 taken as foreign, 5
+  rounds to quiet**; without it, **9968 writes, 9967 taken as foreign, 1200
+  rounds and never quiet** — and the keyboard jumps back to the window it
+  just left. That runaway is the oscillation `wsi.h` describes;
+- parking with `ribbonhide` on: **2 windows inside the viewport** hold the
+  model's rectangle, **18 past the edge**, **1 pixel of each still visible**
+  — macOS will not let a window leave the screen entirely;
+- an application that obeys approximately (a terminal snapping to whole
+  cells): **20 notices recognised as ours, 0 taken as foreign**, 6 windows
+  end up a few pixels off the model, and the ribbon does not argue.
+
+`sh macos/stub-build.sh` compiles `wsi_ax.m` against a stub of
+ApplicationServices and AppKit with `-Wall -Wextra -Werror`. The
+Accessibility half of that stub is **cut out of
+`tools/macos-flicker/stub-build.sh`, not copied** — 98 lines — so the two
+files cannot drift into disagreeing about the same API. The check is
+falsifiable and was falsified on purpose: an extra argument to
+`AXUIElementSetMessagingTimeout` fails at `wsi_ax.m:377`.
+
+**The 56 Apple names, by how well this tree knows them.** Each is marked at
+its call site, and the third list is what to go down first on the first Mac:
+
+- **[1] — 32 names**, plus the signature of `AXObserverCallback`: already
+  transcribed in this tree, in the stub `axcost.c` has been compiling
+  against since it was written;
+- **[2] — 9 names**: cited in `portability.md` by header and line
+  (`AXUIElement.h:204`, `AXNotificationConstants.h:113,123,133,194`) or by
+  an open manager and a line (yabai `src/window_manager.c:1324-1335`) —
+  which confirms the call exists and does this job, and not its argument
+  list;
+- **[3] — 15 names**: confirmed by nothing here. `CFEqual`,
+  `AXObserverRemoveNotification`, `kAXMainAttribute`,
+  `kAXFrontmostAttribute`, `NSApplicationActivationPolicyRegular`, and ten
+  AppKit selectors — `portability.md` cites NSWorkspace as the way to learn
+  of applications and not one selector of it.
+
+`_SLPSSetFrontProcessWithOptions` is **not called at all**, though
+`portability.md` names it: it is a private SkyLight entry point that no
+header declares, and a signature written for it would be invention rather
+than a guess. Activation goes through the public `kAXFrontmostAttribute`
+instead, which is grade [3]; if the first Mac says that is not enough, the
+private call goes in with yabai's declaration copied literally and cited.
+The substitution is named here rather than made quietly.
+
+**Two places where the contract and macOS do not meet**, reported rather
+than worked around:
+
+1. `wsi.h:115`, `client_hide()`: *"If it held the input focus, the focus goes
+   away with it rather than to some window of the window system's
+   choosing."* Nothing in this tree names a macOS call for "let no window
+   have the keyboard" — focus there is a front process plus a focused window
+   of it, and the pair has no empty value. The port does the half it can: it
+   forgets its own record, so `client_current()` does not lie, and macOS
+   gives the keyboard to whatever it likes. The ribbon hears that as a
+   foreign focus notice, a path it has and survives; the guarantee as
+   written is not kept. The ribbon never parks the focused window itself, so
+   this is a hole in the contract rather than a hole in the layout.
+2. `calmwm.h` still includes the X11 headers — for the types `Window`,
+   `Colormap`, `Visual` and `XftDraw` inside structure definitions, not for
+   any call. `ribbon.o` needs no X11 symbol and `tools/no-x-build.sh` proves
+   it, but a type is not a symbol: `wsi_core.c`, which is above the seam and
+   platform-independent, still needs those headers to compile, and builds
+   here against the same seventeen-line stub `tools/no-x-build.sh` uses.
+   Cutting `calmwm.h` is the next piece of work and it is not in `macos/`.
+
+Two things that were open in this plan are now decided, and both decisions
+are `wsi.h`'s to allow rather than ours to invent. **Putting the pointer
+back** (item 4 of the list below): the port does nothing there and installs
+no `CGEventTap`, so focus does not follow the pointer either —
+`client_ptr_warp()` in `wsi.h` permits exactly that pairing and says the two
+are one decision. **`wsi_settle()`**: it waits for nothing, because on macOS
+waiting cannot be made to mean anything; the guarantee is kept by tagging
+every move on the way out and dropping the tagged notifications on the way
+in, which is the mechanism `wsi.h:257` prescribes for a window system with
+no round trip.
+
+**What is still not checked, and cannot be here:** whether the stub is
+right; that `wsi_ax.m` compiles against Apple's own headers; that it runs at
+all; every number about the real thing — the flicker, the cost of a round
+trip, whether a geometry write silently fails. The windows in
+`macos/wsi_fake.c` are four numbers in an array, and no figure above is a
+measurement of macOS.
+
 ## What is still the owner's to decide
 
 1. **The three threshold numbers**, after stage 1 and before stage 5.
@@ -339,6 +469,7 @@ all, so the private symbols we need are declared ourselves, as AeroSpace does.
 4. **Putting the pointer back** — which call, with a source; it is the one
    operation of the ten with no counterpart cited.
 
-Nothing here claims that a Mac port has been started in code. The plan exists so
-that the first line, when someone with a Mac writes it, is written against a
-contract, in an order, and with a number that says when to stop.
+The port has since been started in code — see "The state of the code" above for
+what exists and what of it is proven. The plan is what made that possible: the
+first line was written against a contract, in an order, and the number that says
+when to stop is still the owner's to measure.
