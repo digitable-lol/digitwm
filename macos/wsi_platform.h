@@ -31,7 +31,7 @@
  * below it (macos/wsi_ax.m) is checked here only for being consistent with
  * what we believe the Accessibility API to be (macos/stub-build.sh), and its
  * numbers wait for the owner.  So the header is drawn to keep the second set
- * small: ten calls down, three notices up, no decisions.
+ * small: eleven calls down, five notices up, no decisions.
  *
  * Nothing below this line may know what a ribbon, a column or a client_ctx
  * is; nothing above it may know what an AXUIElementRef is.  A window is a
@@ -123,6 +123,19 @@ int	 wsip_pointer_warp(int, int);
 
 /* Fill the array with attached displays; returns how many were written. */
 int	 wsip_displays(struct wsip_display *, int);
+
+/*
+ * Run the platform's own event machinery for about this many milliseconds
+ * and deliver whatever comes due, returning how many notices went out.
+ *
+ * The port has no event loop of its own to give macOS: notifications arrive
+ * on a CFRunLoop, and a CFRunLoop is entered rather than polled.  So the
+ * loop is here, behind the boundary, and above the line there is only "let
+ * some time pass and hand me what happened" - which the fake platform
+ * answers out of a queue and a virtual clock, in no time at all.  That is
+ * the whole reason the check runs in seconds.
+ */
+int	 wsip_pump(double);
 
 /*
  * Upwards: what the platform tells the core.  Five, because that is

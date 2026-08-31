@@ -197,7 +197,7 @@ pump(double ms, int rounds)
 
 	for (i = 0; i < rounds; i++) {
 		before = st->echo_foreign;
-		if (fake_pump(ms) == 0 && st->echo_foreign == before)
+		if (wsip_pump(ms) == 0 && st->echo_foreign == before)
 			break;
 		if (st->echo_foreign != before)
 			ribbon_sync(&sc);

@@ -408,6 +408,12 @@ wsip_pointer_warp(int x, int y)
 }
 
 int
+wsip_pump(double ms)
+{
+	return fake_pump(ms);
+}
+
+int
 wsip_displays(struct wsip_display *d, int max)
 {
 	int	 i;

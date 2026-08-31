@@ -45,6 +45,17 @@ install: ${PROG}
 	install -m 644 cwm.1 ${DESTDIR}${MANPREFIX}/man1
 	install -m 644 cwmrc.5 ${DESTDIR}${MANPREFIX}/man5
 
+# Проверяемая половина слоя macOS. Отдельной целью, а не частью "all": сборка
+# под X11 о ней ничего не знает и знать не должна - macos/** не входит ни в
+# SRCS, ни в OBJS. Две проверки, потому что вопросов два и они разные:
+# check.sh спрашивает, та же ли раскладка получается у ленты поверх порта, что
+# у ленты поверх X11 (это проверяется здесь целиком); stub-build.sh - согласован
+# ли слой Objective-C с тем, чем мы считаем Accessibility API (мака нет, и это
+# всё, что без него проверяемо). Подробности - в шапках обоих скриптов.
+macos-check: ${PROG}
+	sh macos/check.sh
+	sh macos/stub-build.sh
+
 release:
 	VERSION=$$(git describe --tags | sed 's/^v//;s/-[^.]*$$//') && \
 	git archive --prefix=cwm-$$VERSION/ -o cwm-$$VERSION.tar.gz HEAD
