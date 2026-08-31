@@ -24,7 +24,7 @@ The script puts a 17-line stub where the X11 headers go and builds the whole of
 
 | What | How much | Measured by |
 |---|---|---|
-| lines in `ribbon.c` | 1221 | `wc -l ribbon.c` |
+| lines in `ribbon.c` | 1542 | `wc -l ribbon.c` |
 | X11 names the resulting `ribbon.o` requires | **zero** | `sh tools/no-x-build.sh` |
 | what the ribbon does ask of the window system | **11 operations**, every one declared in `wsi.h` | `sh tools/no-x-build.sh` |
 | the ten policies as their own translation unit | build with `-Wall -Wextra -Werror` and **not one X11 header** | `sh tools/no-x-build.sh` |
@@ -80,7 +80,7 @@ in `nm -u ribbon.o`: **11 window-system operations** — `client_current`,
 `tools/no-x-build.sh` fails if the ribbon calls a twelfth. That is the layer a
 macOS build writes anew, and its size is the measure of the port.
 
-Separately: **the conformance harness ports for free.** `probe.c` (1084 lines,
+Separately: **the conformance harness ports for free.** `probe.c` (1172 lines,
 `wc -l probe.c`) builds against the same stub and requires no X11 name at all —
 only `ribbon_*`, `Conf`, `xcalloc`, `xstrdup` and libc. So
 `ribbon.o + probe.o + xmalloc.o` is `layout-probe` on any system, with no window
@@ -367,8 +367,8 @@ Two traps:
 ## The answer
 
 **This is a port, not a new product — and here is what proves it.** What a macOS
-build would share is not "the idea of a ribbon" but 1221 lines of `ribbon.c` and
-1084 lines of `probe.c` (`wc -l ribbon.c probe.c`), which build without a single
+build would share is not "the idea of a ribbon" but 1542 lines of `ribbon.c` and
+1172 lines of `probe.c` (`wc -l ribbon.c probe.c`), which build without a single
 X11 header and answer with the same numbers on the **214 vectors** of
 `fts/vectors/` — 448 checks, `conformance.mjs` — and on **500 random cases**
 besides (`tools/wasm-layout/check.mjs --cases 500`). Zero lines of arithmetic
