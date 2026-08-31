@@ -19,10 +19,13 @@ safest way to keep that true is not to have it open in the next terminal.
 The decision the sample was meant to support has meanwhile been taken on other
 grounds and carried out: the base is cwm, chosen by a written comparison of
 dwm, spectrwm, bspwm, evilwm, herbstluftwm, sdorfehs and "from scratch on xcb"
-in the portal's specification, and the reason is in
-[README.md](../README.md#why-cwm-as-the-base) — cwm has no tiling model to tear
-out. A measurement of papersway would not now change the base; it would only
-tell us how a neighbour performs.
+in the portal's specification `docs/sdd/digitwm-window-manager.md`. cwm is
+small — 7 883 lines of C, `x11`, `xft` and `xrandr` and nothing else, two
+decades of maintenance in OpenBSD base — and, the part that decided it, **it
+has no tiling model to tear out**: cwm is a floating window manager, so the
+ribbon was added onto clean ground rather than grafted over someone else's
+frame tree. A measurement of papersway would not now change the base; it would
+only tell us how a neighbour performs.
 
 So what follows is the other half of the task: **the same three numbers for
 digitwm itself**, so that there is something to compare against when a machine
@@ -54,6 +57,10 @@ did not settle it in favour of the narrow range — see below.
 
 **No window that is already open redraws when another one opens.** Not one, in
 eleven insertions.
+
+Windows move in one step, and that is not an oversight: an X11 window manager
+does not own the frame, so digitwm does not animate — fades and slides come from
+a compositor run beside it.
 
 That number was 1 per insertion until this measurement was taken, and finding
 out *which* window redrew is what fixed it. The ribbon puts the new column

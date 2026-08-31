@@ -7,7 +7,9 @@ Windows live on an endless horizontal row of **columns**. A column holds a
 the **canvas**; the screen is a **viewport** onto it and slides over both of its
 axes. Moving focus moves the viewport, and the canvas keeps its shape.
 
-That is the whole model. Everything below is what follows from it.
+That is the whole model. Everything below is what follows from it. The same
+layout idea is in [niri](https://github.com/YaLTeR/niri), a Wayland compositor;
+digitwm brings it to X11, where it runs on Linux, FreeBSD and NetBSD alike.
 
 ## Two promises
 
