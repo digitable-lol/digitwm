@@ -19,7 +19,7 @@ here has been checked by running it.
 sh tools/no-x-build.sh
 ```
 
-The script puts a 17-line stub where the X11 headers go and builds the whole of
+The script puts a 13-line stub where the X11 headers go and builds the whole of
 `ribbon.c` against it. The result:
 
 | What | How much | Measured by |
@@ -29,6 +29,12 @@ The script puts a 17-line stub where the X11 headers go and builds the whole of
 | what the ribbon does ask of the window system | **11 operations**, every one declared in `wsi.h` | `sh tools/no-x-build.sh` |
 | the ten policies as their own translation unit | build with `-Wall -Wextra -Werror` and **not one X11 header** | `sh tools/no-x-build.sh` |
 | undefined symbols of that unit | one: `Conf` | `sh tools/no-x-build.sh` |
+
+Every number in this document that the tree can produce is checked against the
+tree by `sh tools/check-doc-numbers.sh`: it runs the commands named in the
+"Measured by" column and fails, naming both values, when a number here has
+drifted. The numbers it deliberately does not check — and why — are listed at
+the foot of that script.
 
 Agreement is not only a matter of compiling, and two runs measure two different
 things. Neither of them is "2871 vectors": that number was a conformance count
@@ -69,7 +75,7 @@ Lines are function bodies in `ribbon.c`, without comments or the file header.
 | policy | **142** | the ten `ribbon_policy_*`: numbers in, a number out | 0 |
 | ribbon model | **256** | columns, stacks, `ribbon_measure`, `ribbon_place`, `ribbon_scroll` | 0, except the two places below |
 | mechanics inside `ribbon.c` | **359** | everything that calls `client_*` and X | rewrite |
-| mechanics outside `ribbon.c` | **4880** | `client.c`, `xutil.c`, `xevents.c`, `screen.c`, `kbfunc.c`, `menu.c`, `group.c`, `calmwm.c` | rewrite or drop |
+| mechanics outside `ribbon.c` | **5103** | `client.c`, `xutil.c`, `xevents.c`, `screen.c`, `kbfunc.c`, `menu.c`, `group.c`, `calmwm.c` | rewrite or drop |
 
 The contract between the ribbon and the mechanics is narrow and wholly visible
 in `nm -u ribbon.o`: **11 window-system operations** — `client_current`,
@@ -94,7 +100,7 @@ One place is still open, and it is the one that costs something. Two more were
 closed by the platform seam: `ribbon.o` now requires **zero** X11 names
 (`sh tools/no-x-build.sh`).
 
-**1. Border width inside the geometry.** `ribbon_place()`, `ribbon.c:662-663`:
+**1. Border width inside the geometry.** `ribbon_place()`, `ribbon.c:748-749`:
 
 ```c
 cc->geom.w = MAX(1, col->w - (cc->bwidth * 2));
@@ -382,7 +388,7 @@ The price:
 | the arithmetic | **0 lines** | measured |
 | edits inside `ribbon.c` | ~10 lines | the one leak still open above |
 | a new input/output layer | **2500–4000 lines** | estimated from the neighbours: Silica — the whole AX wrapper — is 2434 lines; AeroSpace's helper layer 928; yabai's process and event attachment about 2400 |
-| dropped | 4880 lines of X11 mechanics, of which `xutil.c` (579, all EWMH) has no replacement at all: macOS has no EWMH | measured |
+| dropped | 5103 lines of X11 mechanics, of which `xutil.c` (605, all EWMH) has no replacement at all: macOS has no EWMH | measured |
 | a new obligation | a "what changed" check in `ribbon_sync_one()` | **done**: 19 writes per insertion became 9 |
 | impossible | insertion without a jump | `AXObserverCallback` returns `void`; the jump is bounded below by ~7 ms + one round trip + a frame |
 

@@ -441,7 +441,7 @@ than worked around:
    any call. `ribbon.o` needs no X11 symbol and `tools/no-x-build.sh` proves
    it, but a type is not a symbol: `wsi_core.c`, which is above the seam and
    platform-independent, still needs those headers to compile, and builds
-   here against the same seventeen-line stub `tools/no-x-build.sh` uses.
+   here against the same stub `tools/no-x-build.sh` uses.
    Cutting `calmwm.h` is the next piece of work and it is not in `macos/`.
 
 Two things that were open in this plan are now decided, and both decisions
