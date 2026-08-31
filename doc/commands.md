@@ -94,12 +94,20 @@ the code rather than in taste:
 
 - a group is a set of windows shown or hidden together; a ribbon is a row bound
   to a **RandR output**. They are different axes, and both work at once: a
-  window belongs to a group and stands in a column, and hiding its group does
-  not disturb the column;
+  window belongs to a group and keeps its place in its column while its group is
+  away, so it comes back where it stood. What it does not keep is width on the
+  row — a column left with no window on the ribbon takes none until one of them
+  returns, and `group_hide()` and `group_show()` measure the row again through
+  `ribbon_group_update()`. A hidden group leaves no gap where its windows were;
 - the ribbon never un-hides what it did not hide. `ribbon_sync_one()` marks a
-  window it parked with `CLIENT_RIBBON_PARKED` and only ever brings back windows
-  carrying that mark, so a window hidden because its group is hidden stays
-  hidden. Without that flag the two mechanisms would fight over `client_hide()`;
+  window it parked with `CLIENT_RIBBON_PARKED`, and every place that could show
+  a window back asks for that mark first — the sync itself and
+  `ribbon_activate()`, which hands the keyboard to a column. So a window hidden
+  because its group is hidden stays hidden: the column answers with the first
+  window it still has on the ribbon, and the focus walk steps over a column that
+  has none. `group_hide()` takes the mark off the windows it takes over, so the
+  next scroll does not bring back what the user has just put away. Without the
+  flag the two mechanisms would fight over `client_hide()`;
 - a second ribbon per output already exists (see [monitors.md](monitors.md)).
   Virtual screens would be a third axis over the same windows, and the ribbon
   itself — endless, scrolled, cheap to extend — is what removes the need for

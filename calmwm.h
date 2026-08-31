@@ -663,6 +663,7 @@ void			 ribbon_measure(struct ribbon *);
 void			 ribbon_place(struct ribbon *);
 void			 ribbon_scroll(struct ribbon *);
 void			 ribbon_sync(struct screen_ctx *);
+void			 ribbon_group_update(struct screen_ctx *);
 
 void			 ribbon_screen_init(struct screen_ctx *);
 void			 ribbon_screen_relayout(struct screen_ctx *);

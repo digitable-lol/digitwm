@@ -60,6 +60,8 @@
 
 static void		 ribbon_col_free(struct ribbon *, struct ribbon_col *);
 static void		 ribbon_col_del(struct client_ctx *);
+static int		 ribbon_win_away(struct client_ctx *);
+static int		 ribbon_col_onribbon(struct ribbon_col *);
 static int		 ribbon_col_visible(struct ribbon *,
 			     struct ribbon_col *);
 static void		 ribbon_focus_extent(struct ribbon *, int *, int *);
@@ -539,10 +541,56 @@ ribbon_col_del(struct client_ctx *cc)
 }
 
 /*
+ * Is this window away from the ribbon - hidden by something that is not the
+ * ribbon itself?
+ *
+ * Two mechanisms hide a window and they answer to different owners.  The
+ * ribbon parks a window because of where the measurement put it, and marks
+ * what it parked with CLIENT_RIBBON_PARKED; a group hides a window because
+ * the user put the group away, and marks nothing.  Only the second is a fact
+ * the measurement has to take in: a window whose group is hidden holds no
+ * slot in its column, and a column left with no window on the ribbon holds
+ * no width on the row.
+ *
+ * The ribbon's own parking is deliberately not counted, and that is the whole
+ * reason the mark exists.  Parking is a consequence of the measurement, and a
+ * measurement that read its own consequences back would never settle: the
+ * parked window would give up its slot, the column would shrink into the
+ * viewport, the window would come back, and the same again.
+ */
+static int
+ribbon_win_away(struct client_ctx *cc)
+{
+	return (((cc->flags & CLIENT_HIDDEN) != 0) &&
+	    ((cc->flags & CLIENT_RIBBON_PARKED) == 0));
+}
+
+/* How many windows of the column are on the ribbon at all. */
+static int
+ribbon_col_onribbon(struct ribbon_col *col)
+{
+	struct client_ctx	*cc;
+	int			 n = 0;
+
+	TAILQ_FOREACH(cc, &col->winq, rbentry) {
+		if (!ribbon_win_away(cc))
+			n++;
+	}
+
+	return n;
+}
+
+/*
  * The size of the canvas: widths and ribbon positions of every column, the
  * height of every stack, and with them the length of the ribbon and the height
  * of the canvas.  Independent of both offsets, so insertion can measure
  * without having decided yet where to scroll.
+ *
+ * Only the windows on the ribbon are counted, here and everywhere the row is
+ * walked: a window put away with its group is not on the canvas, and a row
+ * measured over windows that are not on the screen keeps a hole the width of
+ * every column they left behind.  ribbon_win_away() is the whole of that
+ * rule.
  *
  * The heights are walked here and again in ribbon_place() because the two
  * answer different questions: scrolling needs to know how tall the canvas is
@@ -556,11 +604,31 @@ ribbon_measure(struct ribbon *rb)
 {
 	struct ribbon_col	*col;
 	struct client_ctx	*cc;
-	int			 x = 0, y, i;
+	int			 x = 0, y, i, n;
 
 	rb->canvas = 0;
 
 	TAILQ_FOREACH(col, &rb->colq, entry) {
+		n = ribbon_col_onribbon(col);
+
+		/*
+		 * A column that had windows and has none on the ribbon takes
+		 * no width until one of them comes back.  It keeps its place
+		 * in the row and every window it holds, so the group comes
+		 * back into the column it left and not to the end of the row.
+		 *
+		 * A column with no windows at all is a different thing and is
+		 * measured as before: it is a column just made, on its way to
+		 * holding the window that is being inserted into it, and the
+		 * width it takes is the width that window will have.
+		 */
+		if ((n == 0) && (col->nwin > 0)) {
+			col->x = x;
+			col->w = 0;
+			col->h = 0;
+			continue;
+		}
+
 		col->w = ribbon_policy_width(rb->view.w, col->preset,
 		    Conf.ribbongap, Conf.ribbonminw);
 		col->x = x;
@@ -569,7 +637,9 @@ ribbon_measure(struct ribbon *rb)
 		i = 0;
 		y = 0;
 		TAILQ_FOREACH(cc, &col->winq, rbentry) {
-			y += ribbon_policy_height(rb->view.h, col->nwin, i,
+			if (ribbon_win_away(cc))
+				continue;
+			y += ribbon_policy_height(rb->view.h, n, i,
 			    Conf.ribbongap, Conf.ribbonminh) + Conf.ribbongap;
 			i++;
 		}
@@ -588,14 +658,16 @@ ribbon_measure(struct ribbon *rb)
  *
  * A ribbon with no focused column, or a focused column that lost its last
  * window, answers with the top of the canvas - the same place ribbon_scroll()
- * would settle on anyway.
+ * would settle on anyway.  A focused window that went away with its group is
+ * the same case: it is not on the canvas, the walk never reaches it, and the
+ * answer stays the top.
  */
 static void
 ribbon_focus_extent(struct ribbon *rb, int *top, int *height)
 {
 	struct ribbon_col	*col = rb->focus;
 	struct client_ctx	*cc, *want;
-	int			 i = 0, y = 0, h;
+	int			 i = 0, y = 0, h, n;
 
 	*top = 0;
 	*height = 0;
@@ -607,8 +679,12 @@ ribbon_focus_extent(struct ribbon *rb, int *top, int *height)
 	if (want == NULL)
 		return;
 
+	n = ribbon_col_onribbon(col);
+
 	TAILQ_FOREACH(cc, &col->winq, rbentry) {
-		h = ribbon_policy_height(rb->view.h, col->nwin, i,
+		if (ribbon_win_away(cc))
+			continue;
+		h = ribbon_policy_height(rb->view.h, n, i,
 		    Conf.ribbongap, Conf.ribbonminh);
 		if (cc == want) {
 			*top = y;
@@ -637,13 +713,23 @@ ribbon_place(struct ribbon *rb)
 {
 	struct ribbon_col	*col;
 	struct client_ctx	*cc;
-	int			 i, y, h;
+	int			 i, y, h, n;
 
 	TAILQ_FOREACH(col, &rb->colq, entry) {
 		i = 0;
 		y = 0;
+		n = ribbon_col_onribbon(col);
 		TAILQ_FOREACH(cc, &col->winq, rbentry) {
-			h = ribbon_policy_height(rb->view.h, col->nwin, i,
+			/*
+			 * A window away with its group keeps the geometry it
+			 * had.  Nothing reads it while the window is hidden,
+			 * and it is what the window comes back to if the group
+			 * returns before anything else moves the ribbon.
+			 */
+			if (ribbon_win_away(cc))
+				continue;
+
+			h = ribbon_policy_height(rb->view.h, n, i,
 			    Conf.ribbongap, Conf.ribbonminh);
 
 			cc->rbgeom.x = col->x;
@@ -779,6 +865,32 @@ ribbon_sync(struct screen_ctx *sc)
 		ribbon_sync_one(rb);
 
 	wsi_settle();
+}
+
+/*
+ * A group was shown or hidden under the ribbon.  Which windows are on the
+ * canvas has changed, so the row is measured again and pushed out - the same
+ * cycle every other mutation of the ribbon runs, and the reason group.c has
+ * to call something rather than nothing.  Without it the row keeps the widths
+ * and the offsets it had while the windows were there, and a hidden group
+ * leaves a gap the width of every column it emptied.
+ *
+ * group.c calls this only when it actually changed a window.  A group holding
+ * nothing on this screen - and eight of the nine usually hold nothing - costs
+ * no measurement and no settle.
+ */
+void
+ribbon_group_update(struct screen_ctx *sc)
+{
+	struct ribbon	*rb;
+
+	if (!Conf.ribbon)
+		return;
+
+	TAILQ_FOREACH(rb, &sc->ribbonq, entry)
+		ribbon_scroll(rb);
+
+	ribbon_sync(sc);
 }
 
 void
@@ -1067,21 +1179,43 @@ ribbon_client_focus(struct client_ctx *cc)
 	ribbon_sync(rb->sc);
 }
 
-/* Give the keyboard to the column's own last-focused window. */
+/*
+ * Give the keyboard to the column's own last-focused window - and only ever
+ * to a window the ribbon is allowed to show.
+ *
+ * The last-focused window may have gone away with its group since it was
+ * focused, and this is the one place that used to show it back regardless:
+ * the ribbon never un-hides what it did not hide, and a window put away by
+ * its group is not the ribbon's to bring back.  The column answers with the
+ * first window it still has on the ribbon instead, and a column that has none
+ * is left alone - the keyboard stays where it was rather than landing on a
+ * window nobody can see.
+ */
 static void
 ribbon_activate(struct ribbon_col *col)
 {
 	struct client_ctx	*cc, *old;
 
-	if ((cc = col->focus) == NULL)
-		cc = TAILQ_FIRST(&col->winq);
+	if (((cc = col->focus) == NULL) || ribbon_win_away(cc)) {
+		TAILQ_FOREACH(cc, &col->winq, rbentry) {
+			if (!ribbon_win_away(cc))
+				break;
+		}
+	}
 	if (cc == NULL)
 		return;
 
 	if ((old = client_current(col->rb->sc)) != NULL)
 		client_ptr_save(old);
 
-	client_show(cc);
+	/*
+	 * What is left to un-hide here is the ribbon's own parking, and the
+	 * mark goes with the window it was on.
+	 */
+	if (cc->flags & CLIENT_HIDDEN) {
+		client_show(cc);
+		cc->flags &= ~CLIENT_RIBBON_PARKED;
+	}
 	client_raise(cc);
 	client_set_active(cc);
 	/*
@@ -1137,10 +1271,20 @@ ribbon_focus_col(struct screen_ctx *sc, int flags)
 	if (((rb = ribbon_current(sc)) == NULL) || (rb->focus == NULL))
 		return;
 
-	if (flags & CWM_LEFT)
-		col = TAILQ_PREV(rb->focus, ribbon_col_q, entry);
-	else
-		col = TAILQ_NEXT(rb->focus, entry);
+	/*
+	 * Step over a column that has windows but none of them on the ribbon:
+	 * it takes no width on the row, and scrolling the viewport onto a
+	 * column with nothing to show is the hole again, in the focus walk
+	 * this time.
+	 */
+	col = rb->focus;
+	do {
+		if (flags & CWM_LEFT)
+			col = TAILQ_PREV(col, ribbon_col_q, entry);
+		else
+			col = TAILQ_NEXT(col, entry);
+	} while ((col != NULL) && (col->nwin > 0) &&
+	    (ribbon_col_onribbon(col) == 0));
 	if (col == NULL)
 		return;
 
@@ -1166,10 +1310,16 @@ ribbon_focus_win(struct screen_ctx *sc, int flags)
 	if (cc == NULL)
 		return;
 
-	if (flags & CWM_UP)
-		cc = TAILQ_PREV(cc, rb_client_q, rbentry);
-	else
-		cc = TAILQ_NEXT(cc, rbentry);
+	/*
+	 * The same rule down the stack: a window away with its group is
+	 * not there to step onto.
+	 */
+	do {
+		if (flags & CWM_UP)
+			cc = TAILQ_PREV(cc, rb_client_q, rbentry);
+		else
+			cc = TAILQ_NEXT(cc, rbentry);
+	} while ((cc != NULL) && ribbon_win_away(cc));
 	if (cc == NULL)
 		return;
 

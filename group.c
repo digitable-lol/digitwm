@@ -48,21 +48,53 @@ group_assign(struct group_ctx *gc, struct client_ctx *cc)
 	xu_ewmh_set_net_wm_desktop(cc);
 }
 
+/*
+ * Hiding and showing a group is the other half of a rule the ribbon states in
+ * ribbon.c: a window hidden by its group is not the ribbon's to bring back,
+ * and a window the ribbon parked is not on the ribbon's canvas any less for
+ * it.  Two things follow, and both are here rather than in ribbon.c because
+ * only this loop knows which windows the group just took.
+ *
+ * First, the mark.  A window the ribbon had parked passes to the group when
+ * the group hides it, and CLIENT_RIBBON_PARKED comes off: keeping it would
+ * let the next scroll show back a window the user has just put away, which is
+ * the same defect from the other side.  It is dropped whether or not this
+ * loop did the hiding, because a window already hidden when the group went
+ * away is exactly the one that carries a stale mark.
+ *
+ * Second, the row.  Which windows are on the canvas has changed, and widths
+ * and offsets measured over windows that are no longer on the screen leave a
+ * gap the width of every column the group emptied.  ribbon_group_update()
+ * runs the same measure-scroll-place-sync cycle every other mutation runs,
+ * and it runs only when a window actually changed - group_only() walks all
+ * nine groups and most of them hold nothing.
+ */
 void
 group_hide(struct group_ctx *gc)
 {
 	struct screen_ctx	*sc = gc->sc;
 	struct client_ctx	*cc;
+	int			 moved = 0;
 
 	screen_updatestackingorder(gc->sc);
 
 	TAILQ_FOREACH(cc, &sc->clientq, entry) {
 		if (cc->gc != gc)
 			continue;
-		if (!(cc->flags & CLIENT_STICKY) &&
-		    !(cc->flags & CLIENT_HIDDEN))
+		if (cc->flags & CLIENT_STICKY)
+			continue;
+		if (!(cc->flags & CLIENT_HIDDEN)) {
 			client_hide(cc);
+			moved = 1;
+		}
+		if (cc->flags & CLIENT_RIBBON_PARKED) {
+			cc->flags &= ~CLIENT_RIBBON_PARKED;
+			moved = 1;
+		}
 	}
+
+	if (moved)
+		ribbon_group_update(sc);
 }
 
 void
@@ -70,16 +102,22 @@ group_show(struct group_ctx *gc)
 {
 	struct screen_ctx	*sc = gc->sc;
 	struct client_ctx	*cc;
+	int			 moved = 0;
 
 	TAILQ_FOREACH(cc, &sc->clientq, entry) {
 		if (cc->gc != gc)
 			continue;
 		if (!(cc->flags & CLIENT_STICKY) &&
-		     (cc->flags & CLIENT_HIDDEN))
+		     (cc->flags & CLIENT_HIDDEN)) {
 			client_show(cc);
+			moved = 1;
+		}
 	}
 	group_restack(gc);
 	group_set_active(gc);
+
+	if (moved)
+		ribbon_group_update(sc);
 }
 
 static void
@@ -152,16 +190,30 @@ group_movetogroup(struct client_ctx *cc, int idx)
 {
 	struct screen_ctx	*sc = cc->sc;
 	struct group_ctx	*gc;
+	int			 moved = 0;
 
 	TAILQ_FOREACH(gc, &sc->groupq, entry) {
 		if (gc->num == idx) {
 			if (cc->gc == gc)
 				return;
-			if (gc->num != 0 && group_holds_only_hidden(gc))
-				client_hide(cc);
+			/*
+			 * Moving a window into a group that is away puts the
+			 * window away with it - the same hiding as
+			 * group_hide(), through a different door, and the row
+			 * has to be told about it the same way.
+			 */
+			if (gc->num != 0 && group_holds_only_hidden(gc)) {
+				if (!(cc->flags & CLIENT_HIDDEN))
+					client_hide(cc);
+				cc->flags &= ~CLIENT_RIBBON_PARKED;
+				moved = 1;
+			}
 			group_assign(gc, cc);
 		}
 	}
+
+	if (moved)
+		ribbon_group_update(sc);
 }
 
 void
