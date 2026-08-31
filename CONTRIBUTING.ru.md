@@ -85,7 +85,10 @@ digitwm — форк [cwm](https://github.com/leahneukirchen/cwm), в котор
 | [doc/panel.md](doc/panel.md) / [doc/panel.ru.md](doc/panel.ru.md) | панель: своя против внешней и что панель делает с лентой |
 | [doc/build.md](doc/build.md) / [doc/build.ru.md](doc/build.ru.md) | сборка, установка, запуск, проверка |
 | [doc/portability.md](doc/portability.md) / [doc/portability.ru.md](doc/portability.ru.md) | что здесь X11, а что арифметика, и во что обошёлся бы перенос на macOS |
+| [doc/macos.md](doc/macos.md) / [doc/macos.ru.md](doc/macos.ru.md) | перенос на macOS: решение, порядок этапов и пороги, на которых останавливаются |
 | [doc/terminal.md](doc/terminal.md) / [doc/terminal.ru.md](doc/terminal.ru.md) | лента в терминале: спецификация маршрута A |
+| [doc/browser.md](doc/browser.md) / [doc/browser.ru.md](doc/browser.ru.md) | браузер: что отвергнуто и почему, и страница, на которой решает сама лента |
+| [doc/themes.md](doc/themes.md) / [doc/themes.ru.md](doc/themes.ru.md) | цветовые схемы: три источника, из которых их берёт `session/install.sh`, по порядку |
 | [fts/README.md](fts/README.md) / [fts/README.ru.md](fts/README.ru.md) | модели и харнессы |
 | [pkgsrc/README.md](pkgsrc/README.md) / [pkgsrc/README.ru.md](pkgsrc/README.ru.md) | пакет |
 | [session/README.md](session/README.md) | окружение вокруг оконного менеджера |

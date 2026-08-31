@@ -85,7 +85,10 @@ link to the other in the first lines of each. The set is:
 | [doc/panel.md](doc/panel.md) / [doc/panel.ru.md](doc/panel.ru.md) | the panel: ours against someone else's, and what a panel does to the ribbon |
 | [doc/build.md](doc/build.md) / [doc/build.ru.md](doc/build.ru.md) | building, installing, running, checking |
 | [doc/portability.md](doc/portability.md) / [doc/portability.ru.md](doc/portability.ru.md) | what here is X11 and what is arithmetic, and what a macOS port would cost |
+| [doc/macos.md](doc/macos.md) / [doc/macos.ru.md](doc/macos.ru.md) | the macOS port: the decision, the order of the stages, and the thresholds to stop at |
 | [doc/terminal.md](doc/terminal.md) / [doc/terminal.ru.md](doc/terminal.ru.md) | the ribbon in a terminal: the specification of route A |
+| [doc/browser.md](doc/browser.md) / [doc/browser.ru.md](doc/browser.ru.md) | the browser: what was refused and why, and the page on which the ribbon itself decides |
+| [doc/themes.md](doc/themes.md) / [doc/themes.ru.md](doc/themes.ru.md) | the colour schemes: the three sources `session/install.sh` takes them from, in order |
 | [fts/README.md](fts/README.md) / [fts/README.ru.md](fts/README.ru.md) | the models and the harnesses |
 | [pkgsrc/README.md](pkgsrc/README.md) / [pkgsrc/README.ru.md](pkgsrc/README.ru.md) | the package |
 | [session/README.md](session/README.md) | the environment around the window manager |

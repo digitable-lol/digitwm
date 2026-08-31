@@ -47,7 +47,7 @@ Digitable Focus и агента Digit. Разделение намеренное
 | FreeBSD | `pkg` | `libX11 libXft libXrandr bison pkgconf` |
 | NetBSD | `pkgin` | `bison pkgconf` — X11 уже в базовой системе |
 | OpenBSD | — | ничего: X11 и yacc в базе |
-| macOS | — | отказ с объяснением: оконному менеджеру X11 там нечем управлять. Во что обошлась бы родная сборка — измерено в [portability.ru.md](portability.ru.md) |
+| macOS | — | сборки пока нет: оконному менеджеру X11 там нечем управлять. Родной перенос решён и расписан в [macos.ru.md](macos.ru.md); во что он обойдётся — измерено в [portability.ru.md](portability.ru.md) |
 
 `--no-session` останавливается на оконном менеджере; `--no-packages` не трогает
 пакетный менеджер вовсе; всё остальное уходит в `session/install.sh` как есть
