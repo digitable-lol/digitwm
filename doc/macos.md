@@ -45,8 +45,8 @@ waiting for someone who does.
 ## The contract: what the ribbon asks of the window system
 
 The ribbon's arithmetic needs **0 lines** of rewriting — measured: `ribbon.c`
-(1183 lines) builds whole against a 17-line stub in place of the X11 headers,
-and the resulting `ribbon.o` requires exactly three X11 names. Everything the
+(1221 lines) builds whole against a 24-line stub in place of the X11 headers,
+and the resulting `ribbon.o` requires no X11 name at all. Everything the
 ribbon does to the world it does through **ten functions**, and that list —
 visible in `nm -u ribbon.o`, plus the settings record `Conf` and libc — is the
 whole contract. It is what a macOS build implements anew.
@@ -125,18 +125,20 @@ until it exists.
 
 *Result you can see:* `sh tools/no-x-build.sh` still green — it fails and names
 the line if an Xlib call reaches the arithmetic — and the CI set from
-[build.md](build.md) unchanged: the ten policies against `layout-probe` on 171
-conformance vectors and 2700 random ones, 2871 in all, not one mismatch.
+[build.md](build.md) unchanged: `node fts/harness/conformance.mjs --fts ../fts
+--wm ./cwm` puts the ten policies against `layout-probe` on 214 vectors and
+prints 448 checks, not one mismatch.
 
 ### Stage 3 — the conformance harness, on the Mac, with no window server
 
-`probe.c` (1076 lines) needs no X11 name at all, so `ribbon.o + probe.o +
+`probe.c` (1084 lines) needs no X11 name at all, so `ribbon.o + probe.o +
 xmalloc.o` is `layout-probe` on any system. Nothing is ported to get this; it is
 built.
 
-*Result you can see:* the same 2871 vectors answering identically when run on
-macOS. The layout is then proven on macOS before a single window has been moved
-there.
+*Result you can see:* the same 214 vectors answering identically when run on
+macOS. **Not measured, and not measurable here:** nobody here has a Mac, so it
+is what the harness promises, not a number this tree prints. Once someone runs
+it, the layout is proven on macOS before a single window has been moved there.
 
 ### Stage 4 — the input/output layer, geometry only
 
@@ -306,10 +308,10 @@ all, so the private symbols we need are declared ourselves, as AeroSpace does.
 
 - the arithmetic contains no X11 — `sh tools/no-x-build.sh`, which fails and
   names the line if an Xlib call reaches the policies;
-- the policies and `layout-probe` agree on **2871 vectors** (171 conformance,
-  2700 random), not one mismatch — so the layout the Mac will get is the layout
-  proven here;
-- `layout-probe` builds with no window server anywhere, from `probe.c`'s 1076
+- the policies and `layout-probe` agree on **214 vectors** — `node
+  fts/harness/conformance.mjs --fts ../fts --wm ./cwm` prints 448 checks and not
+  one mismatch — so the layout the Mac will get is the layout proven here;
+- `layout-probe` builds with no window server anywhere, from `probe.c`'s 1084
   lines;
 - the AX code agrees with **our idea of** the Accessibility API — `sh
   tools/macos-flicker/stub-build.sh` builds `axcost.c` with `-Wall -Wextra
