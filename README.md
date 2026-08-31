@@ -1,106 +1,89 @@
 # digitwm
 
-A scrollable-tiling window manager for X11, forked from
-[cwm](https://github.com/leahneukirchen/cwm) — the calm window manager from the
-OpenBSD base system.
+A scrollable-tiling window manager for X11: windows stand in columns on an
+endless horizontal ribbon, and the screen is a viewport that slides along it, so
+a new window pushes the ribbon instead of squeezing its neighbours. The binary,
+the configuration file and the manual pages keep cwm's names — `cwm`, `cwmrc`,
+`cwm(1)`, `cwmrc(5)`.
 
 **Русская версия: [README.ru.md](README.ru.md).**
 
-## What it is
+## Build
 
-Windows live on an endless horizontal ribbon of columns. The screen is a
-viewport onto that ribbon: opening a window pushes the ribbon, it never squeezes
-the neighbours into unreadable slivers. Focus moves the viewport; the ribbon
-keeps its shape.
-
-If that sounds like [niri](https://github.com/YaLTeR/niri), it is the same idea.
-niri is a Wayland compositor. digitwm brings the layout model to X11, where it
-can run on Linux, FreeBSD and NetBSD alike.
-
-## What it is not
-
-**It is not a compositor**, so it does not animate. Animation needs a process
-that owns the frame, and an X11 window manager does not. Windows move in one
-step. If you want fades and slides, run a compositor beside it.
-
-**It is not a fork of sdorfehs or of papersway.** Those are GPL; digitwm is ISC,
-and it stays that way so patches can flow back to cwm and so the code can be
-used without conditions. See [NOTICE](NOTICE).
-
-## Why cwm as the base
-
-cwm is small (7 883 lines of C), depends on three libraries (`x11`, `xft`,
-`xrandr`), has been maintained in OpenBSD base for two decades, and — the part
-that matters here — **has no tiling model to tear out**. It is a floating window
-manager, so the ribbon is added onto clean ground rather than grafted over
-someone else's frame tree.
-
-## Layout rules are executable specifications
-
-The numbers that drive the layout — how far the ribbon shifts after a focus
-change, how wide a column is, where a new window is inserted, what gets focus
-when a window closes, how much of a monitor the strip under a panel takes —
-are not buried in C. They are written as
-[FTS](https://github.com/digitable-lol/flang/tree/fts-pered-udaleniem) models under `fts/`, in Russian
-and in English, with worked examples on the boundaries.
-
-The loop over columns stays in C, because a loop is mechanical. The numbers the
-loop substitutes are policy, and policy belongs somewhere it can be read and
-tested.
-
-**FTS never runs inside the window manager.** It runs in CI: the same vectors go
-through the generated code and through the live window manager, and a mismatch
-fails the build. No runtime dependency on Node, which is what keeps NetBSD
-reachable.
-
-The two promises no single number can hold — *opening a window alters no window
-already on the ribbon*, and *the focused column always lies wholly inside the
-viewport horizontally, and the focused window of it vertically* — are checked
-against the running binary by a harness of their own.
-[doc/ribbon.md](doc/ribbon.md) is the whole model in one page.
-
-## The session
-
-`session/` turns the window manager into a working desktop: editor, terminal,
-shell, multiplexer and the Digit agent, all in one palette, installed with one
-command.
-
-On the first Digit window launch, the session selects Digit's bundled
-Digitmorf pet locally and offline: eight living 3D forms with rigs and embedded
-animations. It does not override an existing pet choice
-or re-enable pets the user disabled; put `DIGITWM_DIGITMORF=off` into
-`~/.config/digitwm/env` to skip this one-time preparation. That file — not
-`autostart` — is where the session's variables go: the session reads it before
-it starts either the autostart script or the Digit window, so both see it.
+A C compiler, `make` (BSD or GNU), `yacc` or `bison`, `pkg-config`, and the
+headers of `x11`, `xft` and `xrandr`. That is the whole list: nothing under
+`fts/` is a runtime dependency, so Node.js is needed neither to build nor to
+run.
 
 ```sh
-sh bootstrap.sh --plan        # from a bare system: see what would happen
-sh bootstrap.sh               # build dependencies, the window manager, then this
-session/verify.sh             # check the result
+make
+make install PREFIX=$HOME/.local   # bin/cwm, share/man/man1/cwm.1, share/man/man5/cwmrc.5
 ```
 
-`bootstrap.sh` installs what digitwm is built with and hands over to
-`session/install.sh`, which can also be run on its own if the toolchain is
-already there.
+`PREFIX`, `DESTDIR` and `MANPREFIX` are honoured. The package names per system,
+and the one-command path that installs the dependencies and the environment as
+well (`sh bootstrap.sh`, `sh bootstrap.sh --plan` first), are in
+[doc/build.md](doc/build.md).
 
-Nothing third-party is vendored here. vim, tmux, alacritty, zsh and the rest
-ship under their own licences and are installed by the target system's package
-manager; this repository carries configuration only. Colour schemes are not
-duplicated either — they are generated by Digitable Workbench from one palette
-file and referenced, not copied.
+## Run
 
-What you get and, just as importantly, what you do not — no animation, no
-panel of our own, and an incomplete tool set on some package managers — is
-spelled out in [session/README.md](session/README.md).
+```sh
+exec cwm                 # the window manager alone
+exec digitwm-session     # it, plus the environment session/install.sh lays out
+```
 
-The panel is external, and that is a decision with numbers behind it —
-[doc/panel.md](doc/panel.md). The room for it is in the manager: a window of
-type `dock` declares a strut through `_NET_WM_STRUT_PARTIAL`, and the ribbon
-hands that band over — to every column at once, taking it back when the panel
-collapses without losing the viewport offset. The session installer lays down a
-ready polybar configuration painted in your palette, installs polybar itself
-where the package manager knows it, and puts `Mod4+Shift+b` on a script that
-raises the panel, collapses it, or says out loud that polybar is missing.
+`session/install.sh` also writes `digitwm.desktop` into
+`~/.local/share/xsessions` (`--system` puts it in `/usr/share/xsessions`), so a
+display manager offers the session by name.
+
+## Configure
+
+The session starts `cwm -c ~/.config/digitwm/cwmrc`; started on its own, `cwm`
+reads `~/.cwmrc`. Every setting is described in `cwmrc(5)`; the ribbon's own
+settings, key bindings and commands are in [doc/ribbon.md](doc/ribbon.md) and
+[doc/commands.md](doc/commands.md). A configuration written for upstream cwm
+carries over unchanged; one that still uses the old command names goes through
+upstream's `migrate-config.pl`:
+`perl migrate-config.pl <old >new`.
+
+## Check a change
+
+These need no X display and run against the tree you have just built:
+
+```sh
+make
+sh tools/no-x-build.sh                          # ribbon.c compiles without Xlib, the seam is wsi.h
+node fts/harness/invariants.mjs --wm ./cwm      # the two promises, on the built binary
+node fts/harness/hotplug.mjs    --wm ./cwm      # a monitor leaving and coming back
+python3 tools/check-licensing.py                # the licence gate CI runs on every push
+./cwm -C 'layout-probe layout viewport=1280x800 gap=8 border=1 columns=1,3,1 presets=0,2,3 focus=1'
+```
+
+The last line is the layout policy answering for itself — the same call the
+conformance harness makes, and a way to see what a change did to a layout
+without starting a session. `make macos-check` checks the portable half of the
+macOS layer and needs no macOS.
+
+The rest of what CI runs — `surfaces.mjs`, `conformance.mjs`, `selftest.mjs` and
+the models under `fts/` themselves — needs the FTS toolkit, cloned by tag from
+the language repository. Those commands are in [doc/build.md](doc/build.md), and
+`.github/workflows/fts-conformance.yml` runs them in that order. The order in
+which a change to the layout is made is in [CONTRIBUTING.md](CONTRIBUTING.md):
+the model first, the C fourth.
+
+## The tree
+
+| | |
+|---|---|
+| `ribbon.c` | the ribbon: columns, stacks, the viewport, insertion, focus. It names no X11 — the eleven things it asks of the window system are declared in `wsi.h` |
+| `probe.c` | `layout-probe`: the layout policy answered without opening a display |
+| `calmwm.c`, `client.c`, `screen.c`, `xevents.c`, `group.c`, `kbfunc.c`, `menu.c`, `search.c` | from cwm: clients, screens, events, groups, key bindings, menus |
+| `conf.c`, `parse.y` | defaults and the `cwmrc` parser |
+| `fts/` | the layout models and the harnesses over them. They run in CI, never inside the window manager |
+| `doc/` | the documents, each of them in two languages |
+| `session/` | the environment around the window manager, and its installer |
+| `tools/` | the measurement scripts and the probe clients they drive |
+| `pkgsrc/`, `macos/` | the pkgsrc package; the checkable half of the macOS layer |
 
 ## Documentation
 
@@ -109,6 +92,7 @@ things — a difference in facts is worse than a missing translation.
 
 | | |
 |---|---|
+| [doc/build.md](doc/build.md) | building, installing, running, checking a change |
 | [doc/ribbon.md](doc/ribbon.md) | the layout model, its commands and its settings |
 | [doc/commands.md](doc/commands.md) | every command, and what the ribbon did to it |
 | [doc/monitors.md](doc/monitors.md) | more than one monitor, and what happens on hotplug |
@@ -116,33 +100,31 @@ things — a difference in facts is worse than a missing translation.
 | [doc/baseline.md](doc/baseline.md) | flicker, insertion latency, hidden windows — measured, and what is still missing |
 | [doc/panel.md](doc/panel.md) | the panel: ours against someone else's, the numbers behind the choice, and what a panel does to the ribbon |
 | [doc/themes.md](doc/themes.md) | where the installer gets Workbench themes: three sources, and the line it does not cross |
-| [doc/build.md](doc/build.md) | building, installing, running, checking a change |
 | [doc/portability.md](doc/portability.md) | what here is X11 and what is arithmetic, measured — and what a macOS port would cost |
 | [doc/macos.md](doc/macos.md) | the plan of the macOS port: the stages, what will not be there by name, and the numbers at which it is closed |
 | [doc/browser.md](doc/browser.md) | what of this can be shown in a browser for real, and what cannot |
 | [doc/terminal.md](doc/terminal.md) | the specification of the ribbon in a terminal: what ports, what will not be there, and how it is checked |
 | [fts/README.md](fts/README.md) | the models, the harnesses, and where they stop |
+| [session/README.md](session/README.md) | the environment around the window manager: what you get and what you do not |
 | [pkgsrc/README.md](pkgsrc/README.md) | the package, and what is missing until the first release |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | the order a layout change is made in |
 
 ## Status
 
-Early. The fork is in place with upstream history preserved. The ribbon is
-there and checked — columns, stacks, the scrolling viewport, insertion, focus,
-width presets, per-output ribbons — but it has not been lived in for a week by
-anyone, the panel has been checked on one monitor and without a battery (see
-[doc/panel.md](doc/panel.md)), and the delivery paths (`bootstrap.sh`, the pkgsrc
-port) have been exercised on Debian and by reading rather than on every system
-they claim. Each document says which of its statements were measured and which
-were not.
+Early. The ribbon is there and checked by the harnesses — columns, stacks, the
+scrolling viewport, insertion, focus, width presets, per-output ribbons — but
+nobody has lived in it for a week, the panel has been checked on one monitor and
+without a battery ([doc/panel.md](doc/panel.md)), and the delivery paths
+(`bootstrap.sh`, the pkgsrc port) have been exercised on Debian and by reading
+rather than on every system they claim. Each document says which of its
+statements were measured and which were not.
 
-## Licence
-
-ISC, inherited from cwm and applied to new code as well. Full text in
-[LICENSE](LICENSE); provenance and the one BSD-3 exception in [NOTICE](NOTICE).
-
-Part of [Digitable](https://digitable.life). A write-up with the numbers from
-the harnesses and the measurements is on the product page,
-[courses.digitable.life/digitwm](https://courses.digitable.life/digitwm/);
-it also says why digitwm stays out of the paid Workbench archive even though
-ISC does not forbid it.
+Licence: the terms of the tree are in [LICENSE](LICENSE); the provenance of the
+inherited [cwm](https://github.com/leahneukirchen/cwm) code and the single
+exception (`queue.h`, BSD-3) are in [NOTICE](NOTICE). Upstream's headers are
+never touched, our own files carry their own, and `tools/check-licensing.py` is
+what keeps the two apart. Part of [Digitable](https://digitable.life); the
+write-up with the numbers from the harnesses is at
+[courses.digitable.life/digitwm](https://courses.digitable.life/digitwm/), which
+also says why digitwm stays out of the paid Workbench archive though the licence
+does not forbid it.
