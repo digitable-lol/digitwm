@@ -875,6 +875,94 @@ ribbon_insert(struct ribbon *rb, int place, struct client_ctx *cc)
 }
 
 /*
+ * Move a window one place up or down the stack it already stands in.  The
+ * column does not change, the row of columns does not change, and no other
+ * stack is touched: this is the vertical half of ribbon_move_client(), and
+ * the half that has no edge to spill over.  A window already at the top of
+ * its stack stays there rather than crossing into a neighbouring column -
+ * crossing columns is spelled ribbon-move-left and ribbon-move-right, and a
+ * key that silently did both would leave no way to say which was meant.
+ *
+ * A height belongs to a slot in the stack and not to the window in it:
+ * ribbon_policy_height() hands the remainder of the division to the last
+ * window of a column, so exchanging the last two windows exchanges their
+ * heights with them.  The window takes the slot it moved into.  That is the
+ * only answer that leaves the column exactly as tall as it was, which is what
+ * keeps the reorder from moving anything outside the column.
+ *
+ * Apart from ribbon_move_win() for the reason ribbon_insert() is apart from
+ * ribbon_client_insert(): all of the model is on this side of the line, and
+ * the model is what "layout-probe layout reorder=up" replays with no display
+ * to draw on.
+ *
+ * Returns 1 when the stack changed, 0 when the window was already at the end
+ * it was asked to move towards.
+ */
+int
+ribbon_stack_reorder(struct ribbon_col *col, struct client_ctx *cc, int flags)
+{
+	struct client_ctx	*other;
+
+	if ((col == NULL) || (cc == NULL))
+		return 0;
+
+	if (flags & CWM_UP) {
+		if ((other = TAILQ_PREV(cc, rb_client_q, rbentry)) == NULL)
+			return 0;
+		TAILQ_REMOVE(&col->winq, cc, rbentry);
+		TAILQ_INSERT_BEFORE(other, cc, rbentry);
+	} else {
+		if ((other = TAILQ_NEXT(cc, rbentry)) == NULL)
+			return 0;
+		TAILQ_REMOVE(&col->winq, cc, rbentry);
+		TAILQ_INSERT_AFTER(&col->winq, other, cc, rbentry);
+	}
+
+	return 1;
+}
+
+/*
+ * Exchange a column with the one beside it, everything it holds included -
+ * its windows in their order, its width preset, its focus.  Nothing enters or
+ * leaves a stack, and no column other than the two moves in the row.
+ *
+ * The two do not simply trade x coordinates.  A column carries its own preset
+ * and therefore its own width, so a narrow column moving left of a wide one
+ * takes the wide one's left edge while the wide one starts where the narrow
+ * one ended; only when the presets match do the coordinates look exchanged.
+ * That is ribbon_measure() laying the row out again from the new order rather
+ * than anything decided here, and it is why the ribbon as a whole keeps its
+ * length: the same widths and the same gaps, in another order.
+ *
+ * Returns 1 when the row changed, 0 when the column was already at the end of
+ * the ribbon it was asked to move towards.  There is deliberately no wrap: a
+ * ribbon is a row with two ends and not a ring, and the whole promise about
+ * the viewport is written in terms of a column having a place on it.
+ */
+int
+ribbon_col_reorder(struct ribbon *rb, struct ribbon_col *col, int flags)
+{
+	struct ribbon_col	*other;
+
+	if ((rb == NULL) || (col == NULL))
+		return 0;
+
+	if (flags & CWM_LEFT) {
+		if ((other = TAILQ_PREV(col, ribbon_col_q, entry)) == NULL)
+			return 0;
+		TAILQ_REMOVE(&rb->colq, col, entry);
+		TAILQ_INSERT_BEFORE(other, col, entry);
+	} else {
+		if ((other = TAILQ_NEXT(col, entry)) == NULL)
+			return 0;
+		TAILQ_REMOVE(&rb->colq, col, entry);
+		TAILQ_INSERT_AFTER(&rb->colq, other, col, entry);
+	}
+
+	return 1;
+}
+
+/*
  * Decide the place of a freshly managed window and put it there.  Called
  * from client_init(), that is from within the MapRequest handler and before
  * the window is mapped, so that it appears where it belongs instead of
@@ -1127,6 +1215,72 @@ ribbon_move_client(struct client_ctx *cc, int flags)
 	rb->focus = dst;
 	ribbon_scroll(rb);
 	ribbon_sync(rb->sc);
+	ribbon_warp(rb);
+}
+
+/*
+ * Carry the window up or down its own stack.  The counterpart of
+ * ribbon_move_client(): that one crosses columns and this one never does, so
+ * that a stack can be put in order without the window ever being at risk of
+ * landing in the column next door.
+ *
+ * The pointer is warped for the same reason every other ribbon command warps
+ * it.  cwm follows the mouse, and a reorder slides the other window of the
+ * pair under a resting pointer; the EnterNotify that follows would hand focus
+ * to it, and the window just moved would end the command unfocused.
+ */
+void
+ribbon_move_win(struct client_ctx *cc, int flags)
+{
+	struct ribbon		*rb;
+	struct ribbon_col	*col;
+
+	if (!(cc->flags & CLIENT_RIBBON))
+		return;
+
+	col = cc->rbcol;
+	rb = col->rb;
+
+	if (!ribbon_stack_reorder(col, cc, flags))
+		return;
+
+	col->focus = cc;
+	rb->focus = col;
+	ribbon_scroll(rb);
+	ribbon_sync(rb->sc);
+	ribbon_warp(rb);
+}
+
+/*
+ * Exchange the focused column with its neighbour, the whole stack travelling
+ * with it.  This is the command that puts the row in order, the way
+ * ribbon_move_win() puts a stack in order.
+ *
+ * Focus does not move: the same window of the same column keeps it, which is
+ * what makes the command repeatable - press it twice and the column has gone
+ * two places, rather than the ribbon having swapped one pair back and forth.
+ * The viewport follows because it always does, and it is the second promise
+ * of the ribbon that makes it: the focused column has to end up wholly
+ * visible, and after a swap it stands somewhere else.
+ *
+ * Taken from the screen and not from the client for the reason
+ * ribbon_focus_col() is: what moves is the focused COLUMN, and it is still
+ * the focused column when the window with the keyboard is a floating one
+ * hovering over the ribbon.
+ */
+void
+ribbon_swap_col(struct screen_ctx *sc, int flags)
+{
+	struct ribbon		*rb;
+
+	if (((rb = ribbon_current(sc)) == NULL) || (rb->focus == NULL))
+		return;
+
+	if (!ribbon_col_reorder(rb, rb->focus, flags))
+		return;
+
+	ribbon_scroll(rb);
+	ribbon_sync(sc);
 	ribbon_warp(rb);
 }
 

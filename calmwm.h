@@ -668,6 +668,10 @@ void			 ribbon_screen_relayout(struct screen_ctx *);
 void			 ribbon_screen_update(struct screen_ctx *);
 struct ribbon_col	*ribbon_insert(struct ribbon *, int,
 			     struct client_ctx *);
+int			 ribbon_stack_reorder(struct ribbon_col *,
+			     struct client_ctx *, int);
+int			 ribbon_col_reorder(struct ribbon *,
+			     struct ribbon_col *, int);
 int			 ribbon_client_insert(struct client_ctx *);
 void			 ribbon_client_remove(struct client_ctx *);
 void			 ribbon_client_focus(struct client_ctx *);
@@ -675,6 +679,8 @@ void			 ribbon_client_focus(struct client_ctx *);
 void			 ribbon_focus_col(struct screen_ctx *, int);
 void			 ribbon_focus_win(struct screen_ctx *, int);
 void			 ribbon_move_client(struct client_ctx *, int);
+void			 ribbon_move_win(struct client_ctx *, int);
+void			 ribbon_swap_col(struct screen_ctx *, int);
 void			 ribbon_width(struct client_ctx *, int);
 void			 ribbon_center(struct screen_ctx *);
 void			 ribbon_float_toggle(struct client_ctx *);
@@ -715,6 +721,8 @@ void 			 kbfunc_client_vtile(void *, struct cargs *);
 void			 kbfunc_ribbon_focus(void *, struct cargs *);
 void			 kbfunc_ribbon_focus_win(void *, struct cargs *);
 void			 kbfunc_ribbon_move(void *, struct cargs *);
+void			 kbfunc_ribbon_move_win(void *, struct cargs *);
+void			 kbfunc_ribbon_swap(void *, struct cargs *);
 void			 kbfunc_ribbon_width(void *, struct cargs *);
 void			 kbfunc_ribbon_center(void *, struct cargs *);
 void			 kbfunc_ribbon_float(void *, struct cargs *);

@@ -430,6 +430,21 @@ end of the ribbon if there is none.
 .It ribbon-move-right
 Carry the current window into the column on its right, creating one at the
 end of the ribbon if there is none.
+.It ribbon-move-up
+Move the current window one place up the stack of its own column.
+The column does not change and neither does the ribbon; a window already at
+the top of its stack stays where it is.
+The window takes the slot it moves into, so the column keeps its height.
+.It ribbon-move-down
+Move the current window one place down the stack of its own column.
+A window already at the bottom of its stack stays where it is.
+.It ribbon-column-swap-left
+Exchange the current column with the column on its left, taking its windows,
+their order and its width with it.
+Focus stays with the window that had it and the viewport follows the column;
+a column already at the left end of the ribbon stays where it is.
+.It ribbon-column-swap-right
+Exchange the current column with the column on its right.
 .It ribbon-width-cycle
 Step the current column through the widths of
 .Ic ribbonwidths .

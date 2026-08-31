@@ -21,26 +21,30 @@ understand an idea is fine; copying their strings into our tree is the thing the
 licence contour exists to prevent, and a table of forty names is a copy of the
 part that was worth copying.
 
-What is inventoried instead is the surface digitwm actually has: **120 commands**
+What is inventoried instead is the surface digitwm actually has: **124 commands**
 in the table in `conf.c`, every one of them either inherited from cwm, added by
 the ribbon, or left standing while the ribbon changed what it means. The
 question `DGT-WM-09` really asks — *which commands still make sense once windows
 live on a ribbon* — is answered for each group below.
 
-## Added by the ribbon — 11
+## Added by the ribbon — 15
 
 | Command | What it does |
 |---|---|
 | `ribbon-focus-left`, `ribbon-focus-right` | move focus to the neighbouring column; the viewport follows |
 | `ribbon-focus-up`, `ribbon-focus-down` | move focus inside the column's stack; the canvas scrolls to the window |
 | `ribbon-move-left`, `ribbon-move-right` | carry the window to the neighbouring column, making one at the edge if there is none |
+| `ribbon-move-up`, `ribbon-move-down` | move the window one place along the stack of its own column; the column it is in does not change |
+| `ribbon-column-swap-left`, `ribbon-column-swap-right` | exchange the focused column with its neighbour, windows, order and width preset and all |
 | `ribbon-width-cycle`, `ribbon-width-grow`, `ribbon-width-shrink` | step the column through the four width presets |
 | `ribbon-center` | put the focus in the middle of the viewport, on both axes |
 | `ribbon-float-toggle` | drop a window out of the ribbon, or pick a floating one up into it |
 
 Default bindings are on `Mod4` (`4-h`, `4-l`, `4-k`, `4-j`, `4S-h`, `4S-l`,
-`4-r`, `4-equal`, `4-minus`, `4-c`), which is free in upstream cwm — nothing
-inherited was rebound.
+`4S-k`, `4S-j`, `4CS-h`, `4CS-l`, `4-r`, `4-equal`, `4-minus`, `4-c`), which is
+free in upstream cwm — nothing inherited was rebound. The four rearranging
+commands sit one modifier away from the four that move focus: `Shift` moves the
+window, `Control`+`Shift` moves the whole column.
 
 ## Inherited and untouched — 84
 

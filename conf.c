@@ -133,6 +133,8 @@ static const struct {
 
 	{ FUNC_CC(ribbon-move-left, ribbon_move, (CWM_LEFT)) },
 	{ FUNC_CC(ribbon-move-right, ribbon_move, (CWM_RIGHT)) },
+	{ FUNC_CC(ribbon-move-up, ribbon_move_win, (CWM_UP)) },
+	{ FUNC_CC(ribbon-move-down, ribbon_move_win, (CWM_DOWN)) },
 	{ FUNC_CC(ribbon-width-cycle, ribbon_width, (CWM_CENTER)) },
 	{ FUNC_CC(ribbon-width-grow, ribbon_width, (CWM_RIGHT)) },
 	{ FUNC_CC(ribbon-width-shrink, ribbon_width, (CWM_LEFT)) },
@@ -142,6 +144,8 @@ static const struct {
 	{ FUNC_SC(ribbon-focus-right, ribbon_focus, (CWM_RIGHT)) },
 	{ FUNC_SC(ribbon-focus-up, ribbon_focus_win, (CWM_UP)) },
 	{ FUNC_SC(ribbon-focus-down, ribbon_focus_win, (CWM_DOWN)) },
+	{ FUNC_SC(ribbon-column-swap-left, ribbon_swap, (CWM_LEFT)) },
+	{ FUNC_SC(ribbon-column-swap-right, ribbon_swap, (CWM_RIGHT)) },
 	{ FUNC_SC(ribbon-center, ribbon_center, 0) },
 
 	{ FUNC_SC(window-cycle, client_cycle, (CWM_CYCLE_FORWARD)) },
@@ -282,6 +286,10 @@ static const struct {
 	{ "4-j",	"ribbon-focus-down" },
 	{ "4S-h",	"ribbon-move-left" },
 	{ "4S-l",	"ribbon-move-right" },
+	{ "4S-k",	"ribbon-move-up" },
+	{ "4S-j",	"ribbon-move-down" },
+	{ "4CS-h",	"ribbon-column-swap-left" },
+	{ "4CS-l",	"ribbon-column-swap-right" },
 	{ "4-r",	"ribbon-width-cycle" },
 	{ "4-equal",	"ribbon-width-grow" },
 	{ "4-minus",	"ribbon-width-shrink" },

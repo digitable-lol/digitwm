@@ -90,6 +90,10 @@ loop substitutes are policy, and policy belongs where it can be read and tested.
 | `ribbon-focus-down` | `4-j` | focus the window below in the stack; the canvas follows |
 | `ribbon-move-left` | `4S-h` | carry the window one column left, making a column at the edge |
 | `ribbon-move-right` | `4S-l` | carry the window one column right |
+| `ribbon-move-up` | `4S-k` | move the window one place up its own stack |
+| `ribbon-move-down` | `4S-j` | move the window one place down its own stack |
+| `ribbon-column-swap-left` | `4CS-h` | exchange the column with the one on its left, windows and all |
+| `ribbon-column-swap-right` | `4CS-l` | exchange the column with the one on its right |
 | `ribbon-width-cycle` | `4-r` | step the column through the width presets |
 | `ribbon-width-grow` | `4-equal` | next preset up |
 | `ribbon-width-shrink` | `4-minus` | next preset down |
@@ -99,6 +103,42 @@ loop substitutes are policy, and policy belongs where it can be read and tested.
 `Mod4` is free in upstream cwm, so nothing inherited was rebound. Every other
 cwm command is still there; what the ribbon does to each is in
 [commands.md](commands.md).
+
+## Putting the ribbon in order
+
+The canvas has two axes and so does rearranging it. `ribbon-move-up` and
+`ribbon-move-down` move a window inside the stack it already stands in;
+`ribbon-column-swap-left` and `ribbon-column-swap-right` exchange whole
+columns. Neither crosses into the other's business: the first never changes
+which column a window is in — that is what `ribbon-move-left` and
+`ribbon-move-right` are for — and the second never takes a window out of a
+stack.
+
+Three things follow from the model and are worth saying out loud:
+
+- **a height belongs to a slot, not to a window.** The remainder of the
+  division goes to the last window of a column, so two windows trading places
+  at the bottom of a stack trade their heights with them. The column ends up
+  exactly as tall as it was, which is why nothing outside it moves;
+- **the swap carries everything.** A column travels with its windows in their
+  order, its focus and its width preset. Since the widths are the same widths
+  in another order, the ribbon keeps its length and every column that was not
+  one of the two keeps its place on it;
+- **there is no wrap.** A window at the top of its stack and a column at the
+  left end of the ribbon stay where they are. A ribbon is a row with two ends,
+  not a ring.
+
+None of it has to be taken on trust. The probe replays the same model calls
+the commands make, with no X server in the room:
+
+```sh
+./cwm -C "layout-probe layout viewport=1280x800 columns=1,3,1 presets=0,2,3 focus=1 swap=left"
+./cwm -C "layout-probe layout viewport=1280x800 columns=3 focus=0 focus-window=1 reorder=down"
+```
+
+Each prints the ribbon before and after, and each window line ends with the
+identity of the window — the one thing coordinates cannot say when two windows
+trade slots of equal size.
 
 ## Settings
 

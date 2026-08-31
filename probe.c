@@ -517,12 +517,25 @@ probe_report(struct ribbon *rb, int border, const char *stage)
 		    col->nwin, col->h);
 		j = 0;
 		TAILQ_FOREACH(cc, &col->winq, rbentry) {
+			/*
+			 * The identity comes last for the reason the canvas
+			 * does: readers take these lines by position, and a
+			 * field appended at the end costs them nothing.  It
+			 * is the one thing geometry cannot say - two windows
+			 * of a stack that trade places trade nothing a
+			 * coordinate can see, because the slot keeps its
+			 * size and only the occupant changes.  Windows are
+			 * numbered in the order the scenario builds them,
+			 * so the one an insertion adds carries the highest
+			 * number.
+			 */
 			(void)printf("window %d %d ribbon %d %d %d %d "
-			    "screen %d %d %d %d\n", i, j,
+			    "screen %d %d %d %d id %lu\n", i, j,
 			    cc->rbgeom.x, cc->rbgeom.y,
 			    cc->rbgeom.w, cc->rbgeom.h,
 			    cc->geom.x, cc->geom.y,
-			    cc->geom.w, cc->geom.h);
+			    cc->geom.w, cc->geom.h,
+			    (unsigned long)cc->win);
 			j++;
 		}
 		i++;
@@ -545,6 +558,11 @@ probe_report(struct ribbon *rb, int border, const char *stage)
  * With "insert=column" or "insert=stack" the scenario runs on: a window is
  * handed to ribbon_insert(), the same call the MapRequest handler makes, and
  * the state after it is printed as a second stage.
+ *
+ * "reorder=up|down" and "swap=left|right" carry it on the same way: the first
+ * moves the focused window one place along its own stack, the second
+ * exchanges the focused column with its neighbour, each through the model
+ * call its command makes and each printing a stage of its own.
  */
 static int
 probe_layout(struct probe_ctx *p)
@@ -553,12 +571,12 @@ probe_layout(struct probe_ctx *p)
 	struct ribbon		*rb;
 	struct ribbon_col	*col;
 	struct client_ctx	*cc, *ccnxt;
-	const char		*place;
+	const char		*place, *dir;
 	int			 cols[PROBE_MAXCOL], presets[PROBE_MAXCOL];
 	int			 widths[RIBBON_NPRESET];
 	int			 vw = 0, vh = 0, rw = 0, rh = 0;
 	int			 border, focus, fwin, ncol, npreset, nwidth;
-	int			 i, j, resized;
+	int			 i, j, resized, flags, nid = 0;
 
 	if (probe_dim(p, "viewport", &vw, &vh) != 1) {
 		probe_error(p, "missing field \"viewport\"");
@@ -600,6 +618,7 @@ probe_layout(struct probe_ctx *p)
 			cc = xcalloc(1, sizeof(*cc));
 			cc->sc = &sc;
 			cc->bwidth = border;
+			cc->win = ++nid;
 			ribbon_col_add(col, cc);
 		}
 	}
@@ -661,6 +680,7 @@ probe_layout(struct probe_ctx *p)
 		cc = xcalloc(1, sizeof(*cc));
 		cc->sc = &sc;
 		cc->bwidth = border;
+		cc->win = ++nid;
 
 		if (strcmp(place, "column") == 0)
 			col = ribbon_insert(rb, RIBBON_PLACE_COLUMN, cc);
@@ -679,6 +699,62 @@ probe_layout(struct probe_ctx *p)
 			goto done;
 		}
 		probe_report(rb, border, place);
+	}
+
+	/*
+	 * The two reorders, through the very model calls the commands make.
+	 * Stages of a scenario rather than utilities of their own, because
+	 * what they answer is a whole layout and not a number: there is no
+	 * scalar decision in either to write down as an FTS model, and the
+	 * state before and next to the state after is the whole of the
+	 * answer.  A window already at the end of its stack, or a column
+	 * already at the end of the ribbon, prints a stage identical to the
+	 * one before it - which is what "it stays where it is" looks like
+	 * when it is printed rather than asserted.
+	 */
+	if ((dir = probe_get(p, "reorder")) != NULL) {
+		if (strcmp(dir, "up") == 0)
+			flags = CWM_UP;
+		else if (strcmp(dir, "down") == 0)
+			flags = CWM_DOWN;
+		else {
+			probe_error(p, "reorder wants up or down, got %s", dir);
+			goto done;
+		}
+		if (rb->focus == NULL) {
+			probe_error(p, "reorder wants a focused column");
+			goto done;
+		}
+		if ((cc = rb->focus->focus) == NULL)
+			cc = TAILQ_FIRST(&rb->focus->winq);
+		if (cc == NULL) {
+			probe_error(p, "the focused column has no window");
+			goto done;
+		}
+
+		(void)ribbon_stack_reorder(rb->focus, cc, flags);
+		rb->focus->focus = cc;
+		ribbon_scroll(rb);
+		probe_report(rb, border, "reorder");
+	}
+
+	if ((dir = probe_get(p, "swap")) != NULL) {
+		if (strcmp(dir, "left") == 0)
+			flags = CWM_LEFT;
+		else if (strcmp(dir, "right") == 0)
+			flags = CWM_RIGHT;
+		else {
+			probe_error(p, "swap wants left or right, got %s", dir);
+			goto done;
+		}
+		if (rb->focus == NULL) {
+			probe_error(p, "swap wants a focused column");
+			goto done;
+		}
+
+		(void)ribbon_col_reorder(rb, rb->focus, flags);
+		ribbon_scroll(rb);
+		probe_report(rb, border, "swap");
 	}
 
 done:

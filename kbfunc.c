@@ -397,6 +397,18 @@ kbfunc_ribbon_move(void *ctx, struct cargs *cargs)
 }
 
 void
+kbfunc_ribbon_move_win(void *ctx, struct cargs *cargs)
+{
+	ribbon_move_win(ctx, cargs->flag);
+}
+
+void
+kbfunc_ribbon_swap(void *ctx, struct cargs *cargs)
+{
+	ribbon_swap_col(ctx, cargs->flag);
+}
+
+void
 kbfunc_ribbon_width(void *ctx, struct cargs *cargs)
 {
 	ribbon_width(ctx, cargs->flag);
