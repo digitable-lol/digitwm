@@ -271,6 +271,29 @@ This directive has no effect while
 .Ic ribbon
 is
 .Ic no .
+.It Ic ribbonwarp Ic yes Ns \&| Ns Ic no
+Carry the pointer into the window the ribbon has just given the focus to,
+including a window that has only now opened on it.
+.Xr cwm 1
+gives the focus to whatever the pointer is over, so this is what keeps the
+keyboard and the pointer on one window while the ribbon scrolls under them.
+.Pp
+With it off the pointer stays where it was left.
+The focus still moves - the ribbon hands the keyboard over itself, and the
+crossing the scroll causes under a resting pointer is swallowed - and it stays
+on the window the ribbon chose until the pointer is moved across a window
+boundary by hand, at which point the window under the pointer takes it, as
+always.
+So the cost of
+.Ic no
+is that the pointer and the keyboard are on different windows until you move
+the pointer, and that a nudge of the mouse then undoes the focus the ribbon
+was told to move.
+.Pp
+Windows the ribbon does not place - floating windows, dialogs, docks - are
+warped to either way, as in
+.Xr cwm 1 .
+The default is yes.
 .It Ic ribbonwidths Ar first second third fourth
 The four column widths, in percent of the screen, that
 .Ic ribbon-width-cycle

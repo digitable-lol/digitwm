@@ -150,6 +150,7 @@ ribbonminwidth   120     # narrowest a column may become
 ribbonminheight  60      # shortest a window may become
 ribbonwidths     33 50 67 100   # the four presets, in percent of the viewport
 ribbonhide       no      # unmap what the viewport does not show
+ribbonwarp       yes     # carry the pointer into the window that took the focus
 ```
 
 The gap is subtracted before the percentage, so two 50 % columns and the gap
@@ -158,6 +159,15 @@ gap and all, since nothing stands beside it.
 
 `ribbonhide` was decided by measurement, and the numbers are in
 [offscreen.md](offscreen.md).
+
+`ribbonwarp no` leaves the pointer where you put it down — on a focus command
+and on a window arriving on the ribbon alike. The focus still moves: the ribbon
+hands the keyboard over itself, and the crossing its own scroll causes under a
+resting pointer is swallowed, so nothing snaps back. What it costs is that the
+pointer and the keyboard are then on different windows, and the next nudge of
+the mouse across a window boundary gives the focus to whatever is under the
+pointer — that is cwm following the mouse, not a decision of the ribbon. Both
+sides of the switch are taken off a live server by `tools/measure-warp.sh`.
 
 Full descriptions are in `cwmrc(5)`.
 

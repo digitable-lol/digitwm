@@ -434,6 +434,7 @@ struct conf {
 	int			 vtile;
 	int			 ribbon;	/* ribbon layout in charge */
 	int			 ribbonhide;	/* unmap what the viewport hides */
+	int			 ribbonwarp;	/* carry the pointer to the focus */
 	int			 ribbongap;	/* between columns and windows */
 	int			 ribbonminw;	/* narrowest a column may get */
 	int			 ribbonminh;	/* shortest a window may get */

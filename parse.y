@@ -75,7 +75,7 @@ typedef struct {
 %token	AUTOGROUP COMMAND IGNORE WM
 %token	YES NO BORDERWIDTH MOVEAMOUNT HTILE VTILE
 %token	RIBBON RIBBONHIDE RIBBONGAP RIBBONWIDTHS
-%token	RIBBONMINWIDTH RIBBONMINHEIGHT RIBBONRULE
+%token	RIBBONMINWIDTH RIBBONMINHEIGHT RIBBONRULE RIBBONWARP
 %token	COLOR SNAPDIST
 %token	ACTIVEBORDER INACTIVEBORDER URGENCYBORDER
 %token	GROUPBORDER UNGROUPBORDER
@@ -156,6 +156,9 @@ main		: FONTNAME STRING		{
 		}
 		| RIBBONHIDE yesno {
 			conf->ribbonhide = $2;
+		}
+		| RIBBONWARP yesno {
+			conf->ribbonwarp = $2;
 		}
 		| RIBBONGAP NUMBER {
 			if ($2 < 0 || $2 > INT_MAX) {
@@ -420,6 +423,7 @@ lookup(char *s)
 		{ "ribbonminheight",	RIBBONMINHEIGHT},
 		{ "ribbonminwidth",	RIBBONMINWIDTH},
 		{ "ribbonrule",		RIBBONRULE},
+		{ "ribbonwarp",		RIBBONWARP},
 		{ "ribbonwidths",	RIBBONWIDTHS},
 		{ "selfont", 		FONTSELCOLOR},
 		{ "snapdist",		SNAPDIST},

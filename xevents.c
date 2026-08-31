@@ -93,7 +93,16 @@ xev_handle_maprequest(XEvent *ee)
 		cc = client_init(e->window, NULL);
 
 	if ((cc != NULL) && (!(cc->flags & CLIENT_IGNORE))) {
-		client_ptr_warp(cc);
+		/*
+		 * A window arriving on the ribbon is the ribbon taking the
+		 * focus to it, so "ribbonwarp no" covers this jump as well -
+		 * and covers only it: a float, a dialog, a dock still get the
+		 * pointer cwm has always given them.  The keyboard is handed
+		 * over below and not by the warp, which is what makes the
+		 * setting safe to honour right here.
+		 */
+		if (Conf.ribbonwarp || !(cc->flags & CLIENT_RIBBON))
+			client_ptr_warp(cc);
 
 		/*
 		 * The warp alone does not hand over the keyboard, and that it

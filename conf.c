@@ -333,6 +333,7 @@ conf_init(struct conf *c)
 
 	c->ribbon = 1;
 	c->ribbonhide = 0;
+	c->ribbonwarp = 1;
 	c->ribbongap = 8;
 	c->ribbonminw = 120;
 	c->ribbonminh = 60;

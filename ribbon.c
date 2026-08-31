@@ -1084,7 +1084,15 @@ ribbon_activate(struct ribbon_col *col)
 	client_show(cc);
 	client_raise(cc);
 	client_set_active(cc);
-	client_ptr_warp(cc);
+	/*
+	 * The keyboard is handed over on the line above and does not go
+	 * through the pointer, so "ribbonwarp no" costs the jump and nothing
+	 * else.  The settle stays outside the check on purpose: showing and
+	 * raising a window under a resting pointer crosses into it whether or
+	 * not the pointer was moved.
+	 */
+	if (Conf.ribbonwarp)
+		client_ptr_warp(cc);
 	wsi_settle();
 }
 
@@ -1094,12 +1102,21 @@ ribbon_activate(struct ribbon_col *col)
  * some other window under a resting pointer, the EnterNotify that follows
  * hands focus to it, and the viewport scrolls straight back where it came
  * from.
+ *
+ * "ribbonwarp no" gives that carrying up deliberately, for a pointer that
+ * stays where it was put down.  The oscillation does not come back with it:
+ * every caller reaches here through ribbon_sync(), and its wsi_settle() has
+ * already swallowed the crossings the scroll itself caused.  What is left is
+ * the next crossing the hand on the mouse makes, and giving that one the
+ * focus is what following the pointer means.  cwmrc(5) states the price.
  */
 static void
 ribbon_warp(struct ribbon *rb)
 {
 	struct client_ctx	*cc;
 
+	if (!Conf.ribbonwarp)
+		return;
 	if (rb->focus == NULL)
 		return;
 	if ((cc = rb->focus->focus) == NULL)
