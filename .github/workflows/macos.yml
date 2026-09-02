@@ -294,14 +294,13 @@ jobs:
           codesign --verify --deep --strict --verbose=2 macos/digitwm.app 2>&1
           # Побайтно они РАЗНЫЕ, и это не поломка: подписывая пакет, codesign
           # переподписывает лежащий внутри Mach-O - в его подпись входит хеш
-          # Info.plist пакета. Вопрос «одна ли это программа» задаётся копиям
-          # со снятой подписью.
-          echo "--- одна ли это программа (подписи сняты) ---"
-          n="$RUNNER_TEMP/naked"; rm -rf "$n"; mkdir -p "$n"
-          cp macos/digitwm "$n/a"
-          cp macos/digitwm.app/Contents/MacOS/digitwm "$n/b"
-          codesign --remove-signature "$n/a" "$n/b" 2>/dev/null || true
-          cmp "$n/a" "$n/b" && echo "да - одна и та же"
+          # Info.plist пакета. Сверяется секция кода: подпись её не трогает.
+          echo "--- одна ли это программа (__TEXT,__text) ---"
+          a=$(otool -X -s __TEXT __text macos/digitwm | shasum -a 256)
+          b=$(otool -X -s __TEXT __text macos/digitwm.app/Contents/MacOS/digitwm | shasum -a 256)
+          echo "файл  $a"
+          echo "пакет $b"
+          [ "$a" = "$b" ] && echo "да - одна и та же"
           echo "--- а cdhash разные, и это два разных разрешения в системе ---"
           codesign -d --verbose=4 macos/digitwm 2>&1 | grep '^CDHash'
           codesign -d --verbose=4 macos/digitwm.app 2>&1 | grep '^CDHash'

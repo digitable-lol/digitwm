@@ -396,17 +396,20 @@ codesign --verify --deep --strict "$probe/$appname/digitwm.app" || {
 # разрешение Accessibility система помнит по cdhash. То есть разрешение,
 # выданное digitwm рядом с вами, и разрешение, выданное digitwm.app, - два
 # разных разрешения, и одно не считается за другое.
-naked=$(mktemp -d)
-cp "$bin" "$naked/a"
-cp "$appbin" "$naked/b"
-codesign --remove-signature "$naked/a" "$naked/b" 2>/dev/null || true
-if ! cmp -s "$naked/a" "$naked/b"; then
+# Сверяется СЕКЦИЯ КОДА, а не файл целиком. Первая попытка сверяла файлы со
+# снятой подписью, и на x86-64 они разошлись при одинаковом размере:
+# `codesign --remove-signature` оставляет место подписи, а не байты, и добивка
+# у подписанного и у неподписанного разная. Секция __TEXT,__text - это сами
+# команды процессора, и подпись их не трогает ни на одной архитектуре.
+code_a=$(otool -X -s __TEXT __text "$bin" | shasum -a 256 | cut -d' ' -f1)
+code_b=$(otool -X -s __TEXT __text "$appbin" | shasum -a 256 | cut -d' ' -f1)
+if [ "$code_a" != "$code_b" ]; then
 	echo "build-release: в пакете ДРУГАЯ программа, а не другая подпись:" >&2
-	ls -l "$naked/a" "$naked/b" >&2
+	echo "  файл  __TEXT,__text $code_a" >&2
+	echo "  пакет __TEXT,__text $code_b" >&2
 	exit 1
 fi
-rm -rf "$naked"
-echo "  пакет: подпись цела, LSUIElement=true, внутри та же программа"
+echo "  пакет: подпись цела, LSUIElement=true, код тот же (__TEXT,__text $code_a)"
 echo "  (cdhash файла и пакета разные - это два разных разрешения в системе)"
 
 echo
