@@ -53,9 +53,10 @@ class Digitwm < Formula
   # падает ещё до проверок системы, и человек видит след вызовов вместо
   # объяснения.
   #
-  # Порядок здесь не на вкус: url обязан стоять до version, version до sha256,
-  # sha256 до license. Это правило самой брю (FormulaAudit/ComponentsOrder), и
-  # оно проверяется на бегунке - `brew style` покраснел ровно на нём.
+  # Порядок здесь не на вкус: адрес обязан стоять до версии, версия до
+  # отпечатка, отпечаток до лицензии. Это правило самой брю
+  # (FormulaAudit/ComponentsOrder), и оно проверяется на бегунке - `brew style`
+  # покраснел ровно на нём.
   url "https://github.com/digitable-lol/digitwm/releases/download/vVERSION_PLACEHOLDER/digitwm-VERSION_PLACEHOLDER-darwin-arm64.tar.gz"
   version "VERSION_PLACEHOLDER"
   sha256 "SHA256_MACOS_ARM64_PLACEHOLDER"
@@ -67,8 +68,11 @@ class Digitwm < Formula
     depends_on xcode: :build
   end
 
-  # depends_on до on_macos - опять же правило брю, не вкус: `brew style`
-  # покраснел на обратном порядке (FormulaAudit/ComponentsOrder).
+  # Требование системы объявлено ДО блока on_macos - опять же правило брю, а не
+  # вкус: `brew style` покраснел на обратном порядке
+  # (FormulaAudit/ComponentsOrder). А ещё он читает комментарий, начинающийся с
+  # имени сторожа, как закомментированную зависимость, - поэтому здесь имя
+  # написано словами (FormulaAudit/Comments, второй красный за тот же вечер).
   depends_on :macos
 
   on_macos do
