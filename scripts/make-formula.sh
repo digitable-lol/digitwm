@@ -50,12 +50,19 @@ sha256() {
 
 arm="digitwm-$version-darwin-arm64.tar.gz"
 amd="digitwm-$version-darwin-amd64.tar.gz"
+apparm="digitwm-app-$version-darwin-arm64.tar.gz"
+appamd="digitwm-app-$version-darwin-amd64.tar.gz"
 
-for f in "$arm" "$amd"; do
+# Четыре архива, потому что программ две формы и архитектур две. Формула
+# ставит двоичный файл (первые два); пакет .app - для того, кто ставит его в
+# /Applications руками, и для будущей каски.
+all="$arm $amd $apparm $appamd"
+
+for f in $all; do
 	[ -f "$DIST/$f" ] || {
 		echo "make-formula: нет $DIST/$f" >&2
-		echo "              выпуск - это ОБЕ архитектуры; одна из них не собралась" >&2
-		echo "              или её артефакт не доехал." >&2
+		echo "              выпуск - это ОБЕ архитектуры в ОБЕИХ формах;" >&2
+		echo "              что-то не собралось или артефакт не доехал." >&2
 		exit 1
 	}
 done
@@ -63,16 +70,16 @@ done
 sha_arm=$(sha256 "$DIST/$arm")
 sha_amd=$(sha256 "$DIST/$amd")
 
-{
-	echo "$sha_arm  $arm"
-	echo "$sha_amd  $amd"
-} > "$DIST/SHA256SUMS"
+: > "$DIST/SHA256SUMS"
+for f in $all; do
+	echo "$(sha256 "$DIST/$f")  $f" >> "$DIST/SHA256SUMS"
+done
 
 echo "контрольные суммы:"
 sed 's/^/  /' "$DIST/SHA256SUMS"
 echo
 echo "размеры:"
-for f in "$arm" "$amd"; do
+for f in $all; do
 	echo "  $f  $(wc -c < "$DIST/$f" | tr -d ' ') байт"
 done
 

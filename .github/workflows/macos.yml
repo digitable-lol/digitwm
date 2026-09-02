@@ -111,73 +111,6 @@ jobs:
           echo
           echo "предупреждений компилятора: $(grep -c 'warning:' "$RUNNER_TEMP/build.log" || true)"
 
-      # ОПЫТ, А НЕ ПРОВЕРКА. Первая сборка на маке показала, что codesign
-      # подписал не файл, а каталог: «Format=app bundle», «Sealed Resources
-      # ... files=42», и рядом завёлся macos/_CodeSignature/. Подозреваемый -
-      # вшитый Info.plist: он объявляет CFBundlePackageType=APPL и
-      # CFBundleExecutable=digitwm, то есть говорит про себя, что он пакет.
-      # Четыре случая ниже разделяют догадки; шаг ничего не требует и упасть
-      # не может - он только печатает.
-      - name: Опыт с подписью - что именно делает codesign
-        continue-on-error: true
-        run: |
-          set +e
-          plist=macos/Info.plist
-          obj="$RUNNER_TEMP/opyt"
-          rm -rf "$obj"; mkdir -p "$obj/odin" "$obj/mnogo" "$obj/bez"
-
-          say() { echo; echo "===== $1 ====="; }
-
-          # 1. Файл один в пустом каталоге.
-          cp macos/digitwm "$obj/odin/digitwm"
-          codesign --force --sign - "$obj/odin/digitwm"
-          say "1. один в пустом каталоге"
-          codesign -dvv "$obj/odin/digitwm" 2>&1
-          codesign --verify --verbose=2 "$obj/odin/digitwm" 2>&1
-          echo "_CodeSignature рядом: $(ls -d "$obj/odin/_CodeSignature" 2>/dev/null || echo нет)"
-
-          # 2. Тот же файл среди соседей - как в /usr/local/bin.
-          cp macos/digitwm "$obj/mnogo/digitwm"
-          : > "$obj/mnogo/sosed1"; : > "$obj/mnogo/sosed2"
-          codesign --force --sign - "$obj/mnogo/digitwm"
-          say "2. среди соседей"
-          codesign -dvv "$obj/mnogo/digitwm" 2>&1
-          codesign --verify --verbose=2 "$obj/mnogo/digitwm" 2>&1
-          echo "_CodeSignature рядом: $(ls -d "$obj/mnogo/_CodeSignature" 2>/dev/null || echo нет)"
-
-          # 3. Подписан один, потом положен к соседям: так и делает bin.install.
-          cp "$obj/odin/digitwm" "$obj/mnogo/perenesyonnyj"
-          say "3. подписан в одиночестве, проверен среди соседей"
-          codesign --verify --verbose=2 "$obj/mnogo/perenesyonnyj" 2>&1
-
-          # 4. Тот же двоичный файл, но с Info.plist БЕЗ CFBundlePackageType и
-          #    CFBundleExecutable - то есть без двух ключей, которыми плист
-          #    объявляет себя пакетом. CFBundleIdentifier остаётся: разрешение
-          #    Accessibility система помнит по нему.
-          /usr/libexec/PlistBuddy -c "Delete :CFBundlePackageType" \
-              -c "Delete :CFBundleExecutable" \
-              -c "Save" "$obj/bez.plist" 2>/dev/null
-          cp "$plist" "$obj/bez.plist"
-          /usr/libexec/PlistBuddy -c "Delete :CFBundlePackageType" "$obj/bez.plist"
-          /usr/libexec/PlistBuddy -c "Delete :CFBundleExecutable" "$obj/bez.plist"
-          make -C macos clean >/dev/null 2>&1
-          cp "$obj/bez.plist" macos/Info.plist
-          make -C macos OBJDIR="$obj/bez/obj" PROG="$obj/bez/digitwm" >"$obj/bez.log" 2>&1
-          echo "сборка без двух ключей: код $?"
-          tail -20 "$obj/bez.log"
-          : > "$obj/bez/sosed"
-          say "4. Info.plist без CFBundlePackageType и CFBundleExecutable"
-          codesign -dvv "$obj/bez/digitwm" 2>&1
-          codesign --verify --verbose=2 "$obj/bez/digitwm" 2>&1
-          echo "_CodeSignature рядом: $(ls -d "$obj/bez/_CodeSignature" 2>/dev/null || echo нет)"
-          "$obj/bez/digitwm" -k | head -3
-
-          # Вернуть дерево как было и пересобрать, чтобы дальше шло по-честному.
-          git checkout -- macos/Info.plist
-          make -C macos clean >/dev/null 2>&1
-          make -C macos >/dev/null 2>&1
-          echo; echo "дерево возвращено: $(git status --porcelain | wc -l | tr -d ' ') правок"
-
       - name: Что именно собралось
         run: |
           cd macos
@@ -199,7 +132,16 @@ jobs:
           mkdir -p "$RUNNER_TEMP/lone"
           cp digitwm "$RUNNER_TEMP/lone/digitwm"
           codesign -dvv "$RUNNER_TEMP/lone/digitwm" 2>&1
-          codesign --verify --verbose=2 "$RUNNER_TEMP/lone/digitwm" 2>&1 || true
+          codesign --verify --verbose=2 "$RUNNER_TEMP/lone/digitwm" 2>&1
+          # Опыт на бегунке 2 сентября 2026 показал, где проходит граница:
+          # подписанный в пустом каталоге файл получает «Format=Mach-O thin»,
+          # «Sealed Resources=none» и проверяется среди любых соседей; тот же
+          # файл, подписанный рядом с Info.plist, получает «Format=app bundle»
+          # и печать на 42 файла каталога. Требуется первое.
+          if codesign -dvv "$RUNNER_TEMP/lone/digitwm" 2>&1 | grep -q 'Format=.*bundle'; then
+            echo "подпись запечатала каталог, а не файл" >&2
+            exit 1
+          fi
           # И каталог остался чистым: _CodeSignature - след ровно той ошибки.
           if [ -e _CodeSignature ]; then
             echo "codesign оставил macos/_CodeSignature - подпись пакетная" >&2
@@ -281,6 +223,38 @@ jobs:
           # Отказ здесь - ожидаемый и единственно честный исход: разрешения
           # нет. Мы требуем не успеха, а того, чтобы отказ был НАЗВАН.
           grep -q 'Accessibility' "$RUNNER_TEMP/doctor.txt"
+
+      # Пакет .app - вторая форма того же файла. Собирается здесь же и
+      # спрашивается тем же: если бы LSUIElement или подпись пакета ломали
+      # что-нибудь из отвечающего без разрешения, узнать об этом надо тут.
+      - name: Пакет .app и тот же вопрос изнутри пакета
+        run: |
+          make -C macos app
+          ls -l macos/digitwm.app/Contents/MacOS/digitwm
+          echo "--- Info.plist пакета ---"
+          plutil -p macos/digitwm.app/Contents/Info.plist
+          echo "--- подпись пакета ---"
+          codesign -dvv macos/digitwm.app 2>&1
+          codesign --verify --deep --strict --verbose=2 macos/digitwm.app 2>&1
+          echo "--- тот же файл байт в байт? ---"
+          cmp macos/digitwm macos/digitwm.app/Contents/MacOS/digitwm && echo "да"
+          echo "--- изнутри пакета отвечает так же ---"
+          ./macos/digitwm.app/Contents/MacOS/digitwm -k | head -2
+          set +e
+          perl -e 'alarm 60; exec @ARGV' -- \
+            ./macos/digitwm.app/Contents/MacOS/digitwm -N \
+            > "$RUNNER_TEMP/doctor-app.txt" 2>&1
+          echo "код возврата -N из пакета: $?"
+          set -e
+          cat "$RUNNER_TEMP/doctor-app.txt"
+          # Вопрос, ради которого пакет и заведён: одинаково ли отвечают на
+          # RegisterEventHotKey файл и пакет. LSUIElement не имеет права это
+          # ломать, и здесь видно, ломает или нет.
+          diff "$RUNNER_TEMP/doctor.txt" "$RUNNER_TEMP/doctor-app.txt" \
+            && echo "обход вызовов Apple из пакета и без него совпал дословно" \
+            || echo "РАЗОШЛИСЬ - разница выше"
+          make -C macos clean >/dev/null
+          make -C macos >/dev/null
 
       - name: Дерево чистое после сборки
         run: |
@@ -499,5 +473,7 @@ jobs:
             --verify-tag \
             "dist/digitwm-$v-darwin-arm64.tar.gz" \
             "dist/digitwm-$v-darwin-amd64.tar.gz" \
+            "dist/digitwm-app-$v-darwin-arm64.tar.gz" \
+            "dist/digitwm-app-$v-darwin-amd64.tar.gz" \
             dist/SHA256SUMS \
             dist/homebrew/digitwm.rb

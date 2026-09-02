@@ -48,27 +48,30 @@
 class Digitwm < Formula
   desc "Ribbon window manager for macOS: real windows, through the Accessibility API"
   homepage "https://digitable.life"
-  version "VERSION_PLACEHOLDER"
-  license "BSD-2-Clause"
-
   # Apple Silicon - основной адрес, объявленный безусловно. Intel-срез
   # подменяет его ниже. Безусловный url нужен потому, что без него Homebrew
   # падает ещё до проверок системы, и человек видит след вызовов вместо
   # объяснения.
+  #
+  # Порядок здесь не на вкус: url обязан стоять до version, version до sha256,
+  # sha256 до license. Это правило самой брю (FormulaAudit/ComponentsOrder), и
+  # оно проверяется на бегунке - `brew style` покраснел ровно на нём.
   url "https://github.com/digitable-lol/digitwm/releases/download/vVERSION_PLACEHOLDER/digitwm-VERSION_PLACEHOLDER-darwin-arm64.tar.gz"
+  version "VERSION_PLACEHOLDER"
   sha256 "SHA256_MACOS_ARM64_PLACEHOLDER"
+  license "BSD-2-Clause"
+
+  head do
+    url "https://github.com/digitable-lol/digitwm.git", branch: "main"
+    # Xcode нужен только этому пути: готовый двоичный файл уже собран.
+    depends_on xcode: :build
+  end
 
   on_macos do
     on_intel do
       url "https://github.com/digitable-lol/digitwm/releases/download/vVERSION_PLACEHOLDER/digitwm-VERSION_PLACEHOLDER-darwin-amd64.tar.gz"
       sha256 "SHA256_MACOS_AMD64_PLACEHOLDER"
     end
-  end
-
-  head do
-    url "https://github.com/digitable-lol/digitwm.git", branch: "main"
-    # Xcode нужен только этому пути: готовый двоичный файл уже собран.
-    depends_on xcode: :build
   end
 
   depends_on :macos

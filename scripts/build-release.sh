@@ -126,6 +126,7 @@ ZERO_AR_DATE=1
 export ZERO_AR_DATE
 
 name="digitwm-$version-darwin-$goarch"
+appname="digitwm-app-$version-darwin-$goarch"
 stamp=$(TZ=UTC date -r "$SOURCE_DATE_EPOCH" +%Y%m%d%H%M.%S)
 
 # Нижняя граница macOS. Без неё двоичный файл потребует ту версию системы, что
@@ -214,17 +215,61 @@ cp LICENSE LICENSE.upstream NOTICE README.md README.ru.md VERSION \
 mkdir -p "$stage/doc"
 cp doc/macos-install.md doc/macos-install.ru.md "$stage/doc/"
 
-find "$stage" -print0 | xargs -0 env TZ=UTC touch -t "$stamp"
-(cd "$DIST" && find "$name" | LC_ALL=C sort > "$DIST/.files")
-COPYFILE_DISABLE=1 tar --format ustar --uid 0 --gid 0 --numeric-owner \
-    --no-mac-metadata -n -C "$DIST" -T "$DIST/.files" -cf - \
-    | gzip -9 -n > "$DIST/$name.tar.gz"
-rm -f "$DIST/.files"
-rm -rf "$stage"
+# pack <имя каталога в dist> - собрать из него .tar.gz, повторимо
+pack() {
+	find "$DIST/$1" -print0 | xargs -0 env TZ=UTC touch -t "$stamp"
+	(cd "$DIST" && find "$1" | LC_ALL=C sort > "$DIST/.files")
+	COPYFILE_DISABLE=1 tar --format ustar --uid 0 --gid 0 --numeric-owner \
+	    --no-mac-metadata -n -C "$DIST" -T "$DIST/.files" -cf - \
+	    | gzip -9 -n > "$DIST/$1.tar.gz"
+	rm -f "$DIST/.files"
+	rm -rf "$DIST/$1"
+	echo "архив           $DIST/$1.tar.gz ($(wc -c < "$DIST/$1.tar.gz" | tr -d ' ') байт)"
+	shasum -a 256 "$DIST/$1.tar.gz" | sed "s|$DIST/||" > "$DIST/$1.sha256"
+	sed 's/^/  /' "$DIST/$1.sha256"
+}
 
-echo "архив           $DIST/$name.tar.gz ($(wc -c < "$DIST/$name.tar.gz" | tr -d ' ') байт)"
-shasum -a 256 "$DIST/$name.tar.gz" | sed "s|$DIST/||" > "$DIST/$name.sha256"
-sed 's/^/  /' "$DIST/$name.sha256"
+# --- второй архив: тот же файл в пакете .app ------------------------------
+#
+# Пакет собирается ПОСЛЕ повторимой сборки и из неё же: внутри лежит тот самый
+# двоичный файл, байт в байт. Отдельным архивом, а не в том же, потому что это
+# два разных способа поставить одну программу, и человек выбирает один.
+#
+# Зачем он вообще: запущенный из терминала digitwm разрешения Accessibility на
+# себя не получает - система приписывает его тому, кто запустил. Владелец
+# наступил на это первым же запуском на настоящем маке 2 сентября 2026.
+# Приложение из /Applications - само себе хозяин.
+
+appstage="$DIST/$appname"
+mkdir -p "$appstage"
+printf '%-28s' "пакет .app"
+make -C "$root/macos" \
+    OBJDIR="$DIST/.objapp" \
+    PROG="$stage/digitwm" \
+    APPDIR="$appstage/digitwm.app" \
+    CFLAGS="$release_cflags" \
+    app >"$DIST/.app.log" 2>&1 || {
+	echo
+	echo "build-release: пакет не собрался:" >&2
+	cat "$DIST/.app.log" >&2
+	exit 1
+}
+rm -rf "$DIST/.objapp" "$DIST/.app.log"
+echo "собран, подпись проверена --deep --strict"
+cp LICENSE LICENSE.upstream NOTICE VERSION "$appstage/"
+mkdir -p "$appstage/doc"
+cp doc/macos-install.md doc/macos-install.ru.md "$appstage/doc/"
+
+# ОТПЕЧАТОК ПОДПИСИ - число, ради которого стоит смотреть. Разрешение
+# Accessibility система помнит по нему; одинаковый отпечаток у двух сборок
+# одного коммита значит, что переустановка той же версии разрешения не теряет.
+echo
+echo "отпечаток подписи (cdhash) - по нему macOS помнит разрешение:"
+codesign -d --verbose=4 "$stage/digitwm" 2>&1 | grep -i 'CDHash\|Signature=' | sed 's/^/  /'
+
+pack "$name"
+echo
+pack "$appname"
 
 # --- самопроверка ---------------------------------------------------------
 #
@@ -311,5 +356,34 @@ grep -q '^\.Dt CWMRC 5$' "$probe/$name/cwmrc.5" || {
 }
 echo "  cwmrc.5: на месте, раздел 5"
 
+# 7. И пакет: тот же двоичный файл внутри отвечает так же, подпись пакета
+#    цела, LSUIElement на месте - без него в Dock завелась бы иконка
+#    программы, у которой нет ни одного своего окна.
+tar -C "$probe" -xzf "$DIST/$appname.tar.gz"
+appbin="$probe/$appname/digitwm.app/Contents/MacOS/digitwm"
+[ -x "$appbin" ] || {
+	echo "build-release: в пакете нет исполняемого файла" >&2
+	exit 1
+}
+codesign --verify --deep --strict "$probe/$appname/digitwm.app" || {
+	echo "build-release: подпись пакета не пережила упаковку" >&2
+	exit 1
+}
+/usr/libexec/PlistBuddy -c "Print :LSUIElement" \
+    "$probe/$appname/digitwm.app/Contents/Info.plist" | grep -qx true || {
+	echo "build-release: в пакете нет LSUIElement - он заведёт иконку в Dock" >&2
+	exit 1
+}
+"$appbin" -k | grep -q 'bind-key' || {
+	echo "build-release: файл в пакете не отвечает на -k" >&2
+	exit 1
+}
+if ! cmp -s "$bin" "$appbin"; then
+	echo "build-release: файл в пакете НЕ тот же, что рядом с ним" >&2
+	exit 1
+fi
+echo "  пакет: подпись цела, LSUIElement=true, внутри тот же файл байт в байт"
+
 echo
 echo "готово: $DIST/$name.tar.gz"
+echo "        $DIST/$appname.tar.gz"

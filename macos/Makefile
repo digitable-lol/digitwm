@@ -17,6 +17,9 @@
 # с лентой поверх X11.
 #
 #   make                собрать ./digitwm
+#   make app            собрать ./digitwm.app - тот же файл в пакете, с
+#                       LSUIElement; нужен затем, что запущенный из терминала
+#                       digitwm разрешения на себя не получает вовсе (см. ниже)
 #   make install        поставить в ${PREFIX}/bin (по умолчанию /usr/local)
 #   make SIGNID=...     подписать своим удостоверением, а не ad-hoc - читайте
 #                       про это в doc/macos-install.md, там объяснено, почему
@@ -38,6 +41,7 @@ PROG=		digitwm
 PREFIX?=	/usr/local
 CC?=		cc
 OBJDIR?=	obj
+APPDIR?=	${PROG}.app
 
 # Ad-hoc по умолчанию, потому что для сборки из исходников больше нечего
 # предположить. Цена ad-hoc названа в doc/macos-install.md: разрешение
@@ -146,19 +150,55 @@ ${PROG}: ${OBJS} Info.plist
 	    -Wl,-sectcreate,__TEXT,__info_plist,Info.plist
 	codesign --force --sign "${SIGNID}" ${OBJDIR}/digitwm
 	@codesign -dvv ${OBJDIR}/digitwm 2>&1 | sed 's/^/  подпись: /'
-	@if [ -e ${OBJDIR}/_CodeSignature ] || [ -e _CodeSignature ]; then \
-		echo "codesign завёл _CodeSignature: подпись вышла подписью КАТАЛОГА," >&2; \
-		echo "а она обязана быть вложенной в файл - иначе не переживёт" >&2; \
-		echo "ни bin.install, ни упаковку в архив." >&2; \
+	@if codesign -dvv ${OBJDIR}/digitwm 2>&1 | grep -q 'Format=.*bundle' || \
+	    [ -e ${OBJDIR}/_CodeSignature ] || [ -e _CodeSignature ]; then \
+		echo "codesign подписал КАТАЛОГ, а не файл: он ищет в каталоге" >&2; \
+		echo "Info.plist с CFBundleExecutable=digitwm и, найдя, считает" >&2; \
+		echo "каталог старым бесструктурным пакетом. Подпись обязана быть" >&2; \
+		echo "вложенной в файл - иначе не переживёт ни bin.install, ни" >&2; \
+		echo "упаковку в архив." >&2; \
 		exit 1; \
 	fi
 	cp ${OBJDIR}/digitwm ${PROG}
+
+# ПАКЕТ .app - ВТОРАЯ ФОРМА ТОГО ЖЕ ФАЙЛА, а не другая программа. Внутри
+# лежит ровно тот двоичный файл, что собран выше, байт в байт; разница
+# снаружи, и она ровно в двух вещах.
+#
+# 1. КОМУ macOS ПРИПИСЫВАЕТ РАЗРЕШЕНИЕ. Запущенный из терминала digitwm прав на
+#    себя не получает: система приписывает их тому, кто его запустил. Владелец
+#    напоролся на это первым же запуском на настоящем маке 2 сентября 2026:
+#    разрешение выдано digitwm, а digitwm по-прежнему говорит, что его нет.
+#    Приложение, запущенное из /Applications, - само себе хозяин, и разрешение
+#    даётся ему. Это и есть довод за пакет; всё остальное - удобство.
+#
+# 2. LSUIElement. Единственный ключ, который добавляется к Info.plist здесь, а
+#    не лежит в нём: пакет без него завёл бы иконку в Dock и строку меню, а у
+#    digitwm нет своего окна - он расставляет чужие. Ключ добавляется, а не
+#    хранится вторым файлом: два плиста разошлись бы молча, а CFBundleIdentifier
+#    в них обязан совпадать - по нему система помнит разрешение.
+#
+# ЧЕГО ПАКЕТ НЕ ЧИНИТ, и это надо говорить вслух: разрешение помнится по
+# ПОДПИСИ, а ad-hoc-подпись - хеш содержимого. Пересобрал - другая подпись -
+# спрашивают заново, хоть в пакете, хоть без. Лечится только постоянным
+# удостоверением (SIGNID=...), и пакет здесь ни при чём.
+app: ${APPDIR}
+
+${APPDIR}: ${PROG} Info.plist
+	rm -rf ${APPDIR}
+	mkdir -p ${APPDIR}/Contents/MacOS
+	cp Info.plist ${APPDIR}/Contents/Info.plist
+	/usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" \
+	    ${APPDIR}/Contents/Info.plist
+	cp ${PROG} ${APPDIR}/Contents/MacOS/digitwm
+	codesign --force --sign "${SIGNID}" ${APPDIR}
+	codesign --verify --deep --strict ${APPDIR}
 
 install: ${PROG}
 	install -d ${DESTDIR}${PREFIX}/bin
 	install -m 755 ${PROG} ${DESTDIR}${PREFIX}/bin
 
 clean:
-	rm -rf ${OBJDIR} ${PROG} _CodeSignature
+	rm -rf ${OBJDIR} ${PROG} ${APPDIR} _CodeSignature
 
-.PHONY: all install clean
+.PHONY: all app install clean
