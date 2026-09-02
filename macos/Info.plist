@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+	SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
+	SPDX-License-Identifier: ISC
+
+	Вшивается в секцию __TEXT,__info_plist самого исполняемого файла
+	(macos/Makefile, флаг -sectcreate), а не кладётся рядом в пакет.
+	Пакета нет намеренно: Accessibility API нельзя вызывать из песочницы,
+	песочница обязательна для Mac App Store, значит App Store закрыт, и
+	digitwm остаётся тем, чем является, - одним исполняемым файлом,
+	который ставится из brew (doc/macos.md, раздел «Delivery»).
+
+	CFBundleIdentifier здесь не украшение: разрешение Accessibility
+	система запоминает по подписи и по этому имени. Менять его - значит
+	просить у пользователя разрешение заново.
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>life.digitable.digitwm</string>
+	<key>CFBundleName</key>
+	<string>digitwm</string>
+	<key>CFBundleExecutable</key>
+	<string>digitwm</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1</string>
+	<key>CFBundleVersion</key>
+	<string>0.1</string>
+</dict>
+</plist>

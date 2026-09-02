@@ -340,30 +340,65 @@ The plan above was written before there was any code. There is code now, in
 with no macOS, and what waits for the owner's Mac. Two sentences elsewhere in
 this document — "not one line of the port exists" near the top, and the closing
 one — were brought in line with it and say nothing else new. The plan itself is
-unchanged, and the stages below stage 4 are still the stages.
+unchanged.
 
-**What was written: 3527 lines in `macos/`, 1991 of them code** (the rest is
+**The stages are no longer all ahead.** Stage 6 (input) and stage 7 (delivery)
+now have code: a key table over `RegisterEventHotKey`, a reader for the part of
+`cwmrc` that means anything here, a `make` that builds one binary, and a brew
+formula. What that does **not** mean is that either stage is done — a stage is
+done when the thing it promises can be seen happening, and neither has been
+seen, because neither has been run. Stages 1, 3, 4 and 5 still wait for the
+same Mac they always waited for, and stage 1 is still what the stop thresholds
+are measured against. What a person with a Mac types, sees, and finds broken is
+[macos-install.md](macos-install.md).
+
+**What was written: 6448 lines in `macos/`, 3617 of them code** (the rest is
 commentary, as everywhere in this tree). Not one line of `ribbon.c` and not
 one line of `calmwm.h` was touched, and the X11 build still ends with the
 same four warnings it ended with before.
 
+The two numbers are taken with commands rather than by hand, because the last
+time they were not, they drifted:
+
+```sh
+cat macos/* | wc -l                       # lines
+grep -hv '^[[:space:]]*$' macos/* |       # of them, code: not blank and
+    grep -cvE '^[[:space:]]*(\*|/\*|\*/|#([[:space:]]|!|$))'   # not wholly a comment
+```
+
+The second one is new here. The code column below was re-taken with it,
+every row, because the figures it replaces were produced by a command nobody
+wrote down and no command reproduces them: the contract row comes out at 548
+either way, and `stub-build.sh` and `wsi_ax.m` do not.
+
 | Part | Files | Lines | Code | Checked where |
 |---|---|---|---|---|
 | the contract, platform-independent | `wsi_platform.h`, `wsi_core.h`, `wsi_core.c` | 1131 | 548 | here |
-| the check: a window system of memory, and a harness | `wsi_fake.h`, `wsi_fake.c`, `wsicheck.c`, `check.sh` | 1416 | 947 | here |
-| the Accessibility layer | `wsi_ax.m` | 749 | 371 | **the Mac** |
-| agreeing that layer with the API | `stub-build.sh` | 198 | 116 | here |
-| building it on a Mac | `Makefile` | 33 | 9 | **the Mac** |
-| | | **3527** | **1991** | **2745 here, 782 waiting** |
+| the entry point, and cwmrc | `wsi_conf.h`, `wsi_conf.c`, `wsi_run.h`, `wsi_run.c`, `wsi_main.c` | 1475 | 929 | here |
+| the check: a window system of memory, and two harnesses | `wsi_fake.h`, `wsi_fake.c`, `wsicheck.c`, `runcheck.c`, `check.sh`, `fakex.sh` | 1928 | 1266 | here |
+| the keyboard contract | `wsi_key.h` | 100 | 11 | here |
+| agreeing the two Objective-C files with the API | `stub-build.sh` | 299 | 177 | here |
+| the Accessibility layer | `wsi_ax.m` | 955 | 430 | **the Mac** |
+| the keyboard layer | `wsi_key.m` | 329 | 128 | **the Mac** |
+| building it and delivering it | `Makefile`, `Info.plist`, `digitwm.rb` | 231 | 128 | **the Mac** |
+| | | **6448** | **3617** | **4933 here, 1515 waiting** |
 
 The split is one header, `macos/wsi_platform.h`: eleven calls down into
-macOS, five notices up out of it. Everything else — which window belongs to
-which column, which move is ours and which is the user's, where a parked
-window goes, how the displays become the region list — is above that line,
-in ordinary C, and is checked here. Of the 2500–4000 lines
-`portability.md` estimates for the input/output layer, **1880 now exist**
-(1131 above the line, 749 below); hotkeys, configuration and delivery are
-not among them.
+macOS, five notices up out of it. There is now a second and much smaller one,
+`macos/wsi_key.h` — three calls down, one notice up — and it is drawn for the
+same reason and in the same place: above it, ordinary C that is checked here;
+below it, an API that exists only on a Mac. Everything else — which window
+belongs to which column, which move is ours and which is the user's, where a
+parked window goes, how the displays become the region list, which key means
+which command, what of a `cwmrc` is read — is above those lines, in ordinary
+C, and is checked here. Of the 2500–4000 lines `portability.md` estimates for
+the input/output layer, **3990 now exist** — 2706 above the two seams
+(1131 + 1475 + 100) and 1284 below them (955 + 329) — which is over the
+estimate, and the overshoot is the two things the estimate did not price:
+reading a configuration written for another window system, and taking a key
+away from every application on the machine. Hotkeys, configuration and
+delivery are no longer missing. What they cost is the second seam, one more
+Objective-C file, and the list of Apple names below.
 
 **The check, and its numbers** — `make macos-check`, or the two scripts by
 hand:
@@ -390,30 +425,81 @@ with `cwm -C 'layout-probe layout ...'`. It is the proof
   cells): **20 notices recognised as ours, 0 taken as foreign**, 6 windows
   end up a few pixels off the model, and the ribbon does not argue.
 
-`sh macos/stub-build.sh` compiles `wsi_ax.m` against a stub of
-ApplicationServices and AppKit with `-Wall -Wextra -Werror`. The
+The same script then runs the part that stands between the ribbon and a
+person, and did not exist when the list above was written: the start-up
+sequence, the reading of a `cwmrc`, and the dispatch of a pressed key — the
+same `macos/wsi_run.c` and `macos/wsi_conf.c` that go into the binary — over
+the same window system of memory.
+
+- a sample `cwmrc` of **12 directives: 6 taken, 5 X11's alone (each named,
+  with the reason), 1 not understood**;
+- **6 windows into 6 columns, 0 adrift** from what the model decided;
+- **16 bindings, 1 refused and named out loud**, because a system that
+  refuses a combination somebody else holds is the ordinary case and a key
+  that silently does nothing is indistinguishable from a broken manager;
+- a key moves the focus one column, a key widens a column, a key carries a
+  window into the next one, "quit" stops the loop;
+- somebody else's move comes back to where the model says, which is the
+  difference between arranging windows once and being a window manager;
+- a second display appears and a second ribbon appears with it.
+
+And it **links the whole binary**: the real `main()` and every object file
+`macos/Makefile` builds, with exactly two replaced — `wsi_ax.m` and
+`wsi_key.m`, for which there is the window system of memory and a fake
+keyboard. That is the most of "does it build on a Mac" that can be answered
+without one, and it is worth saying what it is: the object graph is complete
+and closes. It is not a Mac build and does not pretend to be.
+
+`sh macos/stub-build.sh` compiles `wsi_ax.m` and `wsi_key.m` against stubs of
+ApplicationServices, AppKit and Carbon with `-Wall -Wextra -Werror`. The
 Accessibility half of that stub is **cut out of
 `tools/macos-flicker/stub-build.sh`, not copied** — 98 lines — so the two
 files cannot drift into disagreeing about the same API. The check is
-falsifiable and was falsified on purpose: an extra argument to
-`AXUIElementSetMessagingTimeout` fails at `wsi_ax.m:377`.
+falsifiable and was falsified on purpose, twice: an extra argument to
+`AXUIElementSetMessagingTimeout` fails at `wsi_ax.m:377`, and `kVK_ANSI_H`
+misspelt as `kVK_ANSI_HH` fails at `wsi_key.m:122`.
 
-**The 56 Apple names, by how well this tree knows them.** Each is marked at
-its call site, and the third list is what to go down first on the first Mac:
+**The Apple names, by how well this tree knows them.** Each is marked at its
+call site, and the third list is what to go down first on the first Mac. The
+list was 56 names and 15 of them were confirmed by nothing; it is now 134
+names and **4** are confirmed by nothing, and both halves of that change are
+worth setting out.
+
+*What made the list longer:* taking a key. `macos/wsi_key.m` adds 77 Apple
+names — 19 of the Carbon Event Manager and its modifier masks, 55 virtual key
+codes, 3 of AppKit — and until it was written this tree had never touched the
+keyboard. `macos/wsi_ax.m` adds one more, `CFRunLoopRemoveSource`.
+
+*What made the unconfirmed list shorter:* looking the names up in Apple's own
+documentation, which nobody had done. Eleven of the fifteen came out of it
+with a page that gives the declaration this port uses — `CFEqual`,
+`AXObserverRemoveNotification`, `kAXMainAttribute`, `kAXFrontmostAttribute`,
+`NSApplicationActivationPolicyRegular`, `+[NSScreen screens]`, `-frame`,
+`-localizedName`, `+[NSWorkspace sharedWorkspace]`, `-runningApplications`,
+`-[NSRunningApplication processIdentifier]` and `-activationPolicy` — which
+is a stronger citation than [2] asks for, so they are [2] with the page named
+instead of the header.
 
 - **[1] — 32 names**, plus the signature of `AXObserverCallback`: already
   transcribed in this tree, in the stub `axcost.c` has been compiling
   against since it was written;
-- **[2] — 9 names**: cited in `portability.md` by header and line
-  (`AXUIElement.h:204`, `AXNotificationConstants.h:113,123,133,194`) or by
-  an open manager and a line (yabai `src/window_manager.c:1324-1335`) —
-  which confirms the call exists and does this job, and not its argument
-  list;
-- **[3] — 15 names**: confirmed by nothing here. `CFEqual`,
-  `AXObserverRemoveNotification`, `kAXMainAttribute`,
-  `kAXFrontmostAttribute`, `NSApplicationActivationPolicyRegular`, and ten
-  AppKit selectors — `portability.md` cites NSWorkspace as the way to learn
-  of applications and not one selector of it.
+- **[2] — 98 names**: cited by header and line in `portability.md`, or by an
+  Apple documentation page that gives the declaration. The whole Carbon half
+  is here on a weaker footing than the rest and says so at the call: Apple
+  has **retired** the Carbon Event Manager reference, and the one page that
+  still lists these symbols prints them in their *Swift* projection — so the
+  parameter types and their order are Apple's, and the C declarations are
+  published nowhere Apple still hosts;
+- **[3] — 4 names**: confirmed by nothing here. `CFRunLoopRemoveSource` (the
+  exact mirror of the [1] `CFRunLoopAddSource`), `-[NSString UTF8String]`,
+  `-[NSArray count]`, `-[NSArray objectAtIndex:]`.
+
+**And one thing that is documented nowhere at all, which is worse than a
+grade [3] name:** whether a command-line program with no application bundle
+receives Carbon hot key events. Apple says neither yes nor no. If the answer
+is no, the keys register and never arrive, and
+[macos-install.md](macos-install.md) says what the symptom looks like and
+what the remedy costs.
 
 `_SLPSSetFrontProcessWithOptions` is **not called at all**, though
 `portability.md` names it: it is a private SkyLight entry point that no
@@ -455,9 +541,10 @@ every move on the way out and dropping the tagged notifications on the way
 in, which is the mechanism `wsi.h:257` prescribes for a window system with
 no round trip.
 
-**What is still not checked, and cannot be here:** whether the stub is
-right; that `wsi_ax.m` compiles against Apple's own headers; that it runs at
-all; every number about the real thing — the flicker, the cost of a round
+**What is still not checked, and cannot be here:** whether the stubs are
+right; that `wsi_ax.m` or `wsi_key.m` compiles against Apple's own headers;
+that `macos/Makefile` runs; that a hot key ever arrives; that the brew formula
+installs; every number about the real thing — the flicker, the cost of a round
 trip, whether a geometry write silently fails. The windows in
 `macos/wsi_fake.c` are four numbers in an array, and no figure above is a
 measurement of macOS.

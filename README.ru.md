@@ -102,6 +102,7 @@ python3 tools/check-licensing.py                # лицензионный шл�
 | [doc/themes.ru.md](doc/themes.ru.md) | откуда установщик берёт темы Workbench: три источника и граница «молча из сети не тянем» |
 | [doc/portability.ru.md](doc/portability.ru.md) | что здесь X11, а что арифметика — с числами — и во что обошёлся бы перенос на macOS |
 | [doc/macos.ru.md](doc/macos.ru.md) | план переноса на macOS: этапы, чего на маке не будет поимённо и при каких числах перенос закрывают |
+| [doc/macos-install.ru.md](doc/macos-install.ru.md) | поставить на мак и запустить: одно разрешение, клавиши, что читается из cwmrc и какой вызов Apple откажет первым |
 | [doc/browser.ru.md](doc/browser.ru.md) | что из этого можно показать в браузере по-настоящему, а что нельзя |
 | [doc/terminal.ru.md](doc/terminal.ru.md) | спецификация ленты в терминале: что переносится, чего не будет и чем это проверять |
 | [fts/README.ru.md](fts/README.ru.md) | модели, харнессы и то, где они кончаются |
