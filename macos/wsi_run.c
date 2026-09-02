@@ -343,8 +343,30 @@ wsi_run_step(double ms)
 {
 	const struct wsi_stats	*st = wsi_core_stats();
 	unsigned long		 before = st->echo_foreign;
+	static unsigned long	 turns, notices;
+	int			 got;
 
-	(void)wsip_pump(ms);
+	got = wsip_pump(ms);
+
+	/*
+	 * A heartbeat, and it exists for one question: when a person says
+	 * "I press the key and nothing happens", is the loop even turning?
+	 *
+	 * Without this, a trace that shows no "carbon: handler entered" has
+	 * two readings - the press did not arrive, or the process is wedged -
+	 * and they call for opposite fixes.  One line every fifty turns
+	 * (a second, at 20 ms a turn) tells them apart and costs nothing when
+	 * the trace is off.
+	 */
+	if (wsi_trace_want) {
+		turns++;
+		notices += (got > 0) ? (unsigned long)got : 0;
+		if (turns % 50 == 0)
+			wsi_trace("loop: %lu turns, %lu notice(s) from the "
+			    "platform, %lu window(s) on the ribbon - the run "
+			    "loop is turning", turns, notices,
+			    wsi_core_stats()->opened);
+	}
 
 	/*
 	 * Somebody moved one of our windows and it was not us.  wsi_note_frame()
