@@ -118,13 +118,30 @@ jobs:
           file digitwm
           lipo -archs digitwm
           otool -L digitwm
-          echo "--- подпись ---"
-          codesign -dvv digitwm 2>&1
-          codesign --verify --verbose=2 digitwm 2>&1
           echo "--- Info.plist в секции __TEXT,__info_plist ---"
           otool -X -s __TEXT __info_plist digitwm | head -5
           echo "--- минимальная версия macOS ---"
           otool -l digitwm | grep -A4 LC_BUILD_VERSION | head -8 || true
+          # Подпись проверяется на копии в пустом каталоге, а не здесь: рядом
+          # лежит Info.plist, и codesign от одного его присутствия начинает
+          # разговаривать про пакет, а не про файл. Это и есть та ловушка,
+          # из-за которой цель в macos/Makefile подписывает в ${OBJDIR}.
+          echo "--- подпись, как её видит codesign рядом с Info.plist ---"
+          codesign -dvv digitwm 2>&1 || true
+          echo "--- подпись файла, вынесенного из каталога ---"
+          mkdir -p "$RUNNER_TEMP/lone"
+          cp digitwm "$RUNNER_TEMP/lone/digitwm"
+          codesign -dvv "$RUNNER_TEMP/lone/digitwm" 2>&1
+          codesign --verify --verbose=2 "$RUNNER_TEMP/lone/digitwm" 2>&1
+          if codesign -dvv "$RUNNER_TEMP/lone/digitwm" 2>&1 | grep -q 'Sealed Resources'; then
+            echo "подпись запечатала каталог, а не файл" >&2
+            exit 1
+          fi
+          # И каталог остался чистым: _CodeSignature - след ровно той ошибки.
+          if [ -e _CodeSignature ]; then
+            echo "codesign оставил macos/_CodeSignature - подпись снова пакетная" >&2
+            exit 1
+          fi
 
       # Ниже - всё, что можно спросить у этого двоичного файла БЕЗ разрешения
       # Accessibility. Разрешение даёт человек в System Settings; бегунок

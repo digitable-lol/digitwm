@@ -104,11 +104,21 @@ echo "собралась ($warn)"
 printf 'харнесс: runcheck.c:            '
 (cd "$root" && $CC -Wall -O2 -g -D_GNU_SOURCE $inc -c xmalloc.c \
     -o "$work/xmalloc.o")
+# reallocarray.c - вместе с xmalloc.c и только с ним: xmalloc.c зовёт
+# reallocarray(), и на Linux эту функцию даёт glibc (с 2.26), а на macOS её нет
+# ни в libSystem, ни где-либо ещё - оттого и лежит в дереве своя копия из
+# OpenBSD, которую macos/Makefile собирает в двоичный файл всегда. Здесь её не
+# было, и линковка молча держалась на glibc; первый же прогон этого скрипта на
+# маке встал на «Undefined symbols: _reallocarray». Скрипт, который на одной
+# системе проверяет, а на другой не собирается, проверяет не то, что обещает.
+(cd "$root" && $CC -Wall -O2 -g -D_GNU_SOURCE $inc -c reallocarray.c \
+    -o "$work/reallocarray.o")
 (cd "$root" && $CC $warn -O2 -g -D_GNU_SOURCE $inc -c macos/runcheck.c \
     -o "$work/runcheck.o")
 $CC -o "$root/macos/runcheck" "$work/ribbon.o" "$work/wsi_core.o" \
     "$work/wsi_fake.o" "$work/wsi_conf.o" "$work/confpath.o" "$work/wsi_run.o" \
-    "$work/runcheck.o" "$work/xmalloc.o" "$work/strlcpy.o" "$work/strlcat.o"
+    "$work/runcheck.o" "$work/xmalloc.o" "$work/strlcpy.o" "$work/strlcat.o" \
+    "$work/reallocarray.o"
 echo "собрался"
 
 # И полная сборка двоичного файла - того самого, с настоящим main(), - со
@@ -123,7 +133,7 @@ printf 'digitwm целиком (mac-цель, кроме двух .m):  '
 $CC -o "$work/digitwm-fake" "$work/wsi_main.o" "$work/ribbon.o" \
     "$work/wsi_core.o" "$work/wsi_conf.o" "$work/confpath.o" "$work/wsi_run.o" \
     "$work/wsi_fake.o" "$work/runfakes.o" "$work/xmalloc.o" \
-    "$work/strlcpy.o" "$work/strlcat.o"
+    "$work/strlcpy.o" "$work/strlcat.o" "$work/reallocarray.o"
 echo "слинковался"
 printf '  и отвечает: '
 "$work/digitwm-fake" -k | head -1
