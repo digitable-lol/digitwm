@@ -6,11 +6,11 @@ PROG=		cwm
 PREFIX?=	/usr/local
 
 SRCS=		calmwm.c screen.c xmalloc.c client.c menu.c \
-		search.c util.c xutil.c conf.c xevents.c group.c \
+		search.c util.c xutil.c conf.c confpath.c xevents.c group.c \
 		kbfunc.c ribbon.c probe.c parse.y
 
 OBJS=		calmwm.o screen.o xmalloc.o client.o menu.o \
-		search.o util.o xutil.o conf.o xevents.o group.o \
+		search.o util.o xutil.o conf.o confpath.o xevents.o group.o \
 		kbfunc.o ribbon.o probe.o strlcpy.o strlcat.o parse.o \
 		strtonum.o reallocarray.o
 		
@@ -28,7 +28,7 @@ all: ${PROG}
 
 # Every object sees the layout model through calmwm.h; without this a stale
 # object silently disagrees with the rest about the size of struct conf.
-${OBJS}: calmwm.h queue.h wsi.h
+${OBJS}: calmwm.h queue.h wsi.h confpath.h
 
 clean:
 	rm -f ${OBJS} ${PROG} parse.c

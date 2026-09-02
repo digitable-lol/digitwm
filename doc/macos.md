@@ -352,7 +352,7 @@ same Mac they always waited for, and stage 1 is still what the stop thresholds
 are measured against. What a person with a Mac types, sees, and finds broken is
 [macos-install.md](macos-install.md).
 
-**What was written: 6448 lines in `macos/`, 3617 of them code** (the rest is
+**What was written: 6502 lines in `macos/`, 3634 of them code** (the rest is
 commentary, as everywhere in this tree). Not one line of `ribbon.c` and not
 one line of `calmwm.h` was touched, and the X11 build still ends with the
 same four warnings it ended with before.
@@ -374,14 +374,14 @@ either way, and `stub-build.sh` and `wsi_ax.m` do not.
 | Part | Files | Lines | Code | Checked where |
 |---|---|---|---|---|
 | the contract, platform-independent | `wsi_platform.h`, `wsi_core.h`, `wsi_core.c` | 1131 | 548 | here |
-| the entry point, and cwmrc | `wsi_conf.h`, `wsi_conf.c`, `wsi_run.h`, `wsi_run.c`, `wsi_main.c` | 1475 | 929 | here |
-| the check: a window system of memory, and two harnesses | `wsi_fake.h`, `wsi_fake.c`, `wsicheck.c`, `runcheck.c`, `check.sh`, `fakex.sh` | 1928 | 1266 | here |
+| the entry point, and the configuration | `wsi_conf.h`, `wsi_conf.c`, `wsi_run.h`, `wsi_run.c`, `wsi_main.c` | 1507 | 939 | here |
+| the check: a window system of memory, and two harnesses | `wsi_fake.h`, `wsi_fake.c`, `wsicheck.c`, `runcheck.c`, `check.sh`, `fakex.sh` | 1938 | 1270 | here |
 | the keyboard contract | `wsi_key.h` | 100 | 11 | here |
 | agreeing the two Objective-C files with the API | `stub-build.sh` | 299 | 177 | here |
 | the Accessibility layer | `wsi_ax.m` | 955 | 430 | **the Mac** |
 | the keyboard layer | `wsi_key.m` | 329 | 128 | **the Mac** |
-| building it and delivering it | `Makefile`, `Info.plist`, `digitwm.rb` | 231 | 128 | **the Mac** |
-| | | **6448** | **3617** | **4933 here, 1515 waiting** |
+| building it and delivering it | `Makefile`, `Info.plist`, `digitwm.rb` | 243 | 131 | **the Mac** |
+| | | **6502** | **3634** | **4975 here, 1527 waiting** |
 
 The split is one header, `macos/wsi_platform.h`: eleven calls down into
 macOS, five notices up out of it. There is now a second and much smaller one,
@@ -392,8 +392,8 @@ belongs to which column, which move is ours and which is the user's, where a
 parked window goes, how the displays become the region list, which key means
 which command, what of a `cwmrc` is read — is above those lines, in ordinary
 C, and is checked here. Of the 2500–4000 lines `portability.md` estimates for
-the input/output layer, **3990 now exist** — 2706 above the two seams
-(1131 + 1475 + 100) and 1284 below them (955 + 329) — which is over the
+the input/output layer, **4022 now exist** — 2738 above the two seams
+(1131 + 1507 + 100) and 1284 below them (955 + 329) — which is over the
 estimate, and the overshoot is the two things the estimate did not price:
 reading a configuration written for another window system, and taking a key
 away from every application on the machine. Hotkeys, configuration and

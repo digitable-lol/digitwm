@@ -25,6 +25,14 @@
 #include <stdio.h>
 #include "queue.h"
 
+/*
+ * Which configuration file gets read, and in which order the candidates are
+ * tried, is one order shared by both builds; conf_src below is which of them
+ * this run took.  confpath.h has no X11 in it and is included here rather
+ * than in conf.c alone, because the field lives in struct conf.
+ */
+#include "confpath.h"
+
 /* prototypes for portable-included functions */
 char *fgetln(FILE *, size_t *);
 long long strtonum(const char *, long long, long long, const char **);
@@ -447,6 +455,7 @@ struct conf {
 	int			 xrandr;
 	int			 xrandr_event_base;
 	char			*conf_file;
+	enum confpath_src	 conf_src;	/* where conf_file came from */
 	char			*known_hosts;
 	char			*wm_argv;
 	int			 debug;

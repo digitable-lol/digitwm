@@ -2,9 +2,11 @@
 
 A scrollable-tiling window manager for X11: windows stand in columns on an
 endless horizontal ribbon, and the screen is a viewport that slides along it, so
-a new window pushes the ribbon instead of squeezing its neighbours. The binary,
-the configuration file and the manual pages keep cwm's names — `cwm`, `cwmrc`,
-`cwm(1)`, `cwmrc(5)`.
+a new window pushes the ribbon instead of squeezing its neighbours. The binary
+and the manual pages keep cwm's names — `cwm`, `cwm(1)`, `cwmrc(5)` — and so
+does the grammar of the configuration file; the file itself is ours,
+`~/.digitable/digitwm/digitwmrc`, with cwm's `~/.cwmrc` still read for anyone
+who arrived from cwm.
 
 **Русская версия: [README.ru.md](README.ru.md).**
 
@@ -39,7 +41,10 @@ display manager offers the session by name.
 ## Configure
 
 The session starts `cwm -c ~/.config/digitwm/cwmrc`; started on its own, `cwm`
-reads `~/.cwmrc`. Every setting is described in `cwmrc(5)`; the ribbon's own
+takes the first file that exists of `$DIGITWMRC`,
+`~/.digitable/digitwm/digitwmrc` and cwm's own `~/.cwmrc` — and when it is the
+last of those, it says so, once, on stderr. `cwm -n` prints the file it chose
+and stops. Every setting is described in `cwmrc(5)`; the ribbon's own
 settings, key bindings and commands are in [doc/ribbon.md](doc/ribbon.md) and
 [doc/commands.md](doc/commands.md). A configuration written for upstream cwm
 carries over unchanged; one that still uses the old command names goes through
@@ -78,7 +83,8 @@ the model first, the C fourth.
 | `ribbon.c` | the ribbon: columns, stacks, the viewport, insertion, focus. It names no X11 — the eleven things it asks of the window system are declared in `wsi.h` |
 | `probe.c` | `layout-probe`: the layout policy answered without opening a display |
 | `calmwm.c`, `client.c`, `screen.c`, `xevents.c`, `group.c`, `kbfunc.c`, `menu.c`, `search.c` | from cwm: clients, screens, events, groups, key bindings, menus |
-| `conf.c`, `parse.y` | defaults and the `cwmrc` parser |
+| `conf.c`, `parse.y` | defaults and the configuration parser |
+| `confpath.c` | which configuration file is read, and in which order the candidates are tried — the one file both the X11 and the macOS build compile |
 | `fts/` | the layout models and the harnesses over them. They run in CI, never inside the window manager |
 | `doc/` | the documents, each of them in two languages |
 | `session/` | the environment around the window manager, and its installer |

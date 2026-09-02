@@ -24,7 +24,6 @@
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
-#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -319,7 +318,7 @@ void
 conf_init(struct conf *c)
 {
 	const char	*home;
-	struct passwd	*pw;
+	char		 path[PATH_MAX];
 	unsigned int	i;
 
 	c->stickygroups = 0;
@@ -366,15 +365,16 @@ conf_init(struct conf *c)
 	c->font = xstrdup("sans-serif:pixelsize=14:bold");
 	c->wmname = xstrdup("CWM");
 
-	home = getenv("HOME");
-	if ((home == NULL) || (*home == '\0')) {
-		pw = getpwuid(getuid());
-		if (pw != NULL && pw->pw_dir != NULL && *pw->pw_dir != '\0')
-			home = pw->pw_dir;
-		else
-			home = "/";
-	}
-	xasprintf(&c->conf_file, "%s/%s", home, ".cwmrc");
+	/*
+	 * The file this run will read, unless -c names another one.  The
+	 * order - $DIGITWMRC, then ~/.digitable/digitwm/digitwmrc, then
+	 * cwm's own ~/.cwmrc - is in confpath.c, which the macOS build
+	 * compiles too: two copies of it would part company the first time
+	 * one of them was changed.
+	 */
+	home = confpath_home();
+	c->conf_src = confpath_find(path, sizeof(path));
+	c->conf_file = xstrdup(path);
 	xasprintf(&c->known_hosts, "%s/%s", home, ".ssh/known_hosts");
 }
 

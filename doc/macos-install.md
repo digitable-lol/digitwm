@@ -102,7 +102,7 @@ The price of that choice is written down rather than hidden:
   second privacy grant.
 - **macOS Sequoia refuses a hot key whose only modifiers are Shift and
   Option.** The default table below uses Control-Option throughout and is
-  unaffected; a `cwmrc` line like `bind-key M-h ...` is not, and digitwm warns
+  unaffected; a `digitwmrc` line like `bind-key M-h ...` is not, and digitwm warns
   at that line rather than letting the key be refused in silence.
 
 There is a third permission digitwm deliberately never asks for: **Screen
@@ -137,8 +137,9 @@ the X11 table would take Command-H, Command-J, Command-K, Command-L,
 Command-C, Command-F, Command-R, Command-minus and Command-equal away from the
 whole desk on its first run. Control-Option is what macOS itself leaves alone.
 
-You can have the X11 keys back by writing them in `~/.cwmrc`, where the
-modifier letters are the ones `cwmrc(5)` already uses:
+You can have the X11 keys back by writing them in
+`~/.digitable/digitwm/digitwmrc`, where the modifier letters are the ones
+`cwmrc(5)` already uses:
 
 | Letter | X11 | macOS |
 |---|---|---|
@@ -151,16 +152,31 @@ modifier letters are the ones `cwmrc(5)` already uses:
 A binding on Command alone gets one line of warning saying what it will do to
 the rest of the machine. It is still obeyed.
 
-## What of cwmrc is read
+## Which file is read, and what of it
 
-digitwm reads **the same `~/.cwmrc`** the X11 build reads, so one file
-describes both machines. It cannot read all of it. `cwmrc(5)` has **34
-directives**; digitwm acts on **9** and names the other **25** out loud, with
-the reason, at the line they stand on:
+digitwm reads **the same file the X11 build reads**, found by the same search,
+so one file describes both machines. The order, strongest first:
+
+| | file | |
+|---|---|---|
+| 1 | the file named with `-c` | nothing overrides it |
+| 2 | `$DIGITWMRC` | when set and not empty |
+| 3 | `~/.digitable/digitwm/digitwmrc` | our own name, in the directory this family of tools keeps its settings in |
+| 4 | `~/.cwmrc` | cwm's name, read so that a configuration written for cwm keeps working — and said out loud, once, on stderr, when it is the file being read |
+
+It is one piece of code, `confpath.c`, compiled into both binaries rather than
+written twice, and `tools/check-config-order.sh` asks both of them the same
+seven questions on every push — a Mac that quietly read a different file than
+the workstation would make "one file describes both machines" a sentence and
+nothing more.
+
+What it cannot do is read all of that file. `cwmrc(5)` has **34 directives**;
+digitwm acts on **9** and names the other **25** out loud, with the reason, at
+the line they stand on:
 
 ```
 $ digitwm -n
-/Users/you/.cwmrc: 12 directive(s): 6 taken, 5 X11's alone, 1 not understood
+/Users/you/.digitable/digitwm/digitwmrc: 12 directive(s): 6 taken, 5 X11's alone, 1 not understood
 ```
 
 **Taken (9):** `ribbon`, `ribbonhide`, `ribbonwarp`, `ribbongap`,
@@ -299,7 +315,7 @@ $ sh macos/check.sh 400
 - parking with `ribbonhide`: **2 windows inside the viewport, 18 past the
   edge, 1 pixel of each still visible**;
 - the start-up sequence, the configuration and the key dispatch, over the
-  window system of memory: a sample `cwmrc` of **12 directives → 6 taken, 5
+  window system of memory: a sample configuration of **12 directives → 6 taken, 5
   X11's alone, 1 not understood**; **6 windows into 6 columns, 0 adrift**;
   **16 bindings, 1 refused and named**; a key moves the focus, a key widens a
   column, a key carries a window; a foreign move comes back; a second monitor

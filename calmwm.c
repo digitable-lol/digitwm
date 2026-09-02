@@ -85,6 +85,7 @@ main(int argc, char **argv)
 			}
 			free(Conf.conf_file);
 			Conf.conf_file = xstrdup(optarg);
+			Conf.conf_src = CONFPATH_ARG;
 			break;
 		case 'C':
 			command = optarg;
@@ -118,6 +119,31 @@ main(int argc, char **argv)
 	    signal(SIGINT, sighdlr) == SIG_ERR ||
 	    signal(SIGTERM, sighdlr) == SIG_ERR)
 		err(1, "signal");
+
+	/*
+	 * Said before the file is read, not after: if the parser has anything
+	 * to complain about, the complaint should come after the line that
+	 * says which file it is complaining about.  Said only for ~/.cwmrc,
+	 * and only once - confpath.c decides that, so that both builds say it
+	 * in the same case and in the same words.
+	 */
+	confpath_say(Conf.conf_src, Conf.conf_file);
+
+	/*
+	 * Configtest mode names the file as well as checking it.  Which of
+	 * the four candidates a run settled on is otherwise invisible, and a
+	 * search order nobody can observe is a search order nobody can check:
+	 * tools/check-config-order.sh reads this line.
+	 */
+	if (nflag) {
+		(void)printf("%s\n", Conf.conf_file);
+		/*
+		 * Flushed here, because the parser's complaints go to stderr
+		 * and would otherwise arrive before the line that says which
+		 * file they are about: stdout into a pipe is block-buffered.
+		 */
+		(void)fflush(stdout);
+	}
 
 	if (parse_config(Conf.conf_file, &Conf) == -1) {
 		warnx("error parsing config file");

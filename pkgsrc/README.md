@@ -107,7 +107,8 @@ make clean        # and then check the tree is as it was
 and, after installing, that the window manager actually comes up on NetBSD:
 
 ```sh
-cwm -c ~/.cwmrc
+cwm -n            # names the configuration file it would read
+cwm               # and then, on a display, that it comes up
 ```
 
 Do not report the port as tested until `make install` above has gone green on a
@@ -117,7 +118,9 @@ is given and by reading the guide everywhere else.
 ## The name of the binary
 
 The binary is still called **`cwm`**, and so are the manual pages, so that a
-`cwmrc` and everything written about cwm carry over unchanged. That is why the
+configuration written for cwm and everything written about cwm carry over
+unchanged — the file itself is read from `~/.digitable/digitwm/digitwmrc` first
+and from `~/.cwmrc` after it (`cwm(1)`, FILES). That is why the
 package sets `CONFLICTS+= cwm-[0-9]*`: the two cannot be installed side by
 side.
 

@@ -21,9 +21,10 @@
 /*
  * ONE FILE, TWO SYSTEMS, AND HALF OF IT MEANS NOTHING HERE.
  *
- * The macOS port reads the same ~/.cwmrc the X11 build reads, and it has to,
- * because a person with a Mac and a workstation has one ribbon and should not
- * keep two descriptions of it.  What it cannot do is pretend the whole file
+ * The macOS port reads the same file the X11 build reads - the same name in
+ * the same place, found by the same order (confpath.h, compiled into both
+ * builds) - and it has to, because a person with a Mac and a workstation has
+ * one ribbon and should not keep two descriptions of it.  What it cannot do is pretend the whole file
  * applies: of the 35 keywords cwmrc has (parse.y, "keywords[]"), 13 describe
  * things macOS has no counterpart for, and reading them silently would be
  * worse than not reading them at all - the user would set a colour, see
@@ -56,6 +57,8 @@
 #define _WSI_CONF_H_
 
 #include <stddef.h>
+
+#include "confpath.h"
 
 /*
  * The commands that mean something with no X server under them.  Deliberately
@@ -116,8 +119,14 @@ void		 wsiconf_default(void);
  */
 int		 wsiconf_load(const char *path, struct wsiconf_report *);
 
-/* $HOME/.cwmrc, written into buf.  The same file the X11 build reads. */
-const char	*wsiconf_file(char *buf, size_t len);
+/*
+ * The configuration file to read when none was named with -c, written into
+ * buf, and through src which of the candidates it is - $DIGITWMRC,
+ * ~/.digitable/digitwm/digitwmrc or cwm's own ~/.cwmrc.  src may be NULL.
+ * The order is confpath_find()'s, which is to say the X11 build's: this is
+ * the same file, found the same way, on both machines.
+ */
+const char	*wsiconf_file(char *buf, size_t len, enum confpath_src *src);
 
 /* The binding table, in the order it will be registered. */
 const struct wsiconf_bind	*wsiconf_binds(int *n);

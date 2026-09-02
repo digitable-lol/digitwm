@@ -20,8 +20,9 @@ make install PREFIX=$HOME/.local    # bin/cwm, man1/cwm.1, man5/cwmrc.5
 ```
 
 `PREFIX`, `DESTDIR` and `MANPREFIX` are honoured. The binary is called `cwm`,
-not `digitwm`: a `cwmrc` and everything written about cwm carry over unchanged
-— see [pkgsrc/README.md](../pkgsrc/README.md) on what that costs.
+not `digitwm`: a configuration written for cwm and everything written about cwm
+carry over unchanged — see [pkgsrc/README.md](../pkgsrc/README.md) on what that
+costs. The configuration file itself is ours; the search order is below.
 
 ## One command, with the environment
 
@@ -79,8 +80,22 @@ A `digitwm.desktop` is installed into `~/.local/share/xsessions`, so a display
 manager will offer the session by name.
 
 Configuration lives in `~/.config/digitwm/cwmrc` (the session puts it there and
-starts `cwm -c` on it) or in `~/.cwmrc`. Every setting is described in
-`cwmrc(5)`; the ribbon's own are collected in [ribbon.md](ribbon.md).
+starts `cwm -c` on it). Started on its own, `cwm` takes the first of these that
+exists:
+
+| | file | |
+|---|---|---|
+| 1 | the file named with `-c` | nothing overrides it |
+| 2 | `$DIGITWMRC` | when set and not empty |
+| 3 | `~/.digitable/digitwm/digitwmrc` | our own name, in the directory this family of tools keeps its settings in |
+| 4 | `~/.cwmrc` | cwm's name, read so that whoever arrived from cwm keeps working — and said out loud, once, on stderr, when it is the file being read |
+
+`cwm -n` prints the file the search settled on and stops. The order is one
+piece of code, `confpath.c`, which the macOS build compiles too
+([macos.md](macos.md)); `tools/check-config-order.sh` asks both binaries the
+same seven questions in CI, and `--selfcheck` shows it reddening on a broken
+order. Every setting is described in `cwmrc(5)`; the ribbon's own are collected
+in [ribbon.md](ribbon.md).
 
 ## Checking a change
 

@@ -37,11 +37,14 @@ The options are as follows:
 .Bl -tag -width Ds
 .It Fl c Ar file
 Specify an alternative configuration file.
-By default,
+Without it,
 .Nm
-loads
-.Pa ~/.cwmrc ,
-if present.
+takes the first of these that exists:
+.Pa $DIGITWMRC ,
+.Pa ~/.digitable/digitwm/digitwmrc ,
+.Pa ~/.cwmrc ;
+see
+.Sx FILES .
 Any error messages from lines in the configuration file will be sent to
 .Em stderr ;
 however,
@@ -96,7 +99,8 @@ $ cwm -C \*qlayout-probe layout viewport=1280x800 columns=1,1,1\*q
 Specify the display to use.
 .It Fl n
 Configtest mode.
-Only check the configuration file for validity.
+Print the configuration file that the search settled on, check it for
+validity, and exit.
 .It Fl v
 Verbose mode.
 Multiple
@@ -301,19 +305,37 @@ Show list of applications as defined in the configuration file.
 Selecting an item will spawn that application.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width "DISPLAYXXX" -compact
+.Bl -tag -width "DIGITWMRCXXX" -compact
 .It DISPLAY
 .Nm
 starts on this display unless the
 .Fl d
 option is given.
+.It DIGITWMRC
+The configuration file to read, unless
+.Fl c
+names another one.
+Set and not empty, it is taken as named: a file that is not there is an
+error to complain about, not a reason to read something else.
 .El
 .Sh FILES
-.Bl -tag -width "~/.cwmrcXX" -compact
-.It Pa ~/.cwmrc
+The first of these that exists is read; nothing is copied or moved from
+one to another.
+.Bl -tag -width "~/.digitable/digitwm/digitwmrcXX" -compact
+.It Pa ~/.digitable/digitwm/digitwmrc
 Default
 .Nm
 configuration file.
+.Pa ~/.digitable
+is the directory this family of tools keeps its settings in.
+.It Pa ~/.cwmrc
+The name upstream cwm uses, read when the file above does not exist, so
+that a configuration written for cwm keeps working.
+When this is the file being read,
+.Nm
+says so on
+.Em stderr ,
+once, at start-up.
 .El
 .Sh SEE ALSO
 .Xr cwmrc 5

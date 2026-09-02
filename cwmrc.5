@@ -24,6 +24,15 @@
 This manual page describes the
 .Xr cwm 1
 configuration file.
+The file itself is
+.Pa ~/.digitable/digitwm/digitwmrc ;
+the page keeps cwm's name because the grammar below is cwm's, unchanged,
+and everything written about it elsewhere carries over.
+See
+.Sx FILES
+for the whole search order, cwm's own
+.Pa ~/.cwmrc
+included.
 .Pp
 The current line can be extended over multiple lines using a backslash
 .Pq Sq \e .
@@ -600,12 +609,30 @@ Move pointer 10 times
 pixels left.
 .El
 .Sh FILES
-.Bl -tag -width "~/.cwmrcXXX" -compact
-.It Pa ~/.cwmrc
+The first of these that exists is read, and only that one; nothing is
+copied or moved from one to another.
+.Bl -tag -width "~/.digitable/digitwm/digitwmrcXX" -compact
+.It Pa $DIGITWMRC
+Read instead of the files below when the variable is set and not empty.
+.It Pa ~/.digitable/digitwm/digitwmrc
 Default
 .Xr cwm 1
 configuration file.
+.Pa ~/.digitable
+is the directory this family of tools keeps its settings in.
+.It Pa ~/.cwmrc
+The name upstream cwm uses, read when the file above does not exist, so
+that a configuration written for cwm keeps working.
+When this is the file being read,
+.Xr cwm 1
+says so on standard error, once, at start-up.
 .El
+.Pp
+The file named with
+.Fl c
+is stronger than all three.
+The same order, and the same file, on macOS: one file describes both
+machines.
 .Sh EXAMPLES
 .Bd -literal
 # Set default Xft(3) font

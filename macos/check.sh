@@ -88,6 +88,8 @@ echo "собрался"
 # собираются в двоичный файл на маке; клавиатурный слой подделан харнессом,
 # потому что настоящий - это Carbon.
 printf 'порт: wsi_conf.c wsi_run.c:     '
+(cd "$root" && $CC $warn -O2 -g -D_GNU_SOURCE $inc -c confpath.c \
+    -o "$work/confpath.o")
 (cd "$root" && $CC $warn -O2 -g -D_GNU_SOURCE $inc -c macos/wsi_conf.c \
     -o "$work/wsi_conf.o")
 (cd "$root" && $CC $warn -O2 -g -D_GNU_SOURCE $inc -c macos/wsi_run.c \
@@ -105,7 +107,7 @@ printf 'харнесс: runcheck.c:            '
 (cd "$root" && $CC $warn -O2 -g -D_GNU_SOURCE $inc -c macos/runcheck.c \
     -o "$work/runcheck.o")
 $CC -o "$root/macos/runcheck" "$work/ribbon.o" "$work/wsi_core.o" \
-    "$work/wsi_fake.o" "$work/wsi_conf.o" "$work/wsi_run.o" \
+    "$work/wsi_fake.o" "$work/wsi_conf.o" "$work/confpath.o" "$work/wsi_run.o" \
     "$work/runcheck.o" "$work/xmalloc.o" "$work/strlcpy.o" "$work/strlcat.o"
 echo "собрался"
 
@@ -119,18 +121,26 @@ printf 'digitwm целиком (mac-цель, кроме двух .m):  '
 (cd "$root" && $CC $warn -O2 -g -D_GNU_SOURCE $inc -Dmain=runcheck_unused \
     -c macos/runcheck.c -o "$work/runfakes.o")
 $CC -o "$work/digitwm-fake" "$work/wsi_main.o" "$work/ribbon.o" \
-    "$work/wsi_core.o" "$work/wsi_conf.o" "$work/wsi_run.o" \
+    "$work/wsi_core.o" "$work/wsi_conf.o" "$work/confpath.o" "$work/wsi_run.o" \
     "$work/wsi_fake.o" "$work/runfakes.o" "$work/xmalloc.o" \
     "$work/strlcpy.o" "$work/strlcat.o"
 echo "слинковался"
 printf '  и отвечает: '
 "$work/digitwm-fake" -k | head -1
 
+# И тем же двоичным файлом - порядок поиска настроек. Скрипт один на две
+# сборки: та же таблица случаев прогоняется по ./cwm в tools/ и по mac-цели
+# здесь, и если два порядка разойдутся, разойдутся и два прогона одной
+# таблицы. Отрицательный контроль скрипта (--selfcheck) гоняется там же, где
+# и он сам, - в CI, - а не здесь: тут проверяется двоичный файл, а не скрипт.
+echo
+sh "$root/tools/check-config-order.sh" "$work/digitwm-fake"
+
 # 3. Ни одного имени X11 во всём, что собрано. Это не украшение: половина
 # порта, объявленная независимой от оконной системы, обязана быть независимой
 # и от той, из-под которой мы её проверяем.
 x_syms=$(nm -u "$work/ribbon.o" "$work/wsi_core.o" "$work/wsi_fake.o" \
-    "$work/wsicheck.o" "$work/wsi_conf.o" "$work/wsi_run.o" \
+    "$work/wsicheck.o" "$work/wsi_conf.o" "$work/confpath.o" "$work/wsi_run.o" \
     "$work/wsi_main.o" "$work/runcheck.o" | awk '{print $NF}' \
     | grep -E '^_?X' | LC_ALL=C sort -u || true)
 if [ -n "$x_syms" ]; then

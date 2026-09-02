@@ -75,7 +75,7 @@ Lines are function bodies in `ribbon.c`, without comments or the file header.
 | policy | **142** | the ten `ribbon_policy_*`: numbers in, a number out | 0 |
 | ribbon model | **256** | columns, stacks, `ribbon_measure`, `ribbon_place`, `ribbon_scroll` | 0, except the two places below |
 | mechanics inside `ribbon.c` | **359** | everything that calls `client_*` and X | rewrite |
-| mechanics outside `ribbon.c` | **5103** | `client.c`, `xutil.c`, `xevents.c`, `screen.c`, `kbfunc.c`, `menu.c`, `group.c`, `calmwm.c` | rewrite or drop |
+| mechanics outside `ribbon.c` | **5129** | `client.c`, `xutil.c`, `xevents.c`, `screen.c`, `kbfunc.c`, `menu.c`, `group.c`, `calmwm.c` | rewrite or drop |
 
 The contract between the ribbon and the mechanics is narrow and wholly visible
 in `nm -u ribbon.o`: **11 window-system operations** — `client_current`,
@@ -388,7 +388,7 @@ The price:
 | the arithmetic | **0 lines** | measured |
 | edits inside `ribbon.c` | ~10 lines | the one leak still open above |
 | a new input/output layer | **2500–4000 lines** | estimated from the neighbours: Silica — the whole AX wrapper — is 2434 lines; AeroSpace's helper layer 928; yabai's process and event attachment about 2400 |
-| dropped | 5103 lines of X11 mechanics, of which `xutil.c` (605, all EWMH) has no replacement at all: macOS has no EWMH | measured |
+| dropped | 5129 lines of X11 mechanics, of which `xutil.c` (605, all EWMH) has no replacement at all: macOS has no EWMH | measured |
 | a new obligation | a "what changed" check in `ribbon_sync_one()` | **done**: 19 writes per insertion became 9 |
 | impossible | insertion without a jump | `AXObserverCallback` returns `void`; the jump is bounded below by ~7 ms + one round trip + a frame |
 

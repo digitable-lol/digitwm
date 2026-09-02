@@ -35,6 +35,7 @@
 #include <string.h>
 
 #include "calmwm.h"
+#include "confpath.h"
 #include "wsi_conf.h"
 #include "wsi_key.h"
 
@@ -54,8 +55,8 @@
  * So the base is Control-Option, which macOS itself uses for almost nothing,
  * and the shape of the X11 table is kept exactly: base for focus, base+Shift
  * to carry a window, base+Command to exchange whole columns.  A person who
- * wants the X11 keys back writes them in ~/.cwmrc, where "4-" means Command,
- * and gets what he asked for including the consequence.
+ * wants the X11 keys back writes them in his digitwmrc, where "4-" means
+ * Command, and gets what he asked for including the consequence.
  */
 static const struct {
 	unsigned int	 mods;
@@ -165,7 +166,7 @@ static struct wsiconf_bind	 binds[WSICONF_MAXBIND];
 static int			 nbinds;
 
 /* The file being read, so that a complaint names it rather than its kind. */
-static const char		*conf_name = "cwmrc";
+static const char		*conf_name = "digitwmrc";
 
 static int	 conf_line(char *, int, struct wsiconf_report *);
 static int	 conf_tokens(char *, char **, int);
@@ -210,14 +211,21 @@ wsiconf_default(void)
 		    default_binds[i].cmd);
 }
 
+/*
+ * Where the settings live is not this port's decision to make on its own:
+ * conf.c has to arrive at the same file, or the promise that one file
+ * describes both machines is only a sentence in a document.  So the order
+ * lives in confpath.c, which both builds compile, and this is the port's
+ * doorway to it.
+ */
 const char *
-wsiconf_file(char *buf, size_t len)
+wsiconf_file(char *buf, size_t len, enum confpath_src *src)
 {
-	const char	*home = getenv("HOME");
+	enum confpath_src	 found;
 
-	if (home == NULL || *home == '\0')
-		home = ".";
-	(void)snprintf(buf, len, "%s/.cwmrc", home);
+	found = confpath_find(buf, len);
+	if (src != NULL)
+		*src = found;
 	return buf;
 }
 

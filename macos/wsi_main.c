@@ -34,6 +34,7 @@
 #include <unistd.h>
 
 #include "calmwm.h"
+#include "confpath.h"
 #include "wsi_conf.h"
 #include "wsi_core.h"
 #include "wsi_key.h"
@@ -52,7 +53,9 @@ usage(void)
 {
 	(void)fprintf(stderr,
 	    "usage: digitwm [-hkNn] [-c file]\n"
-	    "  -c file  read this instead of $HOME/.cwmrc\n"
+	    "  -c file  read this instead of the file the search would find:\n"
+	    "           $DIGITWMRC, then ~/.digitable/digitwm/digitwmrc, then\n"
+	    "           cwm's own ~/.cwmrc\n"
 	    "  -n       read the configuration, say what was made of it, stop\n"
 	    "  -k       print the key table and the commands it can name\n"
 	    "  -N       go down the Apple calls one at a time and say which "
@@ -86,6 +89,7 @@ int
 main(int argc, char **argv)
 {
 	struct wsiconf_report	 rep;
+	enum confpath_src	 src = CONFPATH_ARG;
 	char			 buf[1024];
 	const char		*path = NULL;
 	int			 ch, mode = 0, refused;
@@ -116,12 +120,18 @@ main(int argc, char **argv)
 		usage();
 
 	/*
-	 * A missing ~/.cwmrc is the ordinary case and not a failure; a missing
-	 * file that was named on the command line is a failure, because
-	 * somebody meant that file.
+	 * A configuration nobody has written yet is the ordinary case and not
+	 * a failure; a missing file that was named on the command line is a
+	 * failure, because somebody meant that file.
+	 *
+	 * Which file the search settles on, and the one line said out loud
+	 * when it is cwm's old ~/.cwmrc, are confpath.c's - the same code the
+	 * X11 build runs, so that neither machine can quietly start reading
+	 * something the other does not.
 	 */
 	if (path == NULL) {
-		path = wsiconf_file(buf, sizeof(buf));
+		path = wsiconf_file(buf, sizeof(buf), &src);
+		confpath_say(src, path);
 		if (wsiconf_load(path, &rep) != 0)
 			(void)memset(&rep, 0, sizeof(rep));
 	} else if (wsiconf_load(path, &rep) != 0) {

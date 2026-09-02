@@ -47,6 +47,7 @@ FRAMEWORKS=	-framework ApplicationServices \
 		-framework Carbon
 
 OBJS=		${OBJDIR}/ribbon.o \
+		${OBJDIR}/confpath.o \
 		${OBJDIR}/xmalloc.o \
 		${OBJDIR}/strlcpy.o \
 		${OBJDIR}/strlcat.o \
@@ -58,7 +59,7 @@ OBJS=		${OBJDIR}/ribbon.o \
 		${OBJDIR}/wsi_ax.o \
 		${OBJDIR}/wsi_key.o
 
-HDRS=		../calmwm.h ../queue.h ../wsi.h \
+HDRS=		../calmwm.h ../queue.h ../wsi.h ../confpath.h \
 		wsi_platform.h wsi_core.h wsi_conf.h wsi_key.h wsi_run.h
 
 all: ${PROG}
@@ -72,6 +73,11 @@ ${OBJDIR}/stamp:
 
 ${OBJDIR}/ribbon.o: ../ribbon.c ${HDRS} ${OBJDIR}/stamp
 	${CC} ${CFLAGS} ${INCS} -c ../ribbon.c -o $@
+
+# Порядок поиска файла настроек - один на две сборки, и это тот же файл,
+# который компилирует ../Makefile. Разъехаться им теперь негде: копии нет.
+${OBJDIR}/confpath.o: ../confpath.c ../confpath.h ${OBJDIR}/stamp
+	${CC} ${CFLAGS} ${INCS} -c ../confpath.c -o $@
 
 ${OBJDIR}/xmalloc.o: ../xmalloc.c ${HDRS} ${OBJDIR}/stamp
 	${CC} ${CFLAGS} ${INCS} -c ../xmalloc.c -o $@
