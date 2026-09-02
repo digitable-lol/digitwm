@@ -57,6 +57,19 @@ command -v "$CC" >/dev/null 2>&1 || {
 	exit 1
 }
 
+# Уровень libc, который видит компилятор. -D_POSIX_C_SOURCE здесь затем, чтобы
+# заглушка не опиралась молча на расширения хозяйской системы. На МАКЕ он же
+# делает лишнее: __DARWIN_C_LEVEL опускается до POSIX, и вместе с ним пропадают
+# расширения Darwin, которые настоящая сборка видит прекрасно, - macos/Makefile
+# уровня libc не задаёт вовсе. Первый прогон этого скрипта на маке встал именно
+# на этом: CLOCK_MONOTONIC_RAW, который wsi_ax.m зовёт с 10.12 и который
+# `make -C macos` компилирует без единого слова, здесь оказался «undeclared».
+# Скрипт проверял бы не согласованность с API, а собственные флаги.
+case "$(uname -s)" in
+Darwin)	libc_level="-D_POSIX_C_SOURCE=200809L -D_DARWIN_C_SOURCE" ;;
+*)	libc_level="-D_POSIX_C_SOURCE=200809L" ;;
+esac
+
 mkdir -p "$work/stub/ApplicationServices" "$work/stub/AppKit" \
     "$work/stub/Carbon"
 
@@ -274,14 +287,14 @@ EOF
 # SDK, которого здесь нет.
 echo
 echo "macos/wsi_ax.m против заглушек ApplicationServices и AppKit:"
-$CC -fsyntax-only -x objective-c -std=c99 -D_POSIX_C_SOURCE=200809L \
+$CC -fsyntax-only -x objective-c -std=c99 $libc_level \
 	-Wall -Wextra -Werror -Wno-objc-root-class \
 	-I"$work/stub" -I"$root/macos" "$here/wsi_ax.m"
 echo "  согласован (-Wall -Wextra -Werror)"
 
 echo
 echo "macos/wsi_key.m против заглушек Carbon и AppKit:"
-$CC -fsyntax-only -x objective-c -std=c99 -D_POSIX_C_SOURCE=200809L \
+$CC -fsyntax-only -x objective-c -std=c99 $libc_level \
 	-Wall -Wextra -Werror -Wno-objc-root-class \
 	-I"$work/stub" -I"$root/macos" "$here/wsi_key.m"
 echo "  согласован (-Wall -Wextra -Werror)"

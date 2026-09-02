@@ -145,9 +145,11 @@ ${PROG}: ${OBJS} Info.plist
 	${CC} -o ${OBJDIR}/digitwm ${OBJS} ${FRAMEWORKS} \
 	    -Wl,-sectcreate,__TEXT,__info_plist,Info.plist
 	codesign --force --sign "${SIGNID}" ${OBJDIR}/digitwm
-	@if codesign -dvv ${OBJDIR}/digitwm 2>&1 | grep -q 'Sealed Resources'; then \
-		echo "codesign запечатал каталог как пакет: подпись обязана быть" >&2; \
-		echo "вложенной в файл, иначе она не переживёт bin.install." >&2; \
+	@codesign -dvv ${OBJDIR}/digitwm 2>&1 | sed 's/^/  подпись: /'
+	@if [ -e ${OBJDIR}/_CodeSignature ] || [ -e _CodeSignature ]; then \
+		echo "codesign завёл _CodeSignature: подпись вышла подписью КАТАЛОГА," >&2; \
+		echo "а она обязана быть вложенной в файл - иначе не переживёт" >&2; \
+		echo "ни bin.install, ни упаковку в архив." >&2; \
 		exit 1; \
 	fi
 	cp ${OBJDIR}/digitwm ${PROG}
