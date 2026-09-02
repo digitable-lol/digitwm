@@ -79,7 +79,7 @@ from a clone the same page is `man ./digitwm.1`.
 | `-k` | print the key table and the command each combination runs, then exit. Needs no permission |
 | `-N` | go down the Apple calls this port makes, one at a time, and say which answered. Before the first call it prints three facts about the process itself — which file is running, who started it, what its signature is — and those need no permission either. Exits non-zero when anything did not answer |
 | `-n` | read the configuration, say what was made of it, and exit. Needs no permission |
-| `-v` | say out loud, on standard error, what happens: every key press that arrives, which binding it matched, which command ran, which window held the keyboard before and after, and the whole state of the ribbon. `DIGITWM_TRACE` set to anything does the same for a digitwm started by `launchd` or from the Finder, where there is nowhere to put a flag |
+| `-v` | say out loud, on standard error, what happens: every key press that arrives, which binding it matched, which command ran, which window held the keyboard before and after, and the whole state of the ribbon. Every fiftieth turn of the loop it prints a pulse — how many turns and how many notices — so that the silence of "the press never arrived" reads differently from the silence of "the process is wedged". `DIGITWM_TRACE` set to anything does the same for a digitwm started by `launchd` or from the Finder, where there is nowhere to put a flag |
 
 ## What you see the first time
 
