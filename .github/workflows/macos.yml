@@ -1,0 +1,423 @@
+# Живой мак: сборка, запуск и выпуск маковской цели digitwm.
+#
+# ПОЧЕМУ ЭТОТ ФАЙЛ ВООБЩЕ ПОЯВИЛСЯ. До него `macos/` собиралась только на
+# Linux и только подставным слоем: macos/check.sh линкует настоящий main() с
+# двумя подделками вместо wsi_ax.m и wsi_key.m, а macos/stub-build.sh сверяет
+# эти два файла с ЗАГЛУШКОЙ Accessibility API - с нашим представлением о чужих
+# заголовках. Оба проверяют настоящее, но ни один не отвечает на вопрос
+# «соберётся ли это против настоящих заголовков Apple». Мака в проекте нет, и
+# купить его ради ответа - не единственный путь: маковский бегунок GitHub стоит
+# нисколько и даёт ровно ту машину, которой не хватало.
+#
+# ПОЧЕМУ ПРОВЕРКА И ВЫПУСК В ОДНОМ ФАЙЛЕ, А НЕ В ДВУХ, КАК У digitdisk. У
+# соседа выпуск собирается на Linux кросс-сборкой, а маковские бегунки заняты
+# совсем другим - там два разных дела и два файла. Здесь дело одно: собрать на
+# маке. Разложив его по двум файлам, мы получили бы два описания одной сборки,
+# которые обязаны совпадать и когда-нибудь разойдутся. Здесь выпускной путь -
+# это ровно тот путь, который проходит на каждый толчок; тег добавляет к нему
+# один шаг, публикацию, и ничего не меняет в остальных.
+#
+# ОБЕ АРХИТЕКТУРЫ, И КАЖДАЯ НА СВОЁМ ЖЕЛЕЗЕ. macos-latest - это Apple Silicon,
+# macos-15-intel - x86-64 (GitHub сворачивает маковский Intel осенью 2027).
+# Кросс-сборка одним `-arch` дала бы оба среза за один прогон, но тогда
+# x86-64-файл уехал бы наружу, ни разу не исполнившись. Здесь каждый выпущенный
+# файл собран и запущен на той архитектуре, для которой собран.
+#
+# Проверить синтаксис, не запуская:
+#   python3 -c 'import yaml,sys; yaml.safe_load(open(sys.argv[1]))' .github/workflows/macos.yml
+name: mac
+
+# Ключ в кавычках нарочно: без них разборщик YAML 1.1 читает «on» как
+# логическую истину. GitHub принимает обе записи одинаково.
+"on":
+  push:
+    # a/** - рабочие ветки этого дерева. Мак - единственное, что нельзя
+    # проверить у себя, поэтому он проверяется на каждый толчок рабочей ветки,
+    # а не только после вливания: узнавать о том, что маковская цель не
+    # собирается, из main - поздно.
+    branches: [main, "a/**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ------------------------------------------------------------------------
+  # 1. Собрать на маке и запустить собранное.
+  # ------------------------------------------------------------------------
+  mac:
+    name: ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            goarch: arm64
+          - runner: macos-15-intel
+            goarch: amd64
+    steps:
+      - name: Взять дерево
+        uses: actions/checkout@v4
+        with:
+          # Полная история: выпуск берёт хеш и время коммита метками, а не
+          # часы машины.
+          fetch-depth: 0
+
+      - name: Что за машина и чем собираем
+        run: |
+          sw_vers
+          echo "архитектура: $(uname -m)"
+          cc --version
+          make --version | head -1
+          xcodebuild -version || true
+          xcrun --show-sdk-path
+          xcrun --show-sdk-version
+
+      # Первая в истории дерева сборка этого кода против настоящих заголовков
+      # Apple. Шаг нарочно с -k и нарочно терпимый: make останавливается на
+      # первой же ошибке, а нам нужен ВЕСЬ список сразу - иначе первые сборки
+      # уходят на то, чтобы узнавать по одной ошибке за прогон.
+      - name: Сколько всего ломается (полный список, не падает)
+        id: survey
+        continue-on-error: true
+        run: |
+          set +e
+          make -C macos -k OBJDIR="$RUNNER_TEMP/survey" >"$RUNNER_TEMP/survey.log" 2>&1
+          rc=$?
+          set -e
+          echo "код возврата make: $rc"
+          errors=$(grep -c 'error:' "$RUNNER_TEMP/survey.log" || true)
+          warnings=$(grep -c 'warning:' "$RUNNER_TEMP/survey.log" || true)
+          echo "ошибок компилятора:      $errors"
+          echo "предупреждений:          $warnings"
+          echo
+          echo "--- вывод make целиком ---"
+          cat "$RUNNER_TEMP/survey.log"
+          {
+            echo "### ${{ matrix.runner }}: первая сборка против настоящих заголовков"
+            echo
+            echo "- ошибок компилятора: **$errors**"
+            echo "- предупреждений: **$warnings**"
+            echo "- код возврата \`make -k\`: **$rc**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Собрать маковскую цель
+        run: |
+          set -o pipefail
+          make -C macos 2>&1 | tee "$RUNNER_TEMP/build.log"
+          echo
+          echo "предупреждений компилятора: $(grep -c 'warning:' "$RUNNER_TEMP/build.log" || true)"
+
+      - name: Что именно собралось
+        run: |
+          cd macos
+          ls -l digitwm
+          file digitwm
+          lipo -archs digitwm
+          otool -L digitwm
+          echo "--- подпись ---"
+          codesign -dvv digitwm 2>&1
+          codesign --verify --verbose=2 digitwm 2>&1
+          echo "--- Info.plist в секции __TEXT,__info_plist ---"
+          otool -X -s __TEXT __info_plist digitwm | head -5
+          echo "--- минимальная версия macOS ---"
+          otool -l digitwm | grep -A4 LC_BUILD_VERSION | head -8 || true
+
+      # Ниже - всё, что можно спросить у этого двоичного файла БЕЗ разрешения
+      # Accessibility. Разрешение даёт человек в System Settings; бегунок
+      # человека не имеет, и это не обходится ничем.
+      - name: Таблица клавиш (-k)
+        run: |
+          ./macos/digitwm -k | tee "$RUNNER_TEMP/keys.txt"
+          grep -q 'bind-key' "$RUNNER_TEMP/keys.txt"
+          echo "сочетаний в таблице: $(grep -c '  bind-key' "$RUNNER_TEMP/keys.txt")"
+
+      - name: Справка (-h)
+        run: |
+          set +e
+          ./macos/digitwm -h 2>&1 | tee "$RUNNER_TEMP/usage.txt"
+          set -e
+          grep -q 'usage: digitwm' "$RUNNER_TEMP/usage.txt"
+
+      - name: Разбор настроек (-n) на подсунутом cwmrc
+        run: |
+          cat > "$RUNNER_TEMP/cwmrc" <<'EOF'
+          ribbongap 12
+          ribbonminwidth 300
+          ribbonwidths 1 2 3 4
+          borderwidth 2
+          ribbonhide yes
+          такой-команды-нет 1
+          EOF
+          set +e
+          ./macos/digitwm -n -c "$RUNNER_TEMP/cwmrc" | tee "$RUNNER_TEMP/conf.txt"
+          set -e
+          grep -q 'directive(s)' "$RUNNER_TEMP/conf.txt"
+          grep -q 'ribbongap 12' "$RUNNER_TEMP/conf.txt"
+          # И тот же двоичный файл на пустом файле: ноль директив - не ошибка.
+          : > "$RUNNER_TEMP/empty"
+          ./macos/digitwm -n -c "$RUNNER_TEMP/empty"
+          # А несуществующий файл, названный человеком, - ошибка.
+          if ./macos/digitwm -n -c "$RUNNER_TEMP/нет-такого"; then
+            echo "digitwm -c на несуществующем файле обязан падать" >&2
+            exit 1
+          fi
+
+      # САМОЕ ЦЕННОЕ ЗДЕСЬ. `-N` идёт по вызовам Apple по одному и называет те,
+      # что не ответили. На бегунке разрешения Accessibility нет, поэтому он
+      # обязан отказать на первом же вызове и сказать, на каком именно, - и это
+      # первое, что дерево вообще узнаёт о живом маке. Вывод сохраняется
+      # целиком: он и есть отчёт.
+      - name: Обход вызовов Apple (-N) - весь вывод, каким бы он ни был
+        run: |
+          set +e
+          # Сторож времени: alarm(60) на случай, если какой-нибудь вызов
+          # AppKit на бегунке без человека решит подождать. timeout(1) на
+          # маке нет, perl есть всегда.
+          perl -e 'alarm 60; exec @ARGV' -- ./macos/digitwm -N \
+            > "$RUNNER_TEMP/doctor.txt" 2>&1
+          rc=$?
+          set -e
+          echo "код возврата -N: $rc"
+          echo "строк в отчёте: $(wc -l < "$RUNNER_TEMP/doctor.txt" | tr -d ' ')"
+          echo "OK:     $(grep -c ' OK ' "$RUNNER_TEMP/doctor.txt" || true)"
+          echo "FAILED: $(grep -c 'FAILED' "$RUNNER_TEMP/doctor.txt" || true)"
+          echo
+          echo "=== digitwm -N, ${{ matrix.runner }} ($(uname -m)), целиком ==="
+          cat "$RUNNER_TEMP/doctor.txt"
+          echo "=== конец ==="
+          {
+            echo "### \`digitwm -N\` на ${{ matrix.runner }} ($(uname -m))"
+            echo
+            echo "код возврата **$rc**"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/doctor.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Отказ здесь - ожидаемый и единственно честный исход: разрешения
+          # нет. Мы требуем не успеха, а того, чтобы отказ был НАЗВАН.
+          grep -q 'Accessibility' "$RUNNER_TEMP/doctor.txt"
+
+      - name: Дерево чистое после сборки
+        run: |
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            git status --porcelain
+            echo "Сборка наследила в отслеживаемых файлах." >&2
+            exit 1
+          fi
+          git status --porcelain
+
+      # ---- выпускная половина: тот же путь, что и выше, но повторимо -------
+
+      - name: Определить версию
+        id: version
+        run: |
+          expected="$(tr -d ' \t\n\r' < VERSION)"
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            version="${GITHUB_REF_NAME#v}"
+            if [ "$version" != "$expected" ]; then
+              echo "Тег говорит $version, а файл VERSION - $expected." >&2
+              echo "Выпуск, чьё имя расходится с деревом, нечем проверить." >&2
+              exit 1
+            fi
+          else
+            version="$expected"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "версия выпуска: $version"
+
+      - name: Собрать выпускной архив
+        run: sh scripts/build-release.sh "${{ steps.version.outputs.version }}"
+
+      - name: Сохранить архив
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitwm-darwin-${{ matrix.goarch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+
+      - name: Сохранить отчёт -N
+        uses: actions/upload-artifact@v4
+        with:
+          name: doctor-${{ matrix.goarch }}
+          path: ${{ runner.temp }}/doctor.txt
+          if-no-files-found: error
+
+  # ------------------------------------------------------------------------
+  # 2. Проверяемая половина порта - та, которой мак не нужен, - но прогнанная
+  #    НА МАКЕ. На Linux она идёт в fts-conformance каждый прогон; здесь тот же
+  #    скрипт спрашивают у другого компилятора и другой libc, и расхождение
+  #    между двумя ответами - находка, а не шум.
+  # ------------------------------------------------------------------------
+  port-check:
+    name: macos-latest — macos-check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # macos/check.sh сверяет ленту поверх порта с лентой поверх X11, и для
+      # второй половины ему нужен настоящий ./cwm. На маке X11 нет в системе,
+      # но есть в homebrew: три библиотеки и pkg-config - ровно то же, что
+      # ставит линуксовый прогон через apt.
+      - name: X11 из homebrew (ради ./cwm, с которым идёт сверка)
+        run: brew install libx11 libxft libxrandr pkg-config bison
+
+      - name: Собрать оконный менеджер под X11
+        run: |
+          export PKG_CONFIG_PATH="$(brew --prefix libx11)/lib/pkgconfig:$(brew --prefix libxft)/lib/pkgconfig:$(brew --prefix libxrandr)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+          export PATH="$(brew --prefix bison)/bin:$PATH"
+          make
+
+      - name: Порт macOS считает то же, что X11 (macos/check.sh)
+        run: sh macos/check.sh 400
+
+      - name: wsi_ax.m и wsi_key.m против заглушки API (macos/stub-build.sh)
+        run: sh macos/stub-build.sh
+
+  # ------------------------------------------------------------------------
+  # 3. Свести два архива, заполнить формулу, проверить её брю - и, если это
+  #    тег, выпустить.
+  # ------------------------------------------------------------------------
+  formula:
+    name: Формула и выпуск
+    runs-on: macos-latest
+    needs: mac
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Забрать оба архива
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digitwm-darwin-*
+          path: dist
+          merge-multiple: true
+
+      - name: Забрать оба отчёта -N
+        uses: actions/download-artifact@v4
+        with:
+          pattern: doctor-*
+          path: doctor
+
+      - name: Что доехало
+        run: |
+          ls -l dist
+          find doctor -type f -exec sh -c 'echo "=== $1 ==="; cat "$1"' _ {} \;
+
+      - name: Свести суммы и заполнить формулу
+        id: formula
+        run: |
+          version="$(tr -d ' \t\n\r' < VERSION)"
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          sh scripts/make-formula.sh "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      # Синтаксис уже проверен внутри make-formula.sh; здесь спрашивают саму
+      # брю - в отдельном временном хранилище формул, потому что audit умеет
+      # смотреть только на формулу, лежащую в хранилище.
+      - name: Что скажет brew о заполненной формуле
+        run: |
+          brew --version
+          tap="$(brew --repository)/Library/Taps/digitable-lol/homebrew-check"
+          mkdir -p "$tap/Formula"
+          cp dist/homebrew/digitwm.rb "$tap/Formula/digitwm.rb"
+          echo "--- brew style ---"
+          brew style digitable-lol/check/digitwm
+          echo "--- brew audit ---"
+          brew audit --formula digitable-lol/check/digitwm
+
+      - name: Сложить описание выпуска
+        run: |
+          v="${{ steps.formula.outputs.version }}"
+          t="${{ steps.formula.outputs.tag }}"
+          {
+            echo "## Установка"
+            echo
+            echo '```bash'
+            echo "brew install digitable-lol/tap/digitwm"
+            echo '```'
+            echo
+            echo "Указывать \`--HEAD\` больше не нужно: это первый выпуск digitwm,"
+            echo "и формула ставит готовый двоичный файл. \`--HEAD\` остался запасным"
+            echo "путём и по-прежнему собирает из исходников."
+            echo
+            echo "Или руками:"
+            echo
+            echo '```bash'
+            echo "curl -fsSLO https://github.com/${{ github.repository }}/releases/download/$t/digitwm-$v-darwin-arm64.tar.gz"
+            echo "curl -fsSLO https://github.com/${{ github.repository }}/releases/download/$t/SHA256SUMS"
+            echo "shasum -a 256 --check --ignore-missing SHA256SUMS"
+            echo "tar -xzf digitwm-$v-darwin-arm64.tar.gz"
+            echo "sudo install -m 0755 digitwm-$v-darwin-arm64/digitwm /usr/local/bin/digitwm"
+            echo '```'
+            echo
+            echo "macOS 12 и новее, Apple Silicon и Intel. Каждый из двух файлов собран"
+            echo "и запущен на бегунке своей архитектуры."
+            echo
+            echo "## Разрешение"
+            echo
+            echo "digitwm двигает чужие окна, и без разрешения macOS не даст ему ничего:"
+            echo "System Settings > Privacy & Security > Accessibility > + > digitwm."
+            echo "Разрешение помнится по подписи файла, поэтому оно переживает"
+            echo "\`brew reinstall\` этой же версии и теряется при переходе на следующую."
+            echo
+            echo "Что отвечает без разрешения: \`digitwm -k\` (таблица клавиш),"
+            echo "\`digitwm -n\` (разбор вашего cwmrc), \`man 5 cwmrc\`."
+            echo "Что без него не работает вовсе: всё остальное, включая \`digitwm -N\`."
+            echo
+            echo "## Контрольные суммы"
+            echo
+            echo '```'
+            cat dist/SHA256SUMS
+            echo '```'
+            echo
+            echo "## Обход вызовов Apple на бегунках"
+            echo
+            echo "\`digitwm -N\` с обеих машин, целиком - разрешения Accessibility там нет"
+            echo "и быть не может, поэтому обход останавливается на первом вызове:"
+            echo
+            echo '```'
+            find doctor -type f -exec sh -c 'echo "--- $1 ---"; cat "$1"' _ {} \;
+            echo '```'
+            echo
+            echo "Формула Homebrew для digitable-lol/homebrew-tap приложена файлом \`digitwm.rb\`."
+          } > dist/NOTES.md
+          cat dist/NOTES.md
+
+      - name: Сохранить собранное
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitwm-${{ steps.formula.outputs.version }}
+          path: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+            dist/homebrew/digitwm.rb
+            dist/NOTES.md
+          if-no-files-found: error
+
+      # Публикуется только выпуск по тегу. Всё остальное собирает, проверяет и
+      # показывает, но наружу не отдаёт ничего: кнопка «проверить сборку» не
+      # должна уметь выпустить версию.
+      - name: Выпустить
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ steps.formula.outputs.version }}"
+          gh release create "${{ steps.formula.outputs.tag }}" \
+            --title "digitwm $v" \
+            --notes-file dist/NOTES.md \
+            --verify-tag \
+            "dist/digitwm-$v-darwin-arm64.tar.gz" \
+            "dist/digitwm-$v-darwin-amd64.tar.gz" \
+            dist/SHA256SUMS \
+            dist/homebrew/digitwm.rb
