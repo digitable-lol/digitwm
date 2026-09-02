@@ -1,33 +1,131 @@
 # SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
 # SPDX-License-Identifier: ISC
 #
-# Собирается только на macOS: здесь два фреймворка, которых больше нигде нет.
-# На Linux проверяется другое и другим:
+# digitwm на macOS - сборка, подпись, установка.
 #
-#   sh macos/stub-build.sh   - согласован ли wsi_ax.m с Accessibility API
-#   sh macos/check.sh        - та же ли раскладка у ленты поверх порта
+# ЭТОТ ФАЙЛ НИКОГДА НЕ ИСПОЛНЯЛСЯ. Мака в проекте нет (doc/portability.md:13),
+# и «make здесь работает» - не то утверждение, которое ему позволено делать.
+# Что проверено на Linux и чем: macos/check.sh собирает ТОТ ЖЕ набор объектных
+# файлов, что и цель ниже, и линкует из него настоящий main(), заменив ровно
+# два файла - wsi_ax.m и wsi_key.m, которых без macOS не бывает. То есть
+# проверено, что набор полон и сходится; не проверено, что два файла на -m
+# соберутся против настоящих заголовков Apple. Это и есть граница.
 #
-# Собирается ровно один файл, и это не скромность, а граница. wsi_ax.m лежит
-# НИЖЕ macos/wsi_platform.h и потому не включает calmwm.h - ему нечего знать
-# ни о ленте, ни о client_ctx, ни об X11. Всё, что выше линии
-# (macos/wsi_core.c), включает calmwm.h, а тот включает Xlib ради типов
-# Window, Colormap, Visual и XftDraw в описаниях структур - имён X11 в
-# объектном файле от этого не появляется (tools/no-x-build.sh это и
-# проверяет), но заголовки нужны. Пока calmwm.h не разрезан, wsi_core.c
-# собирается против семнадцати строк заглушки - той же, что в
-# tools/no-x-build.sh и в macos/check.sh. Разрез calmwm.h - следующая работа,
-# и она не здесь.
+#   make                собрать ./digitwm
+#   make install        поставить в ${PREFIX}/bin (по умолчанию /usr/local)
+#   make SIGNID=...     подписать своим удостоверением, а не ad-hoc - читайте
+#                       про это в doc/macos-install.md, там объяснено, почему
+#                       ad-hoc заставляет macOS спрашивать разрешение заново
+#                       после каждой пересборки
+#   make clean
+#
+# На Linux эта цель не собирается и не должна: здесь проверяется другое и
+# другим - sh macos/check.sh и sh macos/stub-build.sh.
+#
+# ЗАГЛУШКА ЗАГОЛОВКОВ X11 НА МАКЕ - НЕ НЕДОРАЗУМЕНИЕ, А НАЗВАННЫЙ ДОЛГ.
+# calmwm.h включает Xlib ради четырёх типов в описаниях структур, и пока он не
+# разрезан (doc/macos.md, «два места, где контракт и macOS не встречаются»,
+# пункт 2), всё, что включает calmwm.h, требует этих заголовков. На маке их
+# нет, поэтому macos/fakex.sh кладёт в ${OBJDIR} те же двадцать строк, что
+# подставляет macos/check.sh. Одна заглушка, два места, ни одной копии.
 
+PROG=		digitwm
+PREFIX?=	/usr/local
 CC?=		cc
-CFLAGS?=	-Wall -Wextra -O2
+OBJDIR?=	obj
 
-all: wsi_ax.o
+# Ad-hoc по умолчанию, потому что для сборки из исходников больше нечего
+# предположить. Цена ad-hoc названа в doc/macos-install.md: разрешение
+# Accessibility привязано к подписи, и после каждой пересборки система
+# спросит его заново.
+SIGNID?=	-
 
-wsi_ax.o: wsi_ax.m wsi_platform.h
-	${CC} ${CFLAGS} -fobjc-arc -c wsi_ax.m \
-		-framework ApplicationServices -framework AppKit
+CFLAGS?=	-Wall -Wextra -O2 -g
+INCS=		-I${OBJDIR}/fakex -I.. -I.
+FRAMEWORKS=	-framework ApplicationServices \
+		-framework AppKit \
+		-framework Carbon
+
+OBJS=		${OBJDIR}/ribbon.o \
+		${OBJDIR}/xmalloc.o \
+		${OBJDIR}/strlcpy.o \
+		${OBJDIR}/strlcat.o \
+		${OBJDIR}/reallocarray.o \
+		${OBJDIR}/wsi_core.o \
+		${OBJDIR}/wsi_conf.o \
+		${OBJDIR}/wsi_run.o \
+		${OBJDIR}/wsi_main.o \
+		${OBJDIR}/wsi_ax.o \
+		${OBJDIR}/wsi_key.o
+
+HDRS=		../calmwm.h ../queue.h ../wsi.h \
+		wsi_platform.h wsi_core.h wsi_conf.h wsi_key.h wsi_run.h
+
+all: ${PROG}
+
+# Каталог сборки и заглушка заголовков в нём. В дерево исходников не кладётся
+# ничего: obj/ целиком отдан сборке и стоит в .gitignore.
+${OBJDIR}/stamp:
+	mkdir -p ${OBJDIR}
+	sh fakex.sh ${OBJDIR}/fakex
+	touch ${OBJDIR}/stamp
+
+${OBJDIR}/ribbon.o: ../ribbon.c ${HDRS} ${OBJDIR}/stamp
+	${CC} ${CFLAGS} ${INCS} -c ../ribbon.c -o $@
+
+${OBJDIR}/xmalloc.o: ../xmalloc.c ${HDRS} ${OBJDIR}/stamp
+	${CC} ${CFLAGS} ${INCS} -c ../xmalloc.c -o $@
+
+${OBJDIR}/strlcpy.o: ../strlcpy.c ${HDRS} ${OBJDIR}/stamp
+	${CC} ${CFLAGS} ${INCS} -c ../strlcpy.c -o $@
+
+${OBJDIR}/strlcat.o: ../strlcat.c ${HDRS} ${OBJDIR}/stamp
+	${CC} ${CFLAGS} ${INCS} -c ../strlcat.c -o $@
+
+${OBJDIR}/reallocarray.o: ../reallocarray.c ${OBJDIR}/stamp
+	${CC} ${CFLAGS} ${INCS} -c ../reallocarray.c -o $@
+
+${OBJDIR}/wsi_core.o: wsi_core.c ${HDRS} ${OBJDIR}/stamp
+	${CC} ${CFLAGS} ${INCS} -c wsi_core.c -o $@
+
+${OBJDIR}/wsi_conf.o: wsi_conf.c ${HDRS} ${OBJDIR}/stamp
+	${CC} ${CFLAGS} ${INCS} -c wsi_conf.c -o $@
+
+${OBJDIR}/wsi_run.o: wsi_run.c ${HDRS} ${OBJDIR}/stamp
+	${CC} ${CFLAGS} ${INCS} -c wsi_run.c -o $@
+
+${OBJDIR}/wsi_main.o: wsi_main.c ${HDRS} ${OBJDIR}/stamp
+	${CC} ${CFLAGS} ${INCS} -c wsi_main.c -o $@
+
+# Два файла ниже линии macos/wsi_platform.h и macos/wsi_key.h. Они не включают
+# calmwm.h и потому не нуждаются в заглушке X11 - но и не мешают ей.
+${OBJDIR}/wsi_ax.o: wsi_ax.m wsi_platform.h ${OBJDIR}/stamp
+	${CC} ${CFLAGS} ${INCS} -fobjc-arc -c wsi_ax.m -o $@
+
+${OBJDIR}/wsi_key.o: wsi_key.m wsi_key.h ${OBJDIR}/stamp
+	${CC} ${CFLAGS} ${INCS} -fobjc-arc -c wsi_key.m -o $@
+
+# Info.plist вшивается в секцию, а не кладётся рядом: digitwm - это один
+# исполняемый файл без пакета, потому что Accessibility API нельзя вызывать
+# из песочницы, а без песочницы в Mac App Store не пускают (doc/macos.md,
+# «Delivery»). Apple документирует и саму секцию __TEXT,__info_plist, и
+# настройку Xcode, которая её делает, - но НЕ флаг линкера, которым это
+# делается без Xcode: страницу руководства ld Apple больше не хостит. То есть
+# строка ниже - единственное место этого Makefile, написанное не по
+# документации Apple, и если она не соберётся, это первое, на что смотреть.
+#
+# Подпись обязательна: без неё macOS не даст разрешения вовсе. Ad-hoc по
+# умолчанию - и цена ad-hoc названа в шапке.
+${PROG}: ${OBJS} Info.plist
+	${CC} -o ${PROG} ${OBJS} ${FRAMEWORKS} \
+	    -Wl,-sectcreate,__TEXT,__info_plist,Info.plist
+	codesign --force --sign "${SIGNID}" ${PROG}
+
+install: ${PROG}
+	install -d ${DESTDIR}${PREFIX}/bin
+	install -m 755 ${PROG} ${DESTDIR}${PREFIX}/bin
 
 clean:
-	rm -f wsi_ax.o wsicheck
+	rm -rf ${OBJDIR} ${PROG}
 
-.PHONY: all clean
+.PHONY: all install clean

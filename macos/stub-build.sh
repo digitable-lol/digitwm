@@ -57,7 +57,8 @@ command -v "$CC" >/dev/null 2>&1 || {
 	exit 1
 }
 
-mkdir -p "$work/stub/ApplicationServices" "$work/stub/AppKit"
+mkdir -p "$work/stub/ApplicationServices" "$work/stub/AppKit" \
+    "$work/stub/Carbon"
 
 # 1. Вырезать заглушку Accessibility API из соседнего скрипта - ту самую, с
 # которой axcost.c согласуется с тех пор, как был написан.
@@ -115,6 +116,9 @@ extern AXError	 AXObserverRemoveNotification(AXObserverRef, AXUIElementRef,
 		     CFStringRef);
 extern const CFStringRef kAXMainAttribute;
 extern const CFStringRef kAXFrontmostAttribute;
+/* Точное зеркало CFRunLoopAddSource, который класса [1]: те же три аргумента. */
+extern void	 CFRunLoopRemoveSource(CFRunLoopRef, CFRunLoopSourceRef,
+		     CFStringRef);
 #endif
 EOF
 
@@ -176,6 +180,92 @@ enum { NSApplicationActivationPolicyRegular = 0 };
 + (NSWorkspace *)sharedWorkspace;
 - (NSArray *)runningApplications;
 @end
+
+/*
+ * Для macos/wsi_key.m: программа без пакета сама заводит себе объект
+ * приложения, иначе устанавливать обработчик Carbon не на что. Класс [3].
+ */
+enum { NSApplicationActivationPolicyAccessory = 1 };
+
+@interface NSApplication : NSObject
++ (NSApplication *)sharedApplication;
+- (void)setActivationPolicy:(NSApplicationActivationPolicy)policy;
+@end
+#endif
+EOF
+
+# 3b. Заглушка Carbon Event Manager - для macos/wsi_key.m.
+#
+# ЧИСЛА ЗДЕСЬ ПРОИЗВОЛЬНЫ И НЕ ЯВЛЯЮТСЯ ФАКТОМ. Проверяются имена, типы и
+# порядок аргументов; значения констант на маке берутся из настоящих
+# заголовков, и ни одно из них в дерево не переписано - именно поэтому в
+# macos/wsi_key.m нет ни одного числового кода клавиши, только имена.
+cat > "$work/stub/Carbon/Carbon.h" <<'EOF'
+#ifndef STUB_CARBON_H
+#define STUB_CARBON_H
+/*
+ * Не Apple SDK. Написано ради одной проверки: согласован ли macos/wsi_key.m с
+ * тем, чем мы считаем Carbon Event Manager. Весь этот файл - класс [3].
+ */
+#include <stddef.h>
+#include <stdint.h>
+
+typedef int32_t		 OSStatus;
+typedef uint32_t	 UInt32;
+typedef uint32_t	 OSType;
+typedef uint32_t	 OptionBits;
+typedef unsigned long	 ItemCount;
+typedef unsigned long	 ByteCount;
+typedef UInt32		 EventParamName;
+typedef UInt32		 EventParamType;
+
+typedef struct __EventRef		*EventRef;
+typedef struct __EventTargetRef		*EventTargetRef;
+typedef struct __EventHandlerRef	*EventHandlerRef;
+typedef struct __EventHandlerCallRef	*EventHandlerCallRef;
+typedef struct __EventHotKeyRef		*EventHotKeyRef;
+
+typedef struct { OSType signature; UInt32 id; } EventHotKeyID;
+typedef struct { UInt32 eventClass; UInt32 eventKind; } EventTypeSpec;
+
+typedef OSStatus (*EventHandlerProcPtr)(EventHandlerCallRef, EventRef, void *);
+typedef EventHandlerProcPtr EventHandlerUPP;
+#define NewEventHandlerUPP(p) (p)
+
+enum { noErr = 0 };
+enum { kEventClassKeyboard = 1 };
+enum { kEventHotKeyPressed = 2 };
+enum { kEventParamDirectObject = 3 };
+enum { typeEventHotKeyID = 4 };
+enum { cmdKey = 1, shiftKey = 2, optionKey = 4, controlKey = 8 };
+
+enum {
+	kVK_ANSI_A, kVK_ANSI_B, kVK_ANSI_C, kVK_ANSI_D, kVK_ANSI_E,
+	kVK_ANSI_F, kVK_ANSI_G, kVK_ANSI_H, kVK_ANSI_I, kVK_ANSI_J,
+	kVK_ANSI_K, kVK_ANSI_L, kVK_ANSI_M, kVK_ANSI_N, kVK_ANSI_O,
+	kVK_ANSI_P, kVK_ANSI_Q, kVK_ANSI_R, kVK_ANSI_S, kVK_ANSI_T,
+	kVK_ANSI_U, kVK_ANSI_V, kVK_ANSI_W, kVK_ANSI_X, kVK_ANSI_Y,
+	kVK_ANSI_Z,
+	kVK_ANSI_0, kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4,
+	kVK_ANSI_5, kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_8, kVK_ANSI_9,
+	kVK_Return, kVK_Space, kVK_Tab, kVK_Escape,
+	kVK_LeftArrow, kVK_RightArrow, kVK_UpArrow, kVK_DownArrow,
+	kVK_ANSI_Minus, kVK_ANSI_Equal, kVK_ANSI_Comma, kVK_ANSI_Period,
+	kVK_ANSI_Slash, kVK_ANSI_Semicolon, kVK_ANSI_Quote,
+	kVK_ANSI_LeftBracket, kVK_ANSI_RightBracket, kVK_ANSI_Grave,
+	kVK_ANSI_Backslash
+};
+
+extern EventTargetRef	 GetApplicationEventTarget(void);
+extern OSStatus		 InstallEventHandler(EventTargetRef, EventHandlerUPP,
+			     ItemCount, const EventTypeSpec *, void *,
+			     EventHandlerRef *);
+extern OSStatus		 GetEventParameter(EventRef, EventParamName,
+			     EventParamType, EventParamType *, ByteCount,
+			     ByteCount *, void *);
+extern OSStatus		 RegisterEventHotKey(UInt32, UInt32, EventHotKeyID,
+			     EventTargetRef, OptionBits, EventHotKeyRef *);
+extern OSStatus		 UnregisterEventHotKey(EventHotKeyRef);
 #endif
 EOF
 
@@ -188,11 +278,22 @@ $CC -fsyntax-only -x objective-c -std=c99 -D_POSIX_C_SOURCE=200809L \
 	-Wall -Wextra -Werror -Wno-objc-root-class \
 	-I"$work/stub" -I"$root/macos" "$here/wsi_ax.m"
 echo "  согласован (-Wall -Wextra -Werror)"
+
+echo
+echo "macos/wsi_key.m против заглушек Carbon и AppKit:"
+$CC -fsyntax-only -x objective-c -std=c99 -D_POSIX_C_SOURCE=200809L \
+	-Wall -Wextra -Werror -Wno-objc-root-class \
+	-I"$work/stub" -I"$root/macos" "$here/wsi_key.m"
+echo "  согласован (-Wall -Wextra -Werror)"
 echo
 echo "Что это значит: код согласован с нашим представлением об API - имена,"
 echo "типы, порядок аргументов, подпись AXObserverCallback."
 echo "Что это НЕ значит: что представление верно. Классы [2] и [3] в шапке"
 echo "macos/wsi_ax.m - это и есть список того, что проверяется только на маке."
 echo
-echo "На маке:  cc -Wall -Wextra -fobjc-arc -c macos/wsi_ax.m \\"
-echo "              -framework ApplicationServices -framework AppKit"
+echo "На маке всё это собирается настоящей сборкой - make -C macos, - а по"
+echo "отдельности так:"
+echo "  cc -Wall -Wextra -fobjc-arc -c macos/wsi_ax.m \\"
+echo "      -framework ApplicationServices -framework AppKit"
+echo "  cc -Wall -Wextra -fobjc-arc -c macos/wsi_key.m \\"
+echo "      -framework Carbon -framework AppKit"

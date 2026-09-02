@@ -119,6 +119,7 @@ things — a difference in facts is worse than a missing translation.
 | [doc/build.md](doc/build.md) | building, installing, running, checking a change |
 | [doc/portability.md](doc/portability.md) | what here is X11 and what is arithmetic, measured — and what a macOS port would cost |
 | [doc/macos.md](doc/macos.md) | the plan of the macOS port: the stages, what will not be there by name, and the numbers at which it is closed |
+| [doc/macos-install.md](doc/macos-install.md) | putting it on a Mac and starting it: the one permission, the keys, what of cwmrc is read, and which Apple call will fail first |
 | [doc/browser.md](doc/browser.md) | what of this can be shown in a browser for real, and what cannot |
 | [doc/terminal.md](doc/terminal.md) | the specification of the ribbon in a terminal: what ports, what will not be there, and how it is checked |
 | [fts/README.md](fts/README.md) | the models, the harnesses, and where they stop |

@@ -41,6 +41,7 @@ REPO_ROOT=$(cd -- "$(dirname -- "$0")" && pwd)
 PLAN_ONLY=0
 NO_SESSION=0
 NO_PACKAGES=0
+MACOS=0
 PREFIX="$HOME/.local"
 SESSION_ARGS=""
 SUDO_BIN=""
@@ -120,13 +121,26 @@ OpenBSD)
 	install_cmd=""
 	;;
 Darwin)
-	die "на macOS оконному менеджеру X11 нечем управлять, а нативной сборки
-     ещё нет: перенос на Accessibility API начат планом, а не кодом.
-     Что делаем, в каком порядке и по какому признаку останавливаемся -
-     doc/macos.ru.md (English: doc/macos.md).  Во что перенос обходится, с
-     числами, - doc/portability.ru.md.
-     Всё, что вокруг менеджера, раскладывается на маке уже сегодня:
-     session/install.sh --skip-install"
+	# На маке собирается ДРУГАЯ цель. X11-сборкой тут управлять нечем:
+	# менеджер разговаривает с окнами через Accessibility API, и живёт это
+	# в macos/ - отдельный Makefile, отдельный двоичный файл digitwm.
+	#
+	# Ставить нечего: компилятор, make и оба фреймворка приходят с Command
+	# Line Tools, а больше маковской цели ничего не нужно - ни yacc, ни
+	# pkg-config, ни заголовков X11 (calmwm.h подсовывается заглушка,
+	# macos/fakex.sh).
+	#
+	# Чего эта сборка НЕ проверяла ни разу: саму себя. Мака в проекте нет,
+	# и что здесь произойдёт на самом деле - написано без обиняков в
+	# doc/macos-install.ru.md (English: doc/macos-install.md).
+	MACOS=1
+	manager="Command Line Tools"
+	packages=""
+	install_cmd=""
+	if ! xcode-select -p >/dev/null 2>&1; then
+		die "нет Command Line Tools: поставьте их одной командой и
+     запустите снова -  xcode-select --install"
+	fi
 	;;
 esac
 
@@ -150,7 +164,7 @@ have_build_deps() {
 	return 0
 }
 
-if [ "$NO_PACKAGES" -eq 1 ]; then
+if [ "$NO_PACKAGES" -eq 1 ] || [ "$MACOS" -eq 1 ]; then
 	packages=""
 elif have_build_deps; then
 	packages=""
@@ -175,7 +189,14 @@ elif [ "$NO_PACKAGES" -eq 1 ]; then
 else
 	say "  [пакеты]  ничего: всё нужное в базовой системе"
 fi
-say "  [сборка]  make && make install PREFIX=$PREFIX (в $REPO_ROOT)"
+if [ "$MACOS" -eq 1 ]; then
+	say "  [сборка]  make -C macos && make -C macos install PREFIX=$PREFIX"
+	say "            цель macOS: digitwm поверх Accessibility API"
+	say "  [право]   после установки macOS спросит разрешение Accessibility;"
+	say "            без него digitwm не увидит ни одного окна"
+else
+	say "  [сборка]  make && make install PREFIX=$PREFIX (в $REPO_ROOT)"
+fi
 if [ "$NO_SESSION" -eq 0 ]; then
 	say "  [сессия]  session/install.sh$SESSION_ARGS"
 	say "            редактор, терминал, оболочка, мультиплексор, темы"
@@ -203,11 +224,27 @@ if [ "$PLAN_ONLY" -eq 0 ]; then
 	say "== Оконный менеджер =="
 	command -v make >/dev/null 2>&1 || die "нет make"
 	command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1 || die "нет компилятора C"
-	( cd "$REPO_ROOT" && make ) || die "сборка не прошла"
-	( cd "$REPO_ROOT" && make install PREFIX="$PREFIX" ) || \
-		die "установка в $PREFIX не прошла"
-	say "  установлен: $PREFIX/bin/cwm"
-	say ""
+	if [ "$MACOS" -eq 1 ]; then
+		( cd "$REPO_ROOT/macos" && make ) || die "сборка не прошла.
+     Это первая сборка маковской цели на живом маке: если упал компилятор,
+     имя, на котором он упал, и есть ответ - doc/macos-install.ru.md,
+     раздел про имена Apple"
+		( cd "$REPO_ROOT/macos" && make install PREFIX="$PREFIX" ) || \
+			die "установка в $PREFIX не прошла"
+		say "  установлен: $PREFIX/bin/digitwm"
+		say ""
+		say "  Дальше - одно разрешение и один запуск:"
+		say "    $PREFIX/bin/digitwm        # macOS спросит Accessibility"
+		say "    (разрешить в Системных настройках, запустить снова)"
+		say "    $PREFIX/bin/digitwm -N     # если что-то не так: какой вызов не ответил"
+		say ""
+	else
+		( cd "$REPO_ROOT" && make ) || die "сборка не прошла"
+		( cd "$REPO_ROOT" && make install PREFIX="$PREFIX" ) || \
+			die "установка в $PREFIX не прошла"
+		say "  установлен: $PREFIX/bin/cwm"
+		say ""
+	fi
 fi
 
 # --- окружение --------------------------------------------------------------

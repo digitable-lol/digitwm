@@ -19,5 +19,12 @@ tools/wasm-layout/layout.wasm
 tools/macos-flicker/axcost
 tools/macos-flicker/flicker
 
-# Харнесс проверяемой половины macOS-порта: собирается macos/check.sh.
+# Харнессы проверяемой половины macOS-порта: собираются macos/check.sh.
 macos/wsicheck
+macos/runcheck
+
+# Сборка маковской цели: сам двоичный файл и каталог объектных файлов вместе
+# с заглушкой заголовков X11, которую туда кладёт macos/fakex.sh. В дерево
+# исходников не попадает ничего.
+macos/digitwm
+macos/obj/

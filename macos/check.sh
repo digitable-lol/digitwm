@@ -50,33 +50,10 @@ cases=${1:-400}
 cleanup() { rm -rf "$work"; }
 trap cleanup EXIT INT TERM
 
-mkdir -p "$work/fakex/X11/Xft" "$work/fakex/X11/extensions"
-
-cat > "$work/fakex/X11/Xlib.h" <<'EOF'
-#ifndef FAKE_XLIB_H
-#define FAKE_XLIB_H
-typedef unsigned long Window, Colormap, Atom, Cursor, Time, Pixmap, KeySym, XID;
-typedef struct _Display Display;
-typedef struct { int dummy; } Visual;
-typedef union _XEvent { int type; long pad[24]; } XEvent;
-typedef struct { char *res_name, *res_class; } XClassHint;
-typedef struct { long flags; int x, y, width, height, min_width, min_height,
-    max_width, max_height, width_inc, height_inc, base_width, base_height,
-    win_gravity; struct { int x, y; } min_aspect, max_aspect; } XSizeHints;
-#define False 0
-#define True 1
-#endif
-EOF
-for h in XKBlib.h Xatom.h Xproto.h Xutil.h cursorfont.h keysym.h; do
-	echo '#include <X11/Xlib.h>' > "$work/fakex/X11/$h"
-done
-cat > "$work/fakex/X11/Xft/Xft.h" <<'EOF'
-#include <X11/Xlib.h>
-typedef struct { int height, ascent, descent; } XftFont;
-typedef struct { int dummy; } XftColor;
-typedef struct _XftDraw XftDraw;
-EOF
-echo '#include <X11/Xlib.h>' > "$work/fakex/X11/extensions/Xrandr.h"
+# Заглушка заголовков X11 - не здесь, а в macos/fakex.sh: её же подставляет
+# macos/Makefile, собирая порт на маке, где X11 нет вовсе. Один вымысел о
+# чужих заголовках, одно место.
+sh "$root/macos/fakex.sh" "$work/fakex"
 
 inc="-I$work/fakex -I$root -I$root/macos"
 warn="-Wall -Wextra -Werror"
@@ -106,12 +83,56 @@ $CC -o "$root/macos/wsicheck" "$work/ribbon.o" "$work/wsi_core.o" \
     "$work/wsi_fake.o" "$work/wsicheck.o" "$work/strlcpy.o" "$work/strlcat.o"
 echo "собрался"
 
+# Часть (б): то, что стоит между лентой и человеком, - последовательность
+# запуска, чтение cwmrc, разбор нажатой клавиши. Те же самые файлы, что
+# собираются в двоичный файл на маке; клавиатурный слой подделан харнессом,
+# потому что настоящий - это Carbon.
+printf 'порт: wsi_conf.c wsi_run.c:     '
+(cd "$root" && $CC $warn -O2 -g -D_GNU_SOURCE $inc -c macos/wsi_conf.c \
+    -o "$work/wsi_conf.o")
+(cd "$root" && $CC $warn -O2 -g -D_GNU_SOURCE $inc -c macos/wsi_run.c \
+    -o "$work/wsi_run.o")
+echo "собрались ($warn)"
+
+printf 'точка входа: wsi_main.c:        '
+(cd "$root" && $CC $warn -O2 -g -D_GNU_SOURCE $inc -c macos/wsi_main.c \
+    -o "$work/wsi_main.o")
+echo "собралась ($warn)"
+
+printf 'харнесс: runcheck.c:            '
+(cd "$root" && $CC -Wall -O2 -g -D_GNU_SOURCE $inc -c xmalloc.c \
+    -o "$work/xmalloc.o")
+(cd "$root" && $CC $warn -O2 -g -D_GNU_SOURCE $inc -c macos/runcheck.c \
+    -o "$work/runcheck.o")
+$CC -o "$root/macos/runcheck" "$work/ribbon.o" "$work/wsi_core.o" \
+    "$work/wsi_fake.o" "$work/wsi_conf.o" "$work/wsi_run.o" \
+    "$work/runcheck.o" "$work/xmalloc.o" "$work/strlcpy.o" "$work/strlcat.o"
+echo "собрался"
+
+# И полная сборка двоичного файла - того самого, с настоящим main(), - со
+# всеми объектными файлами, которые собирает macos/Makefile на маке, кроме
+# двух: wsi_ax.m и wsi_key.m тут заменены оконной системой из памяти и
+# подделкой клавиатуры из харнесса. Это не «собралось на маке» и не выдаёт
+# себя за него; это доказательство, что набор объектных файлов полон и
+# сходится - то единственное в сборке на маке, что здесь проверить можно.
+printf 'digitwm целиком (mac-цель, кроме двух .m):  '
+(cd "$root" && $CC $warn -O2 -g -D_GNU_SOURCE $inc -Dmain=runcheck_unused \
+    -c macos/runcheck.c -o "$work/runfakes.o")
+$CC -o "$work/digitwm-fake" "$work/wsi_main.o" "$work/ribbon.o" \
+    "$work/wsi_core.o" "$work/wsi_conf.o" "$work/wsi_run.o" \
+    "$work/wsi_fake.o" "$work/runfakes.o" "$work/xmalloc.o" \
+    "$work/strlcpy.o" "$work/strlcat.o"
+echo "слинковался"
+printf '  и отвечает: '
+"$work/digitwm-fake" -k | head -1
+
 # 3. Ни одного имени X11 во всём, что собрано. Это не украшение: половина
 # порта, объявленная независимой от оконной системы, обязана быть независимой
 # и от той, из-под которой мы её проверяем.
 x_syms=$(nm -u "$work/ribbon.o" "$work/wsi_core.o" "$work/wsi_fake.o" \
-    "$work/wsicheck.o" | awk '{print $NF}' | grep -E '^_?X' | LC_ALL=C sort -u \
-    || true)
+    "$work/wsicheck.o" "$work/wsi_conf.o" "$work/wsi_run.o" \
+    "$work/wsi_main.o" "$work/runcheck.o" | awk '{print $NF}' \
+    | grep -E '^_?X' | LC_ALL=C sort -u || true)
 if [ -n "$x_syms" ]; then
 	echo "порт требует имён X11, а должен требовать ноль:" >&2
 	echo "$x_syms" | sed 's/^/  /' >&2
@@ -127,3 +148,7 @@ if [ ! -x "$root/cwm" ]; then
 fi
 
 cd "$root" && ./macos/wsicheck --wm ./cwm --cases "$cases"
+
+# 5. И то, чего в сверке выше нет вовсе: запуск, настройки, клавиши.
+echo
+./macos/runcheck

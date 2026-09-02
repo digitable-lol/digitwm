@@ -86,16 +86,52 @@
  *       +[NSEvent mouseLocation] (doc/portability.md:95, doc/macos.md:76)
  *       -[NSScreen visibleFrame] (doc/portability.md, "Apple documentation")
  *
- *   [3] - 15 names.  NSWorkspace is cited by doc/portability.md as the way
- *       to learn of applications (yabai src/workspace.m:157-180), but not
- *       one selector of it is, so the selectors are here rather than in [2]:
- *       CFEqual AXObserverRemoveNotification kAXFrontmostAttribute
- *       kAXMainAttribute NSApplicationActivationPolicyRegular
- *       +[NSScreen screens] -[NSScreen frame] -[NSScreen localizedName]
- *       +[NSWorkspace sharedWorkspace] -[NSWorkspace runningApplications]
- *       -[NSRunningApplication processIdentifier]
- *       -[NSRunningApplication activationPolicy] -[NSString UTF8String]
- *       -[NSArray count] -[NSArray objectAtIndex:]
+ *   [3] - 4 names.  CFRunLoopRemoveSource (the exact mirror of the [1]
+ *       CFRunLoopAddSource), -[NSString UTF8String], -[NSArray count],
+ *       -[NSArray objectAtIndex:].
+ *
+ * ELEVEN NAMES LEFT THAT LIST, and it is worth saying how, because the way is
+ * repeatable and the rest of the list can leave the same way.  They were
+ * looked up in Apple's own documentation - not in a neighbour's source, not
+ * from memory - and each of the pages below states the declaration this file
+ * uses.  That is a stronger citation than [2] asks for (header and line), so
+ * they are [2] here with the page named instead of the header:
+ *
+ *   AXUIElementIsAttributeSettable, AXUIElementPerformAction, kAXRaiseAction
+ *     applicationservices/1459972-axuielementisattributesettable
+ *     applicationservices/1462091-axuielementperformaction
+ *     applicationservices/kaxraiseaction
+ *   AXObserverRemoveNotification
+ *     applicationservices/1462066-axobserverremovenotification
+ *   CFEqual                     corefoundation/cfequal(_:_:)
+ *   kAXMainAttribute            applicationservices/kaxmainattribute
+ *   kAXFrontmostAttribute       applicationservices/kaxfrontmostattribute
+ *   +[NSScreen screens], -frame, -visibleFrame, -localizedName
+ *     appkit/nsscreen (screens, frame, visibleframe, localizedname)
+ *   +[NSWorkspace sharedWorkspace], -runningApplications
+ *     appkit/nsworkspace/shared, appkit/nsworkspace/runningapplications
+ *   -[NSRunningApplication processIdentifier], -activationPolicy,
+ *   NSApplicationActivationPolicyRegular
+ *     appkit/nsrunningapplication/processidentifier, /activationpolicy
+ *
+ * WHAT THE PAGES DO NOT SAY, and therefore what is still a guess:
+ *
+ *   - the VALUE TYPE of kAXMainAttribute and kAXFrontmostAttribute.  Apple
+ *     says what they mean and not what to write into them; this file writes
+ *     kCFBooleanTrue, on the strength of AppKit's parallel constants being
+ *     documented as NSNumber.  Different symbols, so it stays a guess;
+ *   - the string value behind kAXRaiseAction and the notification constants.
+ *     Nothing here needs one: they are compared and passed as symbols;
+ *   - -[NSRunningApplication processIdentifier] is documented to answer -1
+ *     for an application that has no pid.  This file does not check for it -
+ *     AXUIElementCreateApplication(-1) simply finds nothing - and that is a
+ *     small hole rather than a wrong answer.
+ *
+ * AXUIElementGetPid turns out to be documented too
+ * (applicationservices/1460337-axuielementgetpid), which removes the reason
+ * this file avoided it.  It is still not called: the observer's refcon
+ * answers the same question for nothing, and a call that is not made cannot
+ * be wrong.
  *
  * One call this file deliberately does NOT make.  doc/portability.md's route
  * to activation is "_SLPSSetFrontProcessWithOptions plus
@@ -103,7 +139,8 @@
  * private SkyLight entry point: no header declares it anywhere, public or
  * in this tree, and a signature written for it would be invention rather
  * than a guess.  So activation here goes through kAXFrontmostAttribute,
- * which is public and grade [3], and if the first Mac says that is not
+ * which is public and grade [2] - Apple documents the constant, though not
+ * what to write into it - and if the first Mac says that is not
  * enough, the private call goes in with yabai's declaration copied
  * literally and cited.  Naming the substitution is the point; doing it
  * silently would be the thing not to do.
@@ -137,6 +174,34 @@
  */
 #define AX_TIMEOUT	0.2f
 
+/*
+ * How often to look for applications that have started or quit since the last
+ * look.
+ *
+ * A window manager that only ever attached to the applications running when it
+ * started would manage nothing a person opens afterwards, and would keep a
+ * column for every application he has since quit.
+ *
+ * THE BETTER INSTRUMENT EXISTS AND IS DOCUMENTED, and this is not it.  Apple
+ * publishes NSWorkspaceDidLaunchApplicationNotification and
+ * NSWorkspaceDidTerminateApplicationNotification, with the warning that they
+ * arrive only through -[NSWorkspace notificationCenter] and not through the
+ * default one (appkit/nsworkspace/didlaunchapplicationnotification).  They
+ * would answer immediately where this answers within a second.
+ *
+ * The poll is what is written because it asks a question this file already
+ * asks, needs no observer object, no block and no second notification centre,
+ * and answers both halves - who is new and who is gone - with one walk.  The
+ * price is written down rather than hidden: a window of an application that
+ * was not running a second ago joins the ribbon up to this many milliseconds
+ * late.  Windows of an application already attached are not affected; those
+ * arrive by notification, at the delay doc/macos.md measures.
+ *
+ * If that second is felt on the first Mac, the two notification names above
+ * are the replacement, and they are cited rather than guessed.
+ */
+#define AX_SCAN_MS	1000.0
+
 struct ax_win {
 	wsip_window		 id;
 	AXUIElementRef		 el;
@@ -153,6 +218,9 @@ struct ax_app {
 };
 
 static int		 ax_track(AXUIElementRef);
+static int		 ax_attach(pid_t);
+static void		 ax_forget(struct ax_app *);
+static void		 ax_scan(void);
 
 static struct ax_win	 ax_win[AX_MAXWIN];
 static struct ax_app	 ax_app[AX_MAXAPP];
@@ -202,9 +270,10 @@ ax_find_el(AXUIElementRef el)
 	 * pointer.  It works here because every ref this table holds is one
 	 * we retained ourselves and hand back to the observer as its
 	 * refcon - so the pointer that comes back is the pointer that went
-	 * out.  If that ever stops being true the fix is CFEqual, and the
-	 * reason it is not used today is that nothing in this tree gives its
-	 * signature.
+	 * out.  If that ever stops being true the fix is CFEqual, whose
+	 * signature is now known (see this file's header) - it was not when
+	 * this was written, and the comparison stays a pointer one because it
+	 * is correct here, not because CFEqual is unavailable.
 	 */
 	for (i = 0; i < AX_MAXWIN; i++) {
 		if (ax_win[i].inuse && ax_win[i].el == el)
@@ -275,10 +344,10 @@ ax_rect(AXUIElementRef el, struct wsip_rect *r)
  * declaration at AXUIElement.h:446.  All this function may do is report
  * upwards, which it does.
  *
- * The names are compared with CFEqual, which is grade [3]: nothing in this
- * tree gives its signature, and the one line macos/stub-build.sh declares
- * for it - Boolean CFEqual(CFTypeRef, CFTypeRef) - is written from general
- * knowledge of CoreFoundation.  The alternative was to turn the name into a
+ * The names are compared with CFEqual, which is grade [2]: Apple's own page
+ * gives the declaration this file uses (corefoundation/cfequal), and the line
+ * macos/stub-build.sh declares for it agrees with it.  The alternative was to
+ * turn the name into a
  * C string with the grade [1] CFStringGetCString and compare it against
  * "AXWindowMoved" and its four siblings, which trades one unconfirmed
  * signature for five unconfirmed string VALUES: doc/portability.md cites the
@@ -288,11 +357,11 @@ ax_rect(AXUIElementRef el, struct wsip_rect *r)
 static void
 ax_note(AXObserverRef obs, AXUIElementRef el, CFStringRef name, void *refcon)
 {
+	struct ax_app		*a = refcon;
 	struct ax_win		*w;
 	struct wsip_rect	 r;
 
 	(void)obs;
-	(void)refcon;
 
 	/*
 	 * The five notifications.  kAXWindowCreatedNotification is grade [1];
@@ -302,8 +371,27 @@ ax_note(AXObserverRef obs, AXUIElementRef el, CFStringRef name, void *refcon)
 	 * comment is the marker.
 	 */
 	if (CFEqual(name, kAXWindowCreatedNotification)) {
-		if (ax_track(el) == 0 && (w = ax_find_el(el)) != NULL &&
-		    ax_rect(el, &r) == 0)
+		if (ax_track(el) != 0 || (w = ax_find_el(el)) == NULL)
+			return;
+		/*
+		 * Which application this window belongs to, and the only place
+		 * the answer is available for free.  AXUIElementGetPid answers
+		 * it too and is documented (see this file's header), so the
+		 * choice is not about sources any more: the refcon is grade
+		 * [1] - AXObserverAddNotification takes it and
+		 * AXObserverCallback hands it back - and it costs no call at
+		 * all, where AXUIElementGetPid is a round trip into another
+		 * process on a path that already makes two.
+		 *
+		 * It is not decoration.  wsip_watch() and wsip_activate() both
+		 * start by finding the application, so a window whose pid
+		 * stayed zero would never be watched for moving, resizing or
+		 * closing, and could never be given the keyboard.  Every
+		 * window opened after digitwm started is one of those.
+		 */
+		if (a != NULL)
+			w->pid = a->pid;
+		if (ax_rect(el, &r) == 0)
 			wsi_note_open(w->id, &r);
 		return;
 	}
@@ -383,17 +471,24 @@ ax_attach(pid_t pid)
 		return -1;
 	}
 
-	AXObserverAddNotification(obs, app, kAXWindowCreatedNotification, NULL);
-	AXObserverAddNotification(obs, app, kAXFocusedWindowChangedNotification,
-	    NULL);
-
-	CFRunLoopAddSource(CFRunLoopGetCurrent(),
-	    AXObserverGetRunLoopSource(obs), kCFRunLoopDefaultMode);
-
+	/*
+	 * The record is filled before the first notification is asked for,
+	 * because it is what goes into the refcon: ax_note() needs to know
+	 * which application a window it has never seen belongs to, and the
+	 * refcon is the only channel AXObserverCallback has for saying so.
+	 */
 	ax_app[slot].inuse = 1;
 	ax_app[slot].pid = pid;
 	ax_app[slot].el = app;
 	ax_app[slot].obs = obs;
+
+	AXObserverAddNotification(obs, app, kAXWindowCreatedNotification,
+	    &ax_app[slot]);
+	AXObserverAddNotification(obs, app, kAXFocusedWindowChangedNotification,
+	    &ax_app[slot]);
+
+	CFRunLoopAddSource(CFRunLoopGetCurrent(),
+	    AXObserverGetRunLoopSource(obs), kCFRunLoopDefaultMode);
 
 	/*
 	 * The windows the application already had.  A manager that only ever
@@ -426,6 +521,102 @@ ax_attach(pid_t pid)
 }
 
 /*
+ * Let one application go: its windows leave the ribbon, its observer leaves
+ * the run loop, and its slot is free again.
+ *
+ * The windows are reported closed rather than quietly dropped, because that is
+ * the only thing that takes them off the ribbon: nothing else in this port
+ * removes a column, and an application that quit while its windows still stood
+ * in one would leave a hole the user cannot scroll past.
+ *
+ * CFRunLoopRemoveSource is grade [3] and is the exact mirror of the grade [1]
+ * CFRunLoopAddSource three functions up - same three arguments, opposite verb.
+ */
+static void
+ax_forget(struct ax_app *a)
+{
+	int	 i;
+
+	for (i = 0; i < AX_MAXWIN; i++) {
+		if (!ax_win[i].inuse || ax_win[i].pid != a->pid)
+			continue;
+		wsi_note_close(ax_win[i].id);
+		if (ax_win[i].inuse) {
+			CFRelease(ax_win[i].el);
+			ax_win[i].inuse = 0;
+		}
+	}
+
+	CFRunLoopRemoveSource(CFRunLoopGetCurrent(),
+	    AXObserverGetRunLoopSource(a->obs), kCFRunLoopDefaultMode);
+	CFRelease(a->obs);
+	CFRelease(a->el);
+	a->inuse = 0;
+}
+
+/*
+ * Who is running now: attach to what is new, let go of what is gone.
+ *
+ * Grade [2] from the first line of the pool to the last: every selector here
+ * is on an Apple page named in this file's header.  It was grade [3] when it
+ * was written, and it is the function the whole port stands on - a manager
+ * that finds no applications finds no windows - which is why it was the first
+ * thing looked up.
+ *
+ * Applications with no dock icon are skipped: an agent has no windows a person
+ * arranges, and attaching an observer to each of them costs a port into that
+ * process for nothing.
+ */
+static void
+ax_scan(void)
+{
+	pid_t	 pid, live[AX_MAXAPP];
+	int	 nlive = 0, truncated = 0, i, j, found;
+
+	@autoreleasepool {
+		NSArray		*apps;
+		NSUInteger	 k;
+
+		apps = [[NSWorkspace sharedWorkspace] runningApplications];
+		for (k = 0; k < [apps count]; k++) {
+			NSRunningApplication	*a = [apps objectAtIndex:k];
+
+			if ([a activationPolicy] !=
+			    NSApplicationActivationPolicyRegular)
+				continue;
+			if (nlive >= AX_MAXAPP) {
+				truncated = 1;
+				break;
+			}
+			pid = [a processIdentifier];
+			live[nlive++] = pid;
+			(void)ax_attach(pid);
+		}
+	}
+
+	/*
+	 * More applications than there are slots is not a reason to declare the
+	 * ones we could not see dead: the list is incomplete, and reaping from
+	 * an incomplete list would close windows that are still open.
+	 */
+	if (truncated)
+		return;
+
+	for (i = 0; i < AX_MAXAPP; i++) {
+		if (!ax_app[i].inuse)
+			continue;
+		for (j = 0, found = 0; j < nlive; j++) {
+			if (ax_app[i].pid == live[j]) {
+				found = 1;
+				break;
+			}
+		}
+		if (!found)
+			ax_forget(&ax_app[i]);
+	}
+}
+
+/*
  * macos/wsi_platform.h, on the macOS side of the line.
  */
 
@@ -454,31 +645,20 @@ wsip_open(void)
 		return -1;
 
 	/*
-	 * [3] from here to the end of this function: NSWorkspace is cited by
-	 * doc/portability.md as the way to learn of applications (yabai
-	 * src/workspace.m:157-180), but no selector of it is, and neither is
-	 * anything of NSRunningApplication.  Confirm on the first Mac.
+	 * DISPLAYS FIRST, APPLICATIONS SECOND, and the order is load-bearing
+	 * twice over rather than tidy.
 	 *
-	 * Applications with no dock icon are skipped: an agent has no windows
-	 * a person arranges, and attaching an observer to each of them costs
-	 * a port into that process for nothing.
+	 * wsi_note_displays() is what fills the region list the ribbon binds
+	 * itself to by name, and what fills ax_screen_top, the one number every
+	 * coordinate in this file is flipped around.  Attaching to the
+	 * applications reports every window they already have - each of those
+	 * goes straight into wsi_note_open(), which asks the ribbon which
+	 * column it belongs in.  Done in the other order, that question is
+	 * asked of a screen with no outputs, and answered by a flip around
+	 * zero: every window on the desk lands in nothing, at a negative y.
 	 */
-	@autoreleasepool {
-		NSArray		*apps;
-		NSUInteger	 i;
-
-		apps = [[NSWorkspace sharedWorkspace] runningApplications];
-		for (i = 0; i < [apps count]; i++) {
-			NSRunningApplication	*a = [apps objectAtIndex:i];
-
-			if ([a activationPolicy] !=
-			    NSApplicationActivationPolicyRegular)
-				continue;
-			(void)ax_attach([a processIdentifier]);
-		}
-	}
-
 	wsi_note_displays();
+	ax_scan();
 	return 0;
 }
 
@@ -579,7 +759,9 @@ wsip_raise(wsip_window id)
  *
  * Three steps, because on macOS focus is a pair - a front process, and a
  * window of it - and there is no single call that sets both.  kAXMainAttribute
- * and kAXFrontmostAttribute are grade [3]; the substitution for
+ * and kAXFrontmostAttribute are grade [2] by name and meaning and a guess by
+ * value type, which is the split this file's header spells out; the
+ * substitution for
  * _SLPSSetFrontProcessWithOptions is argued in this file's header rather
  * than made quietly.
  */
@@ -608,8 +790,8 @@ wsip_activate(wsip_window id)
  * of windows the ribbon does not manage, and each one of those costs the
  * echo check a walk it need not make.
  *
- * AXObserverRemoveNotification is grade [3] - the tree cites the adding call
- * and not the removing one.
+ * AXObserverRemoveNotification is grade [2] - Apple's page gives the
+ * declaration; it was [3] until this cell looked it up.
  */
 int
 wsip_watch(wsip_window id, int on)
@@ -622,11 +804,11 @@ wsip_watch(wsip_window id, int on)
 
 	if (on) {
 		AXObserverAddNotification(a->obs, w->el,
-		    kAXWindowMovedNotification, NULL);
+		    kAXWindowMovedNotification, a);
 		AXObserverAddNotification(a->obs, w->el,
-		    kAXWindowResizedNotification, NULL);
+		    kAXWindowResizedNotification, a);
 		AXObserverAddNotification(a->obs, w->el,
-		    kAXUIElementDestroyedNotification, NULL);
+		    kAXUIElementDestroyedNotification, a);
 	} else {
 		AXObserverRemoveNotification(a->obs, w->el,
 		    kAXWindowMovedNotification);
@@ -689,8 +871,22 @@ wsip_pointer_warp(int x, int y)
 int
 wsip_pump(double ms)
 {
+	static double	 scanned;
+	double		 now;
+
 	(void)CFRunLoopRunInMode(kCFRunLoopDefaultMode,
 	    (CFTimeInterval)(ms / 1000.0), 0);
+
+	/*
+	 * And the one thing no notification tells this port: that there is an
+	 * application now which was not running a moment ago.  See AX_SCAN_MS
+	 * for why the question is asked on a clock rather than subscribed to.
+	 */
+	now = wsip_now();
+	if (now - scanned >= AX_SCAN_MS) {
+		scanned = now;
+		ax_scan();
+	}
 	return 0;
 }
 
@@ -702,11 +898,21 @@ wsip_pump(double ms)
  * strut arithmetic in xutil.c have nothing to be ported into - they are
  * dropped, and this is what replaces them.
  *
- * screens, frame and localizedName are grade [3].  localizedName in
- * particular is a name for a person to read, and wsi.h wants a name that
- * survives a cable being pulled; two identical monitors would give the same
- * one.  The right answer is probably a display UUID, and the tree cites none,
- * so this stands as the first thing to fix on the first Mac.
+ * screens, frame and localizedName are grade [2] as of this cell - Apple's own
+ * pages give all three - and the problem with localizedName is not its grade.
+ * It is a name for a person to read, and wsi.h wants a name that survives a
+ * cable being pulled: two identical monitors give the same one, and the ribbon
+ * binds itself by that name.  The documented way out is
+ * -[NSScreen deviceDescription] under the key @"NSScreenNumber", which Apple
+ * states holds the CGDirectDisplayID; ColorSync's
+ * CGDisplayCreateUUIDFromDisplayID turns that into something stable across
+ * reboots, and Apple publishes no word about what it is for.  Both are cited
+ * rather than guessed, and this stands as the first thing to fix on the first
+ * Mac with two identical monitors.
+ *
+ * Apple also warns that the array must not be cached because screens are
+ * reconfigured at any time.  It is not cached: macos/wsi_run.c asks again
+ * every second and rebuilds the region list when the answer changes.
  */
 int
 wsip_displays(struct wsip_display *out, int max)
