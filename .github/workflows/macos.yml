@@ -224,6 +224,62 @@ jobs:
           # нет. Мы требуем не успеха, а того, чтобы отказ был НАЗВАН.
           grep -q 'Accessibility' "$RUNNER_TEMP/doctor.txt"
 
+      # Настройки, которых не было. Владелец пошёл править
+      # ~/.digitable/digitwm/digitwmrc и не нашёл ни файла, ни каталога.
+      # Здесь проверяется и создание, и три отрицательных контроля: файл есть -
+      # не трогать; есть ~/.cwmrc - не создавать (наш победил бы в поиске и
+      # спрятал чужой); задан $DIGITWMRC - не создавать.
+      - name: Файл настроек заводится сам, и только когда это безопасно
+        run: |
+          set -o pipefail
+          h="$RUNNER_TEMP/homes"; rm -rf "$h"; mkdir -p "$h/a" "$h/b" "$h/c"
+          f=.digitable/digitwm/digitwmrc
+
+          echo "--- 1. файла нет -> создан ---"
+          HOME="$h/a" ./macos/digitwm -n 2>&1 | head -2
+          test -f "$h/a/$f"
+          stat -f '%p %N' "$h/a/.digitable" "$h/a/.digitable/digitwm" "$h/a/$f"
+          echo "строк: $(wc -l < "$h/a/$f" | tr -d ' '), действующих директив: $(grep -cvE '^[[:space:]]*(#|$)' "$h/a/$f" || true)"
+          grep -q 'ribbongap 8' "$h/a/$f"
+
+          echo "--- 2. файл есть -> не тронут ---"
+          printf 'ribbongap 42\n' >> "$h/a/$f"
+          before=$(shasum -a 256 "$h/a/$f" | cut -d' ' -f1)
+          HOME="$h/a" ./macos/digitwm -n 2>&1 | head -1
+          after=$(shasum -a 256 "$h/a/$f" | cut -d' ' -f1)
+          [ "$before" = "$after" ] || { echo "файл переписан" >&2; exit 1; }
+          echo "отпечаток до и после совпал: $after"
+
+          echo "--- 3. есть ~/.cwmrc -> не создавать ---"
+          printf 'ribbongap 21\n' > "$h/b/.cwmrc"
+          HOME="$h/b" ./macos/digitwm -n 2>&1 | head -4
+          if [ -e "$h/b/$f" ]; then echo "создан поверх чужого cwmrc" >&2; exit 1; fi
+          echo "не создан - верно"
+
+          echo "--- 4. \$DIGITWMRC задан -> не создавать ---"
+          printf 'ribbongap 7\n' > "$h/c/named"
+          HOME="$h/c" DIGITWMRC="$h/c/named" ./macos/digitwm -n 2>&1 | head -2
+          if [ -e "$h/c/$f" ]; then echo "создан вопреки \$DIGITWMRC" >&2; exit 1; fi
+          echo "не создан - верно"
+
+      # Трасса обязана печатать хоть что-то и уметь включаться обоими путями.
+      - name: Ключ -v и DIGITWM_TRACE говорят вслух
+        run: |
+          set +e
+          perl -e 'alarm 60; exec @ARGV' -- ./macos/digitwm -v -N \
+            > "$RUNNER_TEMP/trace.txt" 2>&1
+          echo "код возврата: $?"
+          set -e
+          echo "строк трассы: $(grep -c 'digitwm\[' "$RUNNER_TEMP/trace.txt" || true)"
+          head -40 "$RUNNER_TEMP/trace.txt"
+          grep -q 'digitwm\[' "$RUNNER_TEMP/trace.txt"
+          # И вторым путём, без ключа.
+          set +e
+          DIGITWM_TRACE=1 perl -e 'alarm 60; exec @ARGV' -- ./macos/digitwm -k \
+            > "$RUNNER_TEMP/trace2.txt" 2>&1
+          set -e
+          grep -q 'bind-key' "$RUNNER_TEMP/trace2.txt"
+
       # Пакет .app - вторая форма того же файла. Собирается здесь же и
       # спрашивается тем же: если бы LSUIElement или подпись пакета ломали
       # что-нибудь из отвечающего без разрешения, узнать об этом надо тут.

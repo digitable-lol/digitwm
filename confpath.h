@@ -84,4 +84,39 @@ void			 confpath_say(enum confpath_src, const char *path);
  */
 const char		*confpath_home(void);
 
+/*
+ * WRITE THE FILE THE PERSON IS ABOUT TO LOOK FOR - once, and only when there
+ * is nothing to lose by writing it.
+ *
+ * The owner went to edit ~/.digitable/digitwm/digitwmrc on the first real Mac
+ * and found neither the file nor the directory.  digitdisk, the tool next
+ * door, writes its own on first run (host/internal/settings/settings.go: the
+ * directory 0755, the file 0644), and a family in which one tool seeds its
+ * settings and the other waits to be guessed at is not a family.
+ *
+ * FOUR RULES, and the fourth is the one worth arguing about:
+ *
+ *   1. Only when our file does not exist.  An existing file is never
+ *      rewritten - not on upgrade, not on rebuild, not ever.
+ *   2. The contents are the defaults, commented out, one line of prose each.
+ *      A person who opens it sees what there is to turn without going to the
+ *      manual, and a file of comments parses to nothing, so seeding it
+ *      changes no behaviour at all.
+ *   3. Not when -c or $DIGITWMRC named a file: somebody said which file, and
+ *      writing a different one behind their back answers a question nobody
+ *      asked.
+ *   4. NOT WHEN ~/.cwmrc EXISTS.  Our file wins over cwm's in the search
+ *      order, so seeding ours in front of a real ~/.cwmrc would take a person
+ *      who has been configuring cwm for years and silently give them the
+ *      defaults.  A file of comments is not harmless when it shadows a file
+ *      that is not.  In that case nothing is written and the reason is said
+ *      out loud, with the command to convert.
+ *
+ * Returns 1 when a file was written, 0 when there was a good reason not to,
+ * -1 when writing was tried and failed.  Nothing here is fatal: a window
+ * manager that will not start because it could not write a comment would be
+ * worse than one with no seed file.
+ */
+int			 confpath_seed(char *buf, size_t len);
+
 #endif /* _CONFPATH_H_ */

@@ -77,19 +77,52 @@ class Digitwm < Formula
   depends_on :macos
 
   def install
+    # СТРАНИЦ ДВЕ, И ОБЕ ОБЯЗАТЕЛЬНЫ. digitwm(1) - про сам инструмент: ключи,
+    # разрешение Accessibility и кому его давать при запуске из терминала.
+    # cwmrc(5) - про файл настроек. До версии 0.1.0 формула ставила только
+    # вторую, то есть `man digitwm` отвечал «нет такой страницы» у всех, кто
+    # поставил инструмент. Обе проверяются в test do ниже, файлами.
     if build.head?
       # Собирается только маковская цель: корневой Makefile - это X11-сборка,
       # которой на маке нечем управлять.
       system "make", "-C", "macos"
       bin.install "macos/digitwm"
+      man1.install "digitwm.1"
       man5.install "cwmrc.5"
       doc.install "LICENSE", "LICENSE.upstream", "NOTICE", "README.md", "README.ru.md"
     else
       bin.install "digitwm"
+      man1.install "digitwm.1"
       man5.install "cwmrc.5"
       doc.install "LICENSE", "LICENSE.upstream", "NOTICE", "README.md",
                   "README.ru.md", "doc/macos-install.md", "doc/macos-install.ru.md"
     end
+  end
+
+  # СЛУЖБА - `brew services start digitwm`, и заведена она ради одной вещи:
+  # запущенный из терминала digitwm разрешения Accessibility на себя НЕ
+  # получает. Apple (Quinn, DTS, developer.apple.com/forums/thread/756510)
+  # перечисляет, кого система считает ответственным за процесс: «Run by the
+  # user from Terminal - The tool's responsible code is Terminal», а для
+  # launchd - «If the daemon or agent was installed by SMAppService, that makes
+  # the app the responsible code. Otherwise, the daemon or agent should include
+  # AssociatedBundleIdentifiers in its launchd property list».
+  #
+  # ЧЕГО МЫ НЕ ЗНАЕМ И НЕ ВЫДАЁМ ЗА ЗНАНИЕ: brew services пишет свой plist сам,
+  # и ключа AssociatedBundleIdentifiers в нём нет. Станет ли digitwm, поднятый
+  # так, сам себе ответственным - НЕ ПРОВЕРЕНО НИ РАЗУ. Проверяется это одним
+  # прогоном на маке: `brew services start digitwm && digitwm -N`, и строка
+  # «started by» в выводе назовёт, кто окажется родителем.
+  #
+  # agent, а не daemon, и это не мелочь: у демона нет связи с оконным сервером,
+  # и wsi_run_keys() говорит об этом прямо. brew services под пользователем
+  # ставит именно agent.
+  service do
+    run [opt_bin/"digitwm"]
+    keep_alive true
+    log_path var/"log/digitwm.log"
+    error_log_path var/"log/digitwm.log"
+    environment_variables PATH: std_service_path_env
   end
 
   def caveats
@@ -136,6 +169,8 @@ class Digitwm < Formula
     # молча осталась бы в нём.
     assert_path_exists man5/"cwmrc.5"
     assert_match "CWMRC 5", (man5/"cwmrc.5").read
+    assert_path_exists man1/"digitwm.1"
+    assert_match "DIGITWM 1", (man1/"digitwm.1").read
 
     # А вот это - граница, и она проверяется, а не подразумевается: без
     # разрешения Accessibility программа обязана СКАЗАТЬ об этом и выйти, а не

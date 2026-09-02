@@ -154,6 +154,15 @@ main(int argc, char **argv)
 	 * something the other does not.
 	 */
 	if (path == NULL) {
+		/*
+		 * Before the search, not after: the file this writes is the
+		 * file the search is about to find, and a person who has just
+		 * been told "wrote ~/.digitable/digitwm/digitwmrc" should not
+		 * then be told that nothing was read.  Writing nothing is the
+		 * ordinary case - the file is usually already there - and
+		 * confpath_seed() says out loud whenever it is not.
+		 */
+		(void)confpath_seed(buf, sizeof(buf));
 		path = wsiconf_file(buf, sizeof(buf), &src);
 		confpath_say(src, path);
 		if (wsiconf_load(path, &rep) != 0)

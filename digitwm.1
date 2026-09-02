@@ -1,0 +1,249 @@
+.\" SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2026 Digitable <https://digitable.life>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd September 2, 2026
+.Dt DIGITWM 1
+.Os
+.Sh NAME
+.Nm digitwm
+.Nd ribbon window manager for macOS
+.Sh SYNOPSIS
+.Nm
+.Op Fl hkNnv
+.Op Fl c Ar file
+.Sh DESCRIPTION
+.Nm
+arranges the windows of other applications into an endless row of columns \-
+the ribbon \- of which the screen shows a stretch.
+It has no window of its own, no Dock icon and no menu bar.
+.Pp
+On macOS it moves windows through the Accessibility API, which the system
+will not let it use until a person allows it.
+See
+.Sx THE PERMISSION ,
+which is where nearly every first run goes wrong.
+.Pp
+The options are:
+.Bl -tag -width Ds
+.It Fl c Ar file
+Read
+.Ar file
+instead of the one the search would find.
+A file named here that does not exist is an error, not a reason to look
+elsewhere: somebody meant that file.
+.It Fl h
+Print the usage and exit.
+.It Fl k
+Print the key table and the command each combination runs, then exit.
+Needs no permission.
+.It Fl N
+Go down the Apple calls this port makes, one at a time, and say which
+answered.
+Before the first call it prints three facts about the process itself \- which
+file is running, who started it and what its signature is \- and those need no
+permission either, which is the point: they are the three reasons a granted
+permission does not arrive.
+Exits non-zero when anything did not answer.
+.It Fl n
+Read the configuration, say what was made of it, and exit.
+Prints the file that was read, how many directives it held, how many were
+taken, how many belong to X11 alone and how many were not understood.
+Needs no permission.
+.It Fl v
+Say out loud, on standard error, what happens: each key press that arrives,
+which binding it matched, which command ran, which window held the keyboard
+before and after, and the full state of the ribbon \- every display with its
+origin, every ribbon with its column count, every window with the ribbon it
+landed on.
+.Ev DIGITWM_TRACE
+set to anything does the same for a
+.Nm
+started by
+.Xr launchd 8
+or from the Finder, where there is nowhere to put a flag.
+.El
+.Sh THE PERMISSION
+.Nm
+moves windows that belong to other applications, so macOS refuses it
+everything until it is allowed in
+.Pa System Settings > Privacy & Security > Accessibility .
+.Pp
+Granting it to
+.Nm
+is often not enough, and this is the part that surprises people.
+Three things get in the way, and
+.Nm Fl N
+names which one is yours before it tries anything:
+.Bl -enum
+.It
+.Em Started from a terminal .
+macOS attributes the permission not to the program but to what Apple calls the
+.Em responsible code ,
+and for a tool run from a shell that is the terminal application.
+Grant Accessibility to the terminal
+.Pq Qq Terminal , Qq iTerm , Qq Ghostty
+and quit it completely \- Command-Q, not just the tab \- then start it again.
+.It
+.Em Installed by brew .
+The name on
+.Ev PATH
+is a symbolic link;
+.Pa /opt/homebrew/bin/digitwm
+points into the Cellar.
+The permission is remembered against the file the link points at.
+.Nm Fl N
+prints both paths and says when they differ.
+.It
+.Em Rebuilt since the permission was given .
+A build signed ad-hoc is identified by a hash of its own contents, so a
+rebuilt
+.Nm
+is a different program as far as the system is concerned and is asked about
+again.
+.Nm Fl N
+prints that hash.
+A stable signing identity fixes it:
+.Dl make -C macos SIGNID="your certificate"
+.El
+.Pp
+A
+.Nm
+started from its own application bundle is its own responsible code and gets
+its own row in the Accessibility list, which removes the first of the three.
+It does not remove the third: the bundle identifier does not stand in for the
+signature.
+.Sh CONFIGURATION
+.Nm
+reads one file, and looks for it in this order:
+.Bl -enum -compact
+.It
+the file named with
+.Fl c ;
+.It
+.Ev DIGITWMRC ,
+when set and not empty;
+.It
+.Pa ~/.digitable/digitwm/digitwmrc ;
+.It
+.Pa ~/.cwmrc ,
+the name
+.Xr cwm 1
+reads, kept so that a configuration written for cwm keeps working.
+.Nm
+says out loud, once, when this is the file it settled on.
+.El
+.Pp
+On the first run that finds neither of the last two,
+.Nm
+writes
+.Pa ~/.digitable/digitwm/digitwmrc
+itself \- the directory 0755, the file 0644 \- containing every setting there
+is, commented out, with a line of prose above each.
+A file of comments changes no behaviour; it exists so that a person who opens
+it can see what there is to turn.
+It is written once and never rewritten: what is put in it survives every
+upgrade.
+.Pp
+When
+.Pa ~/.cwmrc
+exists and ours does not, nothing is written, and the reason is printed.
+Ours would win the search and hide a file that is not empty, which is exactly
+the kind of silent replacement a settings file must never do.
+The message names the two commands that move the old file over.
+.Pp
+The directives themselves are
+.Xr cwmrc 5 .
+Those macOS cannot honour are read and counted, not obeyed:
+.Ic borderwidth
+and the colours, because one program may not draw on another program's
+window; groups, because Spaces has no public interface; and
+.Ic ribbonwarp ,
+because the public API has no call that moves the pointer.
+.Nm Fl n
+counts them under
+.Qq X11's alone .
+.Sh ENVIRONMENT
+.Bl -tag -width DIGITWM_TRACE
+.It Ev DIGITWMRC
+The configuration file to read.
+Set but missing is an error, as with
+.Fl c .
+.It Ev DIGITWM_TRACE
+Set to anything: the same as
+.Fl v .
+.El
+.Sh FILES
+.Bl -tag -width ~/.digitable/digitwm/digitwmrc -compact
+.It Pa ~/.digitable/digitwm/digitwmrc
+The configuration.
+Written on first run when absent.
+.It Pa ~/.cwmrc
+The name
+.Xr cwm 1
+uses; read when ours is absent.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Fl n
+exits 1 when the configuration held a line that was not understood, and
+.Fl N
+exits 1 when any Apple call did not answer.
+.Sh EXAMPLES
+Find out what the key table is before pressing anything:
+.Dl $ digitwm -k
+.Pp
+Find out what was made of the configuration:
+.Dl $ digitwm -n
+.Pp
+Find out why a granted permission has not arrived:
+.Dl $ digitwm -N
+.Pp
+Find out where a key press went:
+.Dl $ digitwm -v 2>/tmp/digitwm.log
+.Sh SEE ALSO
+.Xr cwm 1 ,
+.Xr cwmrc 5
+.Sh HISTORY
+.Nm
+is a fork of
+.Xr cwm 1 ,
+the OpenBSD window manager, with a scrollable-tiling layer added and a macOS
+port built on the Accessibility API and the Carbon Event Manager.
+The macOS target was first built and run on a real Mac on 2 September 2026.
+.Sh AUTHORS
+.An Digitable Aq Mt https://digitable.life ,
+over
+.Xr cwm 1
+by the OpenBSD project.
+.Sh CAVEATS
+Six things macOS does not allow, and none of them is a temporary state of the
+work:
+a window appears where the application put it and only then moves into its
+column, because macOS has no equivalent of the X11
+.Dv MapRequest ;
+.Ic ribbonhide
+leaves a one-pixel strip, because a window cannot be pushed off the screen
+entirely;
+there are no groups, because Spaces has no public interface;
+a full-screen window is not on the ribbon, because it lives in its own Space;
+native tabs are one window to the Accessibility API and several to you;
+and the focused window gets no border.
+.Pp
+The pointer is never moved to follow the focus, and the focus never follows
+the pointer.
+The public API has no call for the first, and the second without the first
+oscillates.

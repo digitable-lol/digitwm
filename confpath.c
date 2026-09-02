@@ -28,6 +28,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <errno.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -162,4 +164,138 @@ confpath_say(enum confpath_src src, const char *path)
 
 	(void)fprintf(stderr, "digitwm: reading %s, which is cwm's name kept "
 	    "for compatibility; ours is %s\n", path, own);
+}
+
+/*
+ * The seed itself.  Every line is a default, commented out, with the prose
+ * above it - the same shape digitdisk writes, and for the same reason: a
+ * settings file a person opens and closes again because it is empty has
+ * taught them nothing.
+ *
+ * The values here are not invented: they are conf_init()'s, and `digitwm -n`
+ * prints them, so a file that drifted from the code would be caught by
+ * running the program.
+ */
+static const char confpath_template[] =
+"# digitwm - the ribbon window manager\n"
+"#\n"
+"# Written by digitwm the first time it ran, because there was nothing here.\n"
+"# It is never rewritten: what you put below survives every upgrade.\n"
+"#\n"
+"# Every line is a default, commented out.  Uncomment one and change it.\n"
+"# \"digitwm -n\" prints what was made of this file; \"man 5 cwmrc\" describes\n"
+"# every directive, including the ones this file does not mention.\n"
+"#\n"
+"# The same file is read by cwm on X11, so a machine of each can share it.\n"
+"\n"
+"# Lay windows out on the ribbon at all.  \"no\" leaves every window where the\n"
+"# application put it, and digitwm becomes a key-binding daemon.\n"
+"#ribbon yes\n"
+"\n"
+"# Park windows that are off the viewport just past the edge instead of\n"
+"# leaving them where they are.  On macOS a parked window still shows a\n"
+"# 1-pixel strip: the system will not let a window off the screen entirely.\n"
+"#ribbonhide no\n"
+"\n"
+"# Move the pointer to the window that takes the focus.  macOS has no public\n"
+"# call that moves the pointer, so on a Mac this does nothing whichever way\n"
+"# it is set - see doc/macos-install.md.\n"
+"#ribbonwarp no\n"
+"\n"
+"# Pixels between columns, and between a column and the screen edge.\n"
+"#ribbongap 8\n"
+"\n"
+"# A column narrower or shorter than this is not offered: below it a window\n"
+"# is not a window, it is a sliver.\n"
+"#ribbonminwidth 120\n"
+"#ribbonminheight 60\n"
+"\n"
+"# The four column widths, as percentages of the viewport, that the width key\n"
+"# cycles through.  Control-Option-Comma and Control-Option-Period step them.\n"
+"#ribbonwidths 33 50 67 100\n"
+"\n"
+"# Border drawn around a window.  macOS does not let one program draw on\n"
+"# another program's window, so on a Mac this is read and not used.\n"
+"#borderwidth 1\n"
+"\n"
+"# Your own key bindings go here.  \"digitwm -k\" prints the table as it\n"
+"# currently stands, with the command each combination runs.\n"
+"#bind-key CM-h ribbon-focus-left\n";
+
+int
+confpath_seed(char *buf, size_t len)
+{
+	const char	*home;
+	char		 dir[1024], legacy[1024];
+	size_t		 want;
+	ssize_t		 wrote;
+	int		 fd;
+
+	if (len == 0)
+		return 0;
+	buf[0] = '\0';
+
+	/* Rule 3: somebody named a file; that is the file. */
+	if (getenv(CONFPATH_ENVVAR) != NULL &&
+	    *getenv(CONFPATH_ENVVAR) != '\0')
+		return 0;
+
+	home = confpath_home();
+
+	if (confpath_join(buf, len, home,
+	    CONFPATH_FAMILY "/" CONFPATH_TOOL "/" CONFPATH_NAME) == -1) {
+		buf[0] = '\0';
+		return 0;
+	}
+
+	/* Rule 1: never rewrite. */
+	if (confpath_readable(buf))
+		return 0;
+
+	/*
+	 * Rule 4.  Written out rather than hinted at, because the failure it
+	 * prevents is silent: our file wins the search, so a seed in front of
+	 * a real ~/.cwmrc replaces somebody's configuration with the defaults
+	 * and says nothing.
+	 */
+	if (confpath_join(legacy, sizeof(legacy), home, CONFPATH_CWM) == 0 &&
+	    confpath_readable(legacy)) {
+		(void)fprintf(stderr, "digitwm: %s is yours and is being read; "
+		    "no %s was written,\n         because it would win the "
+		    "search and hide it.  To move over:\n"
+		    "         mkdir -p %s/" CONFPATH_FAMILY "/" CONFPATH_TOOL
+		    " && cp %s %s\n", legacy, buf, home, legacy, buf);
+		return 0;
+	}
+
+	if (confpath_join(dir, sizeof(dir), home, CONFPATH_FAMILY) == -1)
+		return 0;
+	if (mkdir(dir, 0755) == -1 && errno != EEXIST)
+		return -1;
+	if (confpath_join(dir, sizeof(dir), home,
+	    CONFPATH_FAMILY "/" CONFPATH_TOOL) == -1)
+		return 0;
+	if (mkdir(dir, 0755) == -1 && errno != EEXIST)
+		return -1;
+
+	/*
+	 * O_EXCL rather than O_TRUNC, and it is not paranoia: two digitwm
+	 * started at once on one account would otherwise race, and the loser
+	 * would truncate the winner's file.  Rule 1 says never rewrite, and
+	 * this is rule 1 held even against ourselves.
+	 */
+	fd = open(buf, O_WRONLY | O_CREAT | O_EXCL, 0644);
+	if (fd == -1)
+		return (errno == EEXIST) ? 0 : -1;
+
+	want = sizeof(confpath_template) - 1;
+	wrote = write(fd, confpath_template, want);
+	if (close(fd) == -1 || wrote != (ssize_t)want) {
+		(void)unlink(buf);
+		return -1;
+	}
+
+	(void)fprintf(stderr, "digitwm: wrote %s - every setting there is, "
+	    "commented out.\n", buf);
+	return 1;
 }

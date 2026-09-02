@@ -456,7 +456,7 @@ wsi_run_doctor(void)
 	struct client_ctx	*cc;
 	const struct wsiconf_bind	*b;
 	char			 detail[256];
-	int			 n, x, y, bad = 0, nb;
+	int			 n, i, x, y, bad = 0, nb;
 
 	(void)printf("digitwm: going down the Apple calls this tree cannot "
 	    "check without a Mac.\nThis arranges your windows on the way, "
@@ -540,6 +540,25 @@ wsi_run_doctor(void)
 		    disp[0].work.w, disp[0].work.h);
 		doctor_line("[2]", "+[NSScreen screens], -frame, -visibleFrame",
 		    1, detail);
+		/*
+		 * EVERY display, WITH ITS ORIGIN, and the line above is why it
+		 * is needed: it printed the first display's width and height
+		 * and nothing else, so the one number that matters on a desk
+		 * with more than one monitor - where each display starts - was
+		 * invisible.  The owner's Mac has three, and the window on the
+		 * left one reported x = -1996.  A report that cannot show a
+		 * negative origin cannot be used to diagnose one.
+		 */
+		for (i = 0; i < n; i++)
+			(void)printf("      display %d \"%s\" at %d,%d %dx%d, "
+			    "workable %d,%d %dx%d%s\n", i, disp[i].name,
+			    disp[i].view.x, disp[i].view.y,
+			    disp[i].view.w, disp[i].view.h,
+			    disp[i].work.x, disp[i].work.y,
+			    disp[i].work.w, disp[i].work.h,
+			    (disp[i].view.x < 0 || disp[i].view.y < 0) ?
+			    "  <- negative origin: left of or above the main "
+			    "display" : "");
 		if (disp[0].name[0] == '\0') {
 			bad++;
 			doctor_line("[2]", "-[NSScreen localizedName]", 0,

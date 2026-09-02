@@ -211,7 +211,7 @@ rm -rf "$DIST/.obj1" "$DIST/.obj2" "$DIST/.obj1.log" "$DIST/.obj2.log"
 # отказывает в Accessibility.
 
 cp LICENSE LICENSE.upstream NOTICE README.md README.ru.md VERSION \
-    cwmrc.5 "$stage/"
+    digitwm.1 cwmrc.5 "$stage/"
 mkdir -p "$stage/doc"
 cp doc/macos-install.md doc/macos-install.ru.md "$stage/doc/"
 
@@ -256,7 +256,7 @@ make -C "$root/macos" \
 }
 rm -rf "$DIST/.objapp" "$DIST/.app.log"
 echo "собран, подпись проверена --deep --strict"
-cp LICENSE LICENSE.upstream NOTICE VERSION "$appstage/"
+cp LICENSE LICENSE.upstream NOTICE VERSION digitwm.1 cwmrc.5 "$appstage/"
 mkdir -p "$appstage/doc"
 cp doc/macos-install.md doc/macos-install.ru.md "$appstage/doc/"
 
@@ -350,11 +350,19 @@ echo "  -n: $(echo "$out" | head -1)"
 
 # 6. И страница настроек обязана уехать в архиве: без неё формула поставит
 #    двоичный файл, а `man 5 cwmrc` ответит «нет такой страницы».
+# 6. И обе страницы руководства обязаны уехать в архиве: без них формула
+#    поставит двоичный файл, а `man digitwm` ответит «нет такой страницы».
+#    Страниц две, потому что вопросов два: digitwm(1) - про сам инструмент,
+#    его ключи и разрешение Accessibility; cwmrc(5) - про файл настроек.
 grep -q '^\.Dt CWMRC 5$' "$probe/$name/cwmrc.5" || {
 	echo "build-release: cwmrc.5 в архиве не объявляет себя страницей раздела 5" >&2
 	exit 1
 }
-echo "  cwmrc.5: на месте, раздел 5"
+grep -q '^\.Dt DIGITWM 1$' "$probe/$name/digitwm.1" || {
+	echo "build-release: digitwm.1 в архиве не объявляет себя страницей раздела 1" >&2
+	exit 1
+}
+echo "  руководство: digitwm.1 (раздел 1) и cwmrc.5 (раздел 5) на месте"
 
 # 7. И пакет: тот же двоичный файл внутри отвечает так же, подпись пакета
 #    цела, LSUIElement на месте - без него в Dock завелась бы иконка
@@ -378,11 +386,28 @@ codesign --verify --deep --strict "$probe/$appname/digitwm.app" || {
 	echo "build-release: файл в пакете не отвечает на -k" >&2
 	exit 1
 }
-if ! cmp -s "$bin" "$appbin"; then
-	echo "build-release: файл в пакете НЕ тот же, что рядом с ним" >&2
+# ТОТ ЖЕ ЛИ ЭТО ФАЙЛ. Побайтно - НЕТ, и это не поломка: подписывая пакет,
+# codesign переподписывает лежащий внутри Mach-O, и в его подпись входит хеш
+# Info.plist пакета и печать ресурсов. Значит различаются подписи, а программа
+# обязана быть та же. Сверяются копии со СНЯТОЙ подписью - это и есть вопрос
+# «одна ли это программа», заданный точно.
+#
+# Следствие, которое стоит знать заранее: cdhash у файла и у пакета РАЗНЫЕ, а
+# разрешение Accessibility система помнит по cdhash. То есть разрешение,
+# выданное digitwm рядом с вами, и разрешение, выданное digitwm.app, - два
+# разных разрешения, и одно не считается за другое.
+naked=$(mktemp -d)
+cp "$bin" "$naked/a"
+cp "$appbin" "$naked/b"
+codesign --remove-signature "$naked/a" "$naked/b" 2>/dev/null || true
+if ! cmp -s "$naked/a" "$naked/b"; then
+	echo "build-release: в пакете ДРУГАЯ программа, а не другая подпись:" >&2
+	ls -l "$naked/a" "$naked/b" >&2
 	exit 1
 fi
-echo "  пакет: подпись цела, LSUIElement=true, внутри тот же файл байт в байт"
+rm -rf "$naked"
+echo "  пакет: подпись цела, LSUIElement=true, внутри та же программа"
+echo "  (cdhash файла и пакета разные - это два разных разрешения в системе)"
 
 echo
 echo "готово: $DIST/$name.tar.gz"
