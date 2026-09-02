@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
-# SPDX-License-Identifier: ISC
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Формула homebrew для digitwm на macOS.
 #
@@ -25,7 +25,7 @@ class Digitwm < Formula
   desc "Ribbon window manager for macOS: real windows, through the Accessibility API"
   homepage "https://digitable.life"
   head "https://github.com/digitable-lol/digitwm.git", branch: "main"
-  license "ISC"
+  license "BSD-2-Clause"
 
   depends_on :macos
   depends_on xcode: :build

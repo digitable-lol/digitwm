@@ -1,5 +1,5 @@
 /* SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life> */
-/* SPDX-License-Identifier: ISC */
+/* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * digitwm - reading cwmrc where half of cwmrc has nothing to describe
  *

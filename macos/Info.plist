@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
 	SPDX-FileCopyrightText: 2026 Digitable <https://digitable.life>
-	SPDX-License-Identifier: ISC
+	SPDX-License-Identifier: BSD-2-Clause
 
 	Вшивается в секцию __TEXT,__info_plist самого исполняемого файла
 	(macos/Makefile, флаг -sectcreate), а не кладётся рядом в пакет.
