@@ -67,14 +67,16 @@ class Digitwm < Formula
     depends_on xcode: :build
   end
 
+  # depends_on до on_macos - опять же правило брю, не вкус: `brew style`
+  # покраснел на обратном порядке (FormulaAudit/ComponentsOrder).
+  depends_on :macos
+
   on_macos do
     on_intel do
       url "https://github.com/digitable-lol/digitwm/releases/download/vVERSION_PLACEHOLDER/digitwm-VERSION_PLACEHOLDER-darwin-amd64.tar.gz"
       sha256 "SHA256_MACOS_AMD64_PLACEHOLDER"
     end
   end
-
-  depends_on :macos
 
   def install
     # СТРАНИЦ ДВЕ, И ОБЕ ОБЯЗАТЕЛЬНЫ. digitwm(1) - про сам инструмент: ключи,

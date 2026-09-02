@@ -8,10 +8,24 @@ types, what he sees, which permission he is asked for, and — the part most
 documents leave out — what is most likely to fail on the first run and how to
 find out which Apple call did it.
 
-**Nobody on this project has a Mac** (`portability.md:13`). Everything below
-that describes a Mac is a description of what the code asks the Mac to do, not
-a report of it happening. The line "What is checked here, and what is checked
-nowhere" says exactly where the two part company, in numbers.
+**On 2 September 2026 digitwm was built and run on a real Mac for the first
+time.** Until that day this paragraph said "nobody on this project has a Mac",
+and that had been true for half a year. What is known now, and from where -
+because the sources are different and worth different amounts:
+
+| Where | What passed there |
+|---|---|
+| **The owner's Mac**, 2 September 2026: Apple Silicon, `/opt/homebrew`, **3 displays**, build `HEAD-bfd5d85` via `brew install --HEAD` | Build, start, the Accessibility grant, and `digitwm -N`: **all 12 Apple calls answered, 0 refused** - writing geometry, raising a window and taking `CM-h` included. **10 windows** taken onto the ribbon. |
+| **GitHub's macOS runners**, both architectures, on every push | The build from `macos/Makefile`: **0 compiler errors, 0 warnings** on both. Signing, `-k`, `-n`, `-N`, the `.app` bundle, the reproducible release build. |
+| **Linux**, on every push | Everything that needs no Mac: `macos/check.sh` (the ribbon over the port against the ribbon over X11) and `macos/stub-build.sh` (the two Objective-C files against our idea of the API). |
+
+**What nobody has checked, and it should be held in mind while reading the
+rest.** `digitwm -N` writes a window back exactly where it already was, so a
+real layout under load - ten windows spreading into columns, a person pressing
+keys, applications opening and closing windows - has **never once run** on a
+Mac. And one live failure is known: **hot keys register and do not act** - `-N`
+says "`RegisterEventHotKey answered CM-h taken`" and Control-Option-H does
+nothing. The `-v` flag is what takes that apart; see "When it does not work".
 
 ## What you type
 
@@ -44,8 +58,12 @@ brew tap digitable-lol/digitwm https://github.com/digitable-lol/digitwm
 brew install --HEAD digitable-lol/digitwm/digitwm
 ```
 
-`--HEAD` because there is no released version carrying the macOS target yet.
-The formula is `macos/digitwm.rb` and it has never been run either.
+This route - `brew install --HEAD` - is how the macOS target was first built on
+a real Mac, on 2 September 2026: `digitwm/HEAD-bfd5d85` went into the Cellar and
+a symbolic link `/opt/homebrew/bin/digitwm` onto `PATH`. The difference between
+the link and the real file is not cosmetic: the Accessibility grant is
+remembered against the real file, and the first hour on that Mac went on
+exactly this. See "When it does not work".
 
 ## What you see the first time
 
