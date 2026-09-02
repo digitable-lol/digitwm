@@ -51,9 +51,14 @@ SIGNID?=	-
 
 CFLAGS?=	-Wall -Wextra -O2 -g
 INCS=		-I${OBJDIR}/fakex -I.. -I.
+# Security - ради трёх строк, которые `digitwm -N` печатает ДО первого отказа:
+# по какому файлу его запустили, кто его запустил и каким отпечатком система
+# помнит выданное ему разрешение. Все три - те грабли, на которые владелец
+# наступил первым же запуском на настоящем маке.
 FRAMEWORKS=	-framework ApplicationServices \
 		-framework AppKit \
-		-framework Carbon
+		-framework Carbon \
+		-framework Security
 
 OBJS=		${OBJDIR}/ribbon.o \
 		${OBJDIR}/confpath.o \

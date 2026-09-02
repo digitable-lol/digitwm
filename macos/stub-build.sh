@@ -57,17 +57,22 @@ command -v "$CC" >/dev/null 2>&1 || {
 	exit 1
 }
 
-# Уровень libc, который видит компилятор. -D_POSIX_C_SOURCE здесь затем, чтобы
-# заглушка не опиралась молча на расширения хозяйской системы. На МАКЕ он же
-# делает лишнее: __DARWIN_C_LEVEL опускается до POSIX, и вместе с ним пропадают
-# расширения Darwin, которые настоящая сборка видит прекрасно, - macos/Makefile
-# уровня libc не задаёт вовсе. Первый прогон этого скрипта на маке встал именно
-# на этом: CLOCK_MONOTONIC_RAW, который wsi_ax.m зовёт с 10.12 и который
-# `make -C macos` компилирует без единого слова, здесь оказался «undeclared».
-# Скрипт проверял бы не согласованность с API, а собственные флаги.
+# Уровень libc, который видит компилятор, - ТОТ ЖЕ, ЧТО У НАСТОЯЩЕЙ СБОРКИ, и
+# это единственный правильный ответ. macos/Makefile не задаёт уровня libc
+# вовсе, то есть на маке файл компилируется при полном __DARWIN_C_LEVEL;
+# macos/check.sh собирает эти же исходники с -D_GNU_SOURCE. Здесь долго стояло
+# -D_POSIX_C_SOURCE=200809L «чтобы заглушка не опиралась на расширения
+# хозяйской системы», и оно проверяло не согласованность с API, а само себя:
+#
+#   - на маке из-за него пропал CLOCK_MONOTONIC_RAW, который wsi_ax.m зовёт с
+#     10.12 и который `make -C macos` компилирует молча;
+#   - на Linux из-за него пропал realpath(3) - при -std=c99 glibc не показывает
+#     его по одному _POSIX_C_SOURCE.
+#
+# Оба раза красным становился скрипт, а не код.
 case "$(uname -s)" in
-Darwin)	libc_level="-D_POSIX_C_SOURCE=200809L -D_DARWIN_C_SOURCE" ;;
-*)	libc_level="-D_POSIX_C_SOURCE=200809L" ;;
+Darwin)	libc_level="-D_DARWIN_C_SOURCE" ;;
+*)	libc_level="-D_GNU_SOURCE" ;;
 esac
 
 mkdir -p "$work/stub/ApplicationServices" "$work/stub/AppKit" \
@@ -151,6 +156,12 @@ cat > "$work/stub/AppKit/AppKit.h" <<'EOF'
 
 typedef unsigned long	 NSUInteger;
 typedef long		 NSInteger;
+typedef signed char	 BOOL;
+
+/* <objc/objc.h> в SDK, а не в AppKit; здесь заглушке хватает определения. */
+#ifndef nil
+#define nil	((id)0)
+#endif
 typedef CGPoint		 NSPoint;
 typedef CGSize		 NSSize;
 typedef struct { NSPoint origin; NSSize size; } NSRect;
@@ -203,7 +214,96 @@ enum { NSApplicationActivationPolicyAccessory = 1 };
 @interface NSApplication : NSObject
 + (NSApplication *)sharedApplication;
 - (void)setActivationPolicy:(NSApplicationActivationPolicy)policy;
+- (NSApplicationActivationPolicy)activationPolicy;
+- (BOOL)isRunning;
 @end
+
+/*
+ * Для трассы macos/wsi_key.m: чем процесс оказался для системы - есть ли у
+ * него пакет и какая политика активации. Класс [3]: имена общеизвестные,
+ * подписи здесь наши.
+ */
+@interface NSBundle : NSObject
++ (NSBundle *)mainBundle;
+- (NSString *)bundleIdentifier;
+- (NSString *)bundlePath;
+@end
+#endif
+EOF
+
+# 3a-бис. Три заголовка, которые понадобились ради трёх строк самодиагностики
+# в macos/wsi_ax.m: по какому файлу процесс запущен, кто его запустил и каким
+# отпечатком система помнит его разрешение. Каждое имя - с грейдом; ни одно из
+# них не трогает окна.
+mkdir -p "$work/stub/mach-o" "$work/stub/Security"
+
+cat > "$work/stub/mach-o/dyld.h" <<'EOF'
+#ifndef STUB_DYLD_H
+#define STUB_DYLD_H
+/* [2] dyld(3) - страница руководства Apple. */
+#include <stdint.h>
+int	 _NSGetExecutablePath(char *, uint32_t *);
+#endif
+EOF
+
+cat > "$work/stub/libproc.h" <<'EOF'
+#ifndef STUB_LIBPROC_H
+#define STUB_LIBPROC_H
+/*
+ * [3] proc_pidpath объявлен в <libproc.h>, который есть в SDK, и НЕ
+ * документирован Apple нигде: страницы руководства у него нет. Подпись здесь -
+ * из этого же заголовка, прочитанного глазами.
+ */
+#include <stdint.h>
+#include <sys/types.h>
+#define PROC_PIDPATHINFO_MAXSIZE	4096
+int	 proc_pidpath(int, void *, uint32_t);
+#endif
+EOF
+
+cat > "$work/stub/Security/Security.h" <<'EOF'
+#ifndef STUB_SECURITY_H
+#define STUB_SECURITY_H
+/*
+ * [2] У всех пяти имён ниже есть страницы документации Apple.
+ * kSecCodeInfoUnique - это cdhash, то самое число, по которому система помнит
+ * выданное разрешение.
+ */
+#include <ApplicationServices/ApplicationServices.h>
+
+typedef struct __SecCode		*SecCodeRef;
+typedef struct __SecStaticCode		*SecStaticCodeRef;
+typedef uint32_t			 SecCSFlags;
+
+enum { kSecCSDefaultFlags = 0 };
+enum { kSecCSSigningInformation = 1 << 1 };
+enum { kSecCodeSignatureAdhoc = 2 };
+enum { errSecSuccess = 0 };
+
+typedef int32_t OSStatus_sec;
+
+/*
+ * CoreFoundation, чего нет в общей заглушке: число, данные и выемка из словаря.
+ * Общая заглушка их не заводила, потому что до самодиагностики ни один вызов
+ * порта их не трогал. Класс [1] - все шесть переписаны с CFNumber.h, CFData.h
+ * и CFDictionary.h.
+ */
+typedef unsigned char			 UInt8;
+typedef const struct __CFNumber		*CFNumberRef;
+typedef const struct __CFData		*CFDataRef;
+typedef CFIndex				 CFNumberType;
+enum { kCFNumberSInt32Type = 3 };
+extern Boolean		 CFNumberGetValue(CFNumberRef, CFNumberType, void *);
+extern const UInt8	*CFDataGetBytePtr(CFDataRef);
+extern CFIndex		 CFDataGetLength(CFDataRef);
+extern const void	*CFDictionaryGetValue(CFDictionaryRef, const void *);
+
+extern const CFStringRef kSecCodeInfoFlags;
+extern const CFStringRef kSecCodeInfoUnique;
+
+extern int32_t SecCodeCopySelf(SecCSFlags, SecCodeRef *);
+extern int32_t SecCodeCopySigningInformation(SecStaticCodeRef, SecCSFlags,
+	    CFDictionaryRef *);
 #endif
 EOF
 

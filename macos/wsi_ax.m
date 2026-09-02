@@ -153,9 +153,16 @@
 #import <ApplicationServices/ApplicationServices.h>
 #import <AppKit/AppKit.h>
 
+#import <Security/Security.h>
+
+#include <libproc.h>
+#include <limits.h>
+#include <mach-o/dyld.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "wsi_platform.h"
 
@@ -952,4 +959,100 @@ wsip_displays(struct wsip_display *out, int max)
 		}
 	}
 	return n;
+}
+
+/*
+ * WHO THIS PROCESS IS, AS macOS SEES IT.
+ *
+ * Three questions, three sources, three grades - the same grading the rest of
+ * this file uses, because these calls are exactly as checkable as the others.
+ *
+ *   [2] _NSGetExecutablePath - dyld(3), Apple's own manual page.  Returns the
+ *       path the process was LAUNCHED under, symbolic links and all; Apple
+ *       says so in that page and tells you to call realpath() yourself, which
+ *       is precisely the difference we need to show.  brew puts the symlink on
+ *       PATH and the real file in the Cellar, and the permission is remembered
+ *       against the real file.
+ *
+ *   [3] proc_pidpath - declared in <libproc.h>, which ships in the SDK, and
+ *       documented by Apple nowhere: there is no manual page.  It is here
+ *       because the alternatives are worse (KERN_PROCARGS2 is not documented
+ *       either) and because a wrong answer costs one printed line, not a
+ *       window.  If it answers nothing, the pid is printed alone.
+ *
+ *   [2] SecCodeCopySelf, SecCodeCopySigningInformation, kSecCodeInfoUnique,
+ *       kSecCodeInfoFlags, kSecCodeSignatureAdhoc - all five have Apple
+ *       documentation pages.  kSecCodeInfoUnique is the cdhash: the number the
+ *       system remembers a permission by.  Printing it turns "you have to give
+ *       the permission again after every rebuild" from advice into something
+ *       the person can check with their own eyes - two builds, two numbers.
+ *
+ * Nothing here touches a window, and nothing here needs the permission: that
+ * is the whole point.  These are the lines `digitwm -N` can print BEFORE the
+ * first refusal, and before them the report said nothing a person did not
+ * already know.
+ */
+int
+wsip_identity(struct wsip_identity *id)
+{
+	uint32_t		 len, flags = 0;
+	char			 buf[1024], resolved[PATH_MAX];
+	pid_t			 pp;
+	SecCodeRef		 self = NULL;
+	CFDictionaryRef		 info = NULL;
+	int			 answered = -1;
+
+	(void)memset(id, 0, sizeof(*id));
+
+	len = (uint32_t)sizeof(buf);
+	if (_NSGetExecutablePath(buf, &len) == 0) {
+		(void)snprintf(id->launched, sizeof(id->launched), "%s", buf);
+		if (realpath(buf, resolved) != NULL)
+			(void)snprintf(id->path, sizeof(id->path), "%s",
+			    resolved);
+		else
+			(void)snprintf(id->path, sizeof(id->path), "%s", buf);
+		answered = 0;
+	}
+
+	pp = getppid();
+	if (proc_pidpath(pp, buf, (uint32_t)sizeof(buf)) > 0)
+		(void)snprintf(id->parent, sizeof(id->parent), "%s (pid %d)",
+		    buf, (int)pp);
+	else
+		(void)snprintf(id->parent, sizeof(id->parent), "pid %d",
+		    (int)pp);
+
+	if (SecCodeCopySelf(kSecCSDefaultFlags, &self) == errSecSuccess &&
+	    SecCodeCopySigningInformation((SecStaticCodeRef)self,
+	    kSecCSSigningInformation, &info) == errSecSuccess) {
+		CFNumberRef	 fl = CFDictionaryGetValue(info,
+				     kSecCodeInfoFlags);
+		CFDataRef	 hash = CFDictionaryGetValue(info,
+				     kSecCodeInfoUnique);
+
+		if (fl != NULL)
+			(void)CFNumberGetValue(fl, kCFNumberSInt32Type, &flags);
+		(void)snprintf(id->signing, sizeof(id->signing), "%s",
+		    (flags & kSecCodeSignatureAdhoc) ?
+		    "ad-hoc (a hash of this very file)" :
+		    "a signing identity, not ad-hoc");
+		if (hash != NULL) {
+			const UInt8	*b = CFDataGetBytePtr(hash);
+			CFIndex		 n = CFDataGetLength(hash), i;
+			size_t		 at = 0;
+
+			for (i = 0; i < n && at + 2 < sizeof(id->cdhash); i++)
+				at += (size_t)snprintf(id->cdhash + at,
+				    sizeof(id->cdhash) - at, "%02x", b[i]);
+		}
+	} else
+		(void)snprintf(id->signing, sizeof(id->signing),
+		    "not signed at all");
+
+	if (info != NULL)
+		CFRelease(info);
+	if (self != NULL)
+		CFRelease(self);
+	return answered;
 }

@@ -125,6 +125,38 @@ int	 wsip_pointer_warp(int, int);
 int	 wsip_displays(struct wsip_display *, int);
 
 /*
+ * WHO THIS PROCESS IS, AS macOS SEES IT.
+ *
+ * Not part of managing windows, and here anyway, because the one failure a
+ * person actually meets is "I gave it the permission and it still says it has
+ * none" - and the three reasons for that are all invisible from inside the
+ * message.  The owner met all three on the first real Mac, 2 September 2026.
+ *
+ *   path      the file the kernel is running.  brew puts a SYMLINK on PATH
+ *             (/opt/homebrew/bin/digitwm) and the real file in the Cellar
+ *             (.../Cellar/digitwm/HEAD-bfd5d85/bin/digitwm).  The permission
+ *             is remembered against the real file; granting it to the symlink
+ *             grants it to nothing.
+ *   parent    who started this process.  A program started from a shell is
+ *             not, to macOS, the holder of its own permissions.
+ *   signature what the permission is actually remembered by.  An ad-hoc
+ *             signature is a hash of the file, so a rebuild is a different
+ *             program as far as the system is concerned, and the old grant no
+ *             longer matches anything.
+ *
+ * All five strings are always terminated; an unanswerable field comes back
+ * empty rather than stale.  Returns 0 when at least the path was answered.
+ */
+struct wsip_identity {
+	char	 path[1024];		/* the file being run, resolved */
+	char	 launched[1024];	/* the name it was launched under */
+	char	 parent[1024];		/* who started it, and its pid */
+	char	 signing[64];		/* adhoc / signed / unsigned */
+	char	 cdhash[80];		/* what the grant is keyed to */
+};
+int	 wsip_identity(struct wsip_identity *);
+
+/*
  * Run the platform's own event machinery for about this many milliseconds
  * and deliver whatever comes due, returning how many notices went out.
  *

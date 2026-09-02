@@ -127,6 +127,7 @@
 
 #include <string.h>
 
+#include "wsi_core.h"
 #include "wsi_key.h"
 
 #define KEY_MAX		64
@@ -232,11 +233,27 @@ key_handler(EventHandlerCallRef next, EventRef ev, void *ctx)
 	(void)next;
 	(void)ctx;
 
+	/*
+	 * THE LINE THAT SETTLES IT.  If this appears in a trace, the Carbon
+	 * handler ran: the press reached this process, the run loop delivered
+	 * it, and everything after is the ribbon's business.  If a person
+	 * presses the combination and no such line appears, the press never
+	 * got here, and the ribbon is innocent.  Between those two the symptom
+	 * is identical - nothing happens - and this is the only thing that
+	 * tells them apart.
+	 */
+	wsi_trace("carbon: handler entered");
+
 	if (GetEventParameter(ev, kEventParamDirectObject, typeEventHotKeyID,
-	    NULL, sizeof(id), NULL, &id) != noErr)
+	    NULL, sizeof(id), NULL, &id) != noErr) {
+		wsi_trace("carbon: GetEventParameter refused the hot key id");
 		return noErr;
-	if (id.signature != KEY_SIGNATURE)
+	}
+	if (id.signature != KEY_SIGNATURE) {
+		wsi_trace("carbon: hot key id signature %u is not ours",
+		    (unsigned)id.signature);
 		return noErr;
+	}
 
 	wsi_note_key((int)id.id);
 	return noErr;
@@ -267,8 +284,41 @@ wsik_open(void)
 	spec.eventKind = kEventHotKeyPressed;
 
 	if (InstallEventHandler(GetApplicationEventTarget(),
-	    NewEventHandlerUPP(key_handler), 1, &spec, NULL, NULL) != noErr)
+	    NewEventHandlerUPP(key_handler), 1, &spec, NULL, NULL) != noErr) {
+		wsi_trace("carbon: InstallEventHandler refused");
 		return -1;
+	}
+
+	/*
+	 * What the process looks like to the system at this point, because the
+	 * suspicion on the table is that a program without an .app bundle does
+	 * not get Carbon hot key events delivered at all.  If that is the
+	 * answer, these three numbers are where it shows: an activation policy
+	 * that is not Accessory, or a bundle identifier that is nil, means the
+	 * NSApplication above did not become what we asked it to become.
+	 */
+	if (wsi_trace_want) {
+		@autoreleasepool {
+			NSBundle	*mb = [NSBundle mainBundle];
+
+			wsi_trace("carbon: handler installed on "
+			    "GetApplicationEventTarget()");
+			wsi_trace("carbon: activation policy %ld (Accessory "
+			    "is %ld)",
+			    (long)[[NSApplication sharedApplication]
+			    activationPolicy],
+			    (long)NSApplicationActivationPolicyAccessory);
+			wsi_trace("carbon: bundle id %s, bundle path %s",
+			    [mb bundleIdentifier] == nil ? "(nil)" :
+			    [[mb bundleIdentifier] UTF8String],
+			    [mb bundlePath] == nil ? "(nil)" :
+			    [[mb bundlePath] UTF8String]);
+			wsi_trace("carbon: NSApp isRunning %d - Carbon hot "
+			    "keys are delivered by the run loop, not by "
+			    "-[NSApplication run]",
+			    (int)[[NSApplication sharedApplication] isRunning]);
+		}
+	}
 
 	key_open = 1;
 	return 0;
@@ -306,8 +356,14 @@ wsik_bind(int id, unsigned int mods, const char *key)
 	 * nothing is indistinguishable from a broken window manager.
 	 */
 	if (RegisterEventHotKey(code, mac, hkid, GetApplicationEventTarget(),
-	    0, &ref) != noErr)
+	    0, &ref) != noErr) {
+		wsi_trace("carbon: RegisterEventHotKey refused id %d, key "
+		    "\"%s\" code %u mods %#x", id, key, (unsigned)code,
+		    (unsigned)mac);
 		return -1;
+	}
+	wsi_trace("carbon: RegisterEventHotKey took id %d, key \"%s\" code %u "
+	    "mods %#x", id, key, (unsigned)code, (unsigned)mac);
 
 	key_ref[id] = ref;
 	key_used[id] = 1;

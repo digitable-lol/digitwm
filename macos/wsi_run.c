@@ -138,6 +138,8 @@ wsi_run_keys(void)
 	if (n == 0)
 		return 0;
 
+	wsi_trace("keys: %d binding(s) to take", n);
+
 	if (wsik_open() != 0) {
 		(void)fprintf(stderr, "digitwm: no keyboard: this process has "
 		    "no connection to the window server.  digitwm must be "
@@ -146,10 +148,19 @@ wsi_run_keys(void)
 		return -1;
 	}
 
+	wsi_trace("keys: wsik_open() ok - the process has a window server");
+
 	for (i = 0; i < n; i++) {
-		if (wsik_bind(i, b[i].mods, b[i].key) == 0)
+		if (wsik_bind(i, b[i].mods, b[i].key) == 0) {
+			wsi_trace("keys: id %d = %s -> %s, taken", i,
+			    wsiconf_bindstr(&b[i], buf, sizeof(buf)),
+			    wsiconf_cmdname(b[i].cmd));
 			continue;
+		}
 		refused++;
+		wsi_trace("keys: id %d = %s -> %s, REFUSED", i,
+		    wsiconf_bindstr(&b[i], buf, sizeof(buf)),
+		    wsiconf_cmdname(b[i].cmd));
 		(void)fprintf(stderr, "digitwm: %s: refused - the key name is "
 		    "unknown, or something on this Mac already holds the "
 		    "combination (%s will do nothing)\n",
@@ -171,48 +182,124 @@ wsi_run_keys(void)
  * that - the window under the pointer - and this port has none, because it
  * neither moves the pointer nor lets focus follow it.
  */
+/*
+ * The state a person needs to see next to a key press, and no more of it.
+ *
+ * Three displays and a monitor to the LEFT of the main one - the owner's
+ * machine on 2 September 2026 - mean windows with NEGATIVE x, and -1996 is
+ * what his first window reported.  A ribbon that bound those windows to the
+ * wrong output would look exactly like a key that did not arrive: the press
+ * lands, the command runs, and it moves the focus on a ribbon nobody is
+ * looking at.  So the dump names, for every ribbon, the output it belongs to,
+ * whether that output is attached, its viewport, and how many columns it has -
+ * and then every window with the ribbon it ended up on.
+ */
+static void
+wsi_run_trace_state(void)
+{
+	struct region_ctx	*rc;
+	struct ribbon		*rb;
+	struct client_ctx	*cc;
+	int			 n;
+
+	TAILQ_FOREACH(rc, &sc.regionq, entry)
+		wsi_trace("  output %d \"%s\" view %d,%d %dx%d work %d,%d %dx%d",
+		    rc->num, rc->name == NULL ? "(none)" : rc->name,
+		    rc->view.x, rc->view.y, rc->view.w, rc->view.h,
+		    rc->work.x, rc->work.y, rc->work.w, rc->work.h);
+
+	TAILQ_FOREACH(rb, &sc.ribbonq, entry) {
+		n = ribbon_col_count(rb);
+		wsi_trace("  ribbon \"%s\" %s, %d column(s), focus col %d, "
+		    "viewport %d,%d %dx%d, offset %d/%d, len %d",
+		    rb->output == NULL ? "(none)" : rb->output,
+		    rb->active ? "attached" : "DETACHED", n,
+		    rb->focus == NULL ? -1 : ribbon_col_index(rb, rb->focus),
+		    rb->view.x, rb->view.y, rb->view.w, rb->view.h,
+		    rb->offset, rb->voffset, rb->len);
+	}
+
+	TAILQ_FOREACH(cc, &sc.clientq, entry) {
+		rb = cc->rbcol == NULL ? NULL : cc->rbcol->rb;
+		wsi_trace("  window %lu at %d,%d %dx%d -> ribbon \"%s\" "
+		    "column %d%s", (unsigned long)cc->win,
+		    cc->geom.x, cc->geom.y, cc->geom.w, cc->geom.h,
+		    rb == NULL || rb->output == NULL ? "(floating)" : rb->output,
+		    cc->rbcol == NULL ? -1 : ribbon_col_index(rb, cc->rbcol),
+		    cc == client_current(&sc) ? "  <- has the keyboard" : "");
+	}
+}
+
+/* One line: the press arrived, and this is what it was taken to mean. */
+static void
+wsi_note_key_trace(int id, const struct wsiconf_bind *b, char *buf, size_t len)
+{
+	wsi_trace("key: id %d = %s -> %s ARRIVED in this process", id,
+	    wsiconf_bindstr(&b[id], buf, len), wsiconf_cmdname(b[id].cmd));
+}
+
 void
 wsi_note_key(int id)
 {
 	const struct wsiconf_bind	*b;
 	struct client_ctx		*cc;
+	char				 buf[64];
 	int				 n;
 
 	b = wsiconf_binds(&n);
-	if (id < 0 || id >= n)
+	if (id < 0 || id >= n) {
+		wsi_trace("key: id %d arrived and there is no such binding "
+		    "(%d in the table)", id, n);
 		return;
+	}
+
+	/*
+	 * The line that separates two of the four ways a press dies.  If this
+	 * appears, the Carbon handler ran and the identifier survived; if it
+	 * does not, the press never reached this process at all, and the place
+	 * to look is macos/wsi_key.m and the run loop, not the ribbon.
+	 */
+	if (wsi_trace_want) {
+		wsi_note_key_trace(id, b, buf, sizeof(buf));
+		cc = client_current(&sc);
+		wsi_trace("key: before - focused window %lu",
+		    cc == NULL ? 0UL : (unsigned long)cc->win);
+	}
 
 	switch (b[id].cmd) {
 	case WSI_CMD_FOCUS_LEFT:
 		ribbon_focus_col(&sc, CWM_LEFT);
-		return;
+		goto done;
 	case WSI_CMD_FOCUS_RIGHT:
 		ribbon_focus_col(&sc, CWM_RIGHT);
-		return;
+		goto done;
 	case WSI_CMD_FOCUS_UP:
 		ribbon_focus_win(&sc, CWM_UP);
-		return;
+		goto done;
 	case WSI_CMD_FOCUS_DOWN:
 		ribbon_focus_win(&sc, CWM_DOWN);
-		return;
+		goto done;
 	case WSI_CMD_SWAP_LEFT:
 		ribbon_swap_col(&sc, CWM_LEFT);
-		return;
+		goto done;
 	case WSI_CMD_SWAP_RIGHT:
 		ribbon_swap_col(&sc, CWM_RIGHT);
-		return;
+		goto done;
 	case WSI_CMD_CENTER:
 		ribbon_center(&sc);
-		return;
+		goto done;
 	case WSI_CMD_QUIT:
 		running = 0;
-		return;
+		goto done;
 	default:
 		break;
 	}
 
-	if ((cc = client_current(&sc)) == NULL)
-		return;
+	if ((cc = client_current(&sc)) == NULL) {
+		wsi_trace("key: no window holds the keyboard - a command "
+		    "about \"the window\" has nothing to act on");
+		goto done;
+	}
 
 	switch (b[id].cmd) {
 	case WSI_CMD_MOVE_LEFT:
@@ -241,6 +328,13 @@ wsi_note_key(int id)
 		break;
 	default:
 		break;
+	}
+ done:
+	if (wsi_trace_want) {
+		cc = client_current(&sc);
+		wsi_trace("key: after  - focused window %lu",
+		    cc == NULL ? 0UL : (unsigned long)cc->win);
+		wsi_run_trace_state();
 	}
 }
 
@@ -357,6 +451,7 @@ int
 wsi_run_doctor(void)
 {
 	struct wsip_display	 disp[WSI_MAXDISPLAY];
+	struct wsip_identity	 who;
 	struct wsip_rect	 r;
 	struct client_ctx	*cc;
 	const struct wsiconf_bind	*b;
@@ -373,13 +468,61 @@ wsi_run_doctor(void)
 	    "report; doc/macos-install.md says what each\none costs if it "
 	    "stays broken.\n\n");
 
+	/*
+	 * THREE LINES BEFORE THE FIRST CALL, and they are here because of what
+	 * happened on the first real Mac this port ever ran on, 2 September
+	 * 2026: the owner granted Accessibility, and digitwm went on saying it
+	 * had none.  Everything below needed the permission, so the report
+	 * stopped at line one and told him what he had already read.
+	 *
+	 * These three do not need the permission and do not touch a window.
+	 * They are the three reasons a granted permission does not arrive, and
+	 * each of them is a fact about this process that only this process can
+	 * see.
+	 */
+	if (wsip_identity(&who) == 0) {
+		(void)printf("This process, before any of that:\n");
+		(void)printf("  running   %s\n", who.path);
+		if (strcmp(who.path, who.launched) != 0)
+			(void)printf("  launched  %s\n"
+			    "            NOT THE SAME FILE.  The permission is "
+			    "remembered against the\n"
+			    "            first path, not the second.  brew puts "
+			    "the link on PATH and the\n"
+			    "            real file in the Cellar; add the first "
+			    "line to Accessibility.\n",
+			    who.launched);
+		if (who.parent[0] != '\0')
+			(void)printf("  started by %s\n"
+			    "            If that is a terminal, the permission "
+			    "macOS looks at is ITS\n"
+			    "            permission, not digitwm's - a program "
+			    "started from a shell does\n"
+			    "            not hold its own.  Grant it to the "
+			    "terminal, quit the terminal\n"
+			    "            completely (Command-Q, not the tab) "
+			    "and start it again.\n",
+			    who.parent);
+		if (who.cdhash[0] != '\0')
+			(void)printf("  signature %s\n            cdhash %s\n"
+			    "            This number is what the permission is "
+			    "keyed to.  Ad-hoc means it\n"
+			    "            changes with the file, so a rebuild "
+			    "asks again.\n",
+			    who.signing, who.cdhash);
+		(void)printf("\n");
+	} else
+		(void)printf("This process cannot say who it is: not a Mac.\n\n");
+
 	if (wsi_run_init() != 0) {
 		doctor_line("[1]", "AXIsProcessTrustedWithOptions", 0,
 		    "Accessibility is not granted to this binary");
 		(void)printf("\nNothing else can be tried until that is "
-		    "granted: every call below needs it.\n"
-		    "System Settings > Privacy & Security > Accessibility, "
-		    "then run digitwm again.\n");
+		    "granted: every call below needs it.  The\n"
+		    "three lines above are where a granted permission usually "
+		    "goes missing; go\n"
+		    "down them before going to System Settings > Privacy & "
+		    "Security > Accessibility.\n");
 		return 1;
 	}
 	doctor_line("[1]", "AXIsProcessTrustedWithOptions", 1,

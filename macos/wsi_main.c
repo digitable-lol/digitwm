@@ -52,7 +52,7 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: digitwm [-hkNn] [-c file]\n"
+	    "usage: digitwm [-hkNnv] [-c file]\n"
 	    "  -c file  read this instead of the file the search would find:\n"
 	    "           $DIGITWMRC, then ~/.digitable/digitwm/digitwmrc, then\n"
 	    "           cwm's own ~/.cwmrc\n"
@@ -60,6 +60,15 @@ usage(void)
 	    "  -k       print the key table and the commands it can name\n"
 	    "  -N       go down the Apple calls one at a time and say which "
 	    "answered\n"
+	    "  -v       say out loud what happens: every key press that "
+	    "arrives, which\n"
+	    "           binding it matched, what the command did and what the "
+	    "ribbon\n"
+	    "           looks like afterwards.  DIGITWM_TRACE=1 does the same "
+	    "for a\n"
+	    "           digitwm started by launchd or from Finder, where there "
+	    "is\n"
+	    "           nowhere to put a flag.\n"
 	    "  -h       this\n");
 	exit(1);
 }
@@ -92,11 +101,20 @@ main(int argc, char **argv)
 	enum confpath_src	 src = CONFPATH_ARG;
 	char			 buf[1024];
 	const char		*path = NULL;
-	int			 ch, mode = 0, refused;
+	int			 ch, mode = 0, refused, trace = 0;
+
+	/*
+	 * Before argument handling, because a digitwm started by launchd or
+	 * double-clicked in Finder has no argument to be given: there the
+	 * environment is the only way in, and a trace that cannot be turned on
+	 * where the bug happens is not a trace.
+	 */
+	if (getenv("DIGITWM_TRACE") != NULL)
+		wsi_trace_enable(1);
 
 	wsiconf_default();
 
-	while ((ch = getopt(argc, argv, "c:hkNn")) != -1) {
+	while ((ch = getopt(argc, argv, "c:hkNnv")) != -1) {
 		switch (ch) {
 		case 'c':
 			path = optarg;
@@ -110,6 +128,9 @@ main(int argc, char **argv)
 		case 'n':
 			mode = 'n';
 			break;
+		case 'v':
+			trace = 1;
+			break;
 		default:
 			usage();
 		}
@@ -118,6 +139,9 @@ main(int argc, char **argv)
 	argv += optind;
 	if (argc > 0)
 		usage();
+
+	if (trace)
+		wsi_trace_enable(1);
 
 	/*
 	 * A configuration nobody has written yet is the ordinary case and not
@@ -180,7 +204,26 @@ main(int argc, char **argv)
 		    "not, open System Settings > Privacy & Security > "
 		    "Accessibility and add\n"
 		    "digitwm there.  Then start it again - the grant is read "
-		    "once, at start-up.\n");
+		    "once, at start-up.\n"
+		    "\n"
+		    "IF YOU HAVE ALREADY GRANTED IT AND ARE READING THIS "
+		    "ANYWAY, there are three\n"
+		    "usual reasons, and \"digitwm -N\" names which one is "
+		    "yours - it prints them\n"
+		    "before it tries anything, so it works without the "
+		    "permission:\n"
+		    "  - started from a terminal?  Then the permission macOS "
+		    "reads is the\n"
+		    "    TERMINAL's, not digitwm's.  Grant it to the terminal "
+		    "and quit the\n"
+		    "    terminal completely - Command-Q, not just the tab.\n"
+		    "  - installed by brew?  The name on PATH is a link; the "
+		    "permission is\n"
+		    "    remembered against the real file in the Cellar.\n"
+		    "  - rebuilt since you granted it?  An ad-hoc signature is "
+		    "a hash of the\n"
+		    "    file, so a rebuilt digitwm is a different program to "
+		    "the system.\n");
 		return 1;
 	}
 

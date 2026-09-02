@@ -78,12 +78,48 @@
 #include <sys/types.h>
 #include "queue.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "calmwm.h"
 #include "wsi_core.h"
+
+/*
+ * The trace.  Deliberately the dumbest thing that works: a flag, the clock the
+ * platform already hands out (so the harness's virtual clock shows up here
+ * too), and fprintf.  No levels, no categories, no ring buffer - the question
+ * it answers is "which of four places did the key press die in", and that
+ * question is answered by whether a line exists.
+ */
+int	 wsi_trace_want = 0;
+
+static double	 wsi_trace_t0 = -1.0;
+
+void
+wsi_trace_enable(int on)
+{
+	wsi_trace_want = on;
+	if (on && wsi_trace_t0 < 0.0)
+		wsi_trace_t0 = wsip_now();
+}
+
+void
+wsi_trace_say(const char *fmt, ...)
+{
+	va_list	 ap;
+	double	 now = wsip_now();
+
+	if (wsi_trace_t0 < 0.0)
+		wsi_trace_t0 = now;
+	(void)fprintf(stderr, "digitwm[%8.1fms] ", now - wsi_trace_t0);
+	va_start(ap, fmt);
+	(void)vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	(void)fputc('\n', stderr);
+	(void)fflush(stderr);
+}
 
 #define WSI_MAXDISPLAY	8
 

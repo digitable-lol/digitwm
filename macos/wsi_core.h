@@ -23,6 +23,38 @@
 
 #include "wsi_platform.h"
 
+/*
+ * SAYING OUT LOUD WHAT HAPPENED - off by default, and here because of a bug
+ * that could not be diagnosed without it.
+ *
+ * On the first real Mac this port ran on, 2 September 2026, `digitwm -N` said
+ * every one of its twelve Apple calls answered - RegisterEventHotKey included,
+ * "CM-h taken" - and Control-Option-H did nothing at all.  Between "the system
+ * accepted the registration" and "the ribbon moved the focus" there are four
+ * places the press can be lost, and from outside the process all four look the
+ * same: nothing happens.  Guessing which one it is from the symptom is not
+ * diagnosis, it is a coin toss with four sides.
+ *
+ * So: -v, or DIGITWM_TRACE in the environment for the cases where there is
+ * nowhere to put a flag - launchd, an .app double-clicked in Finder.  Every
+ * line goes to stderr, is prefixed, and carries the milliseconds since the
+ * process started, because the question "did the event arrive at all" is
+ * answered by a line existing and the question "did it arrive late" is
+ * answered by the number on it.
+ *
+ * Cost when off: one comparison of an int per call site.  Nothing is formatted
+ * and nothing is written.
+ */
+extern int	 wsi_trace_want;
+
+void		 wsi_trace_enable(int);
+void		 wsi_trace_say(const char *, ...);
+
+#define wsi_trace(...) do {						\
+	if (wsi_trace_want)						\
+		wsi_trace_say(__VA_ARGS__);				\
+} while (0)
+
 struct client_ctx;
 struct screen_ctx;
 

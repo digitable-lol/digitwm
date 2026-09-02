@@ -422,3 +422,17 @@ wsip_displays(struct wsip_display *d, int max)
 		d[i] = fk_disp[i];
 	return i;
 }
+
+/*
+ * The platform of memory has no process, no file on disk and no signature, and
+ * says so rather than making three plausible strings up.  The identity lines
+ * of `digitwm -N` are the one part of the report that only a real Mac can
+ * answer, and a harness that answered them would be the worst kind of check:
+ * green, and about nothing.
+ */
+int
+wsip_identity(struct wsip_identity *id)
+{
+	(void)memset(id, 0, sizeof(*id));
+	return -1;
+}
