@@ -316,9 +316,20 @@ jobs:
           # Вопрос, ради которого пакет и заведён: одинаково ли отвечают на
           # RegisterEventHotKey файл и пакет. LSUIElement не имеет права это
           # ломать, и здесь видно, ломает или нет.
-          diff "$RUNNER_TEMP/doctor.txt" "$RUNNER_TEMP/doctor-app.txt" \
-            && echo "обход вызовов Apple из пакета и без него совпал дословно" \
-            || echo "РАЗОШЛИСЬ - разница выше"
+          #
+          # Сверяются только строки с приговорами - те, что начинаются с
+          # грейда. Три строки про сам процесс (путь, кто запустил, cdhash)
+          # обязаны разойтись: у пакета другой путь и другая подпись, это и
+          # есть его смысл. Сверять их значило бы требовать, чтобы пакет не
+          # был пакетом.
+          grep -E '^  \[' "$RUNNER_TEMP/doctor.txt" > "$RUNNER_TEMP/v1"
+          grep -E '^  \[' "$RUNNER_TEMP/doctor-app.txt" > "$RUNNER_TEMP/v2"
+          if diff "$RUNNER_TEMP/v1" "$RUNNER_TEMP/v2"; then
+            echo "приговоры по вызовам Apple из пакета и без него совпали: $(wc -l < "$RUNNER_TEMP/v1" | tr -d ' ') строк"
+          else
+            echo "РАЗОШЛИСЬ - LSUIElement или подпись пакета что-то меняют" >&2
+            exit 1
+          fi
           make -C macos clean >/dev/null
           make -C macos >/dev/null
 
