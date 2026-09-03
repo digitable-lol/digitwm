@@ -1,0 +1,3 @@
+[submodule "ribbon-flang/flang-ribbon"]
+	path = ribbon-flang/flang-ribbon
+	url = https://github.com/digitable-lol/flang-ribbon.git

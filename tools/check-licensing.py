@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 """Licence gate for digitwm.
 
-The tree holds three licences and one boundary. NOTICE writes the boundary
-down; this gate is what keeps it true.
+The tree holds three licences and two boundaries. NOTICE writes both down;
+this gate is what keeps them true.
 
   BSD-2-Clause  our files. LICENSE, plus an SPDX header in every source
                 file and script of our own.
@@ -12,6 +12,12 @@ down; this gate is what keeps it true.
                 notice; LICENSE.upstream reproduces it with all nine
                 copyright lines.
   BSD-3-Clause  queue.h alone, which is sys/queue.h from OpenBSD.
+
+The second boundary is `ribbon-flang/out-c/`: emitted C, printed by the flang
+compiler out of the pinned digitable-lol/flang-ribbon submodule. It is under
+BSD-2-Clause like ours, so the count of licences does not change — but the
+authorship does, and a file nobody wrote by hand cannot be held to a rule that
+says "carry our header". Check 5 holds it to the opposite rule instead.
 
 The boundary is drawn by the commit that added the file, not by its header:
 half our files carry no header at all, and upstream's carry no SPDX
@@ -47,6 +53,13 @@ change to NOTICE.
      BSD-2-Clause into it is worse: it is a statement about the origin of a
      file that is mostly someone else's — `screen.c` is 135 of 442 lines
      ours, `calmwm.h` 211 of 837, and nowhere do we hold a majority.
+
+  5. The emitted C is emitted, is BSD-2-Clause, and claims nobody it should
+     not. Its files carry the compiler's own "do not edit" line rather than
+     our header; the check demands that line, refuses any SPDX identifier but
+     BSD-2-Clause, and refuses a copyright holder outside the library's. A
+     hand-written `.c` slipped into that directory has no such line and fails
+     — which is the one way this directory could quietly stop being emitted.
 
   4. LICENSE is the verbatim BSD 2-Clause and nothing else, so that detectors
      recognise it; LICENSE.upstream keeps the ISC formula and every one of
@@ -91,6 +104,23 @@ INHERITED_WITHOUT_NOTICE = {
 # The one inherited file under BSD-3-Clause instead of ISC: sys/queue.h from
 # OpenBSD, copyright The Regents of the University of California.
 INHERITED_BSD3 = "queue.h"
+
+# The emitted C. Not ours (nobody typed it), not inherited from cwm (it did
+# not come from there), and not a vendored copy either — it is the output of a
+# compiler run over `ribbon-flang/flang-ribbon`, a submodule pinned by
+# fingerprint. NOTICE records the origin; ribbon-flang/README.md records why
+# the output of a compiler is under version control at all.
+EMITTED_PREFIX = "ribbon-flang/out-c/"
+
+# The line the flang compiler puts at the top of everything it prints. Demanded
+# rather than exempted: it is what distinguishes "emitted" from "written here
+# and quietly filed under emitted".
+EMITTED_MARKER = "Сгенерировано flang"
+
+# Who may appear in a copyright line inside the emitted C. The library is
+# BSD-2-Clause, copyright Marat Zimnurov; the flang runtime it prints carries
+# `Digitable (Marat Zimnurov)`. Anyone else there is a finding.
+EMITTED_HOLDERS = ("Marat Zimnurov", "Digitable")
 
 # `.py` is here so that this file, exempt from the GPL scan below, is still
 # held to the header requirement like every other source file of ours. `.m`
@@ -214,9 +244,12 @@ else:
     passed.append(f"no GPL text in any of the {len(files)} tracked files")
 
 # 2. Our own source files carry the BSD-2-Clause header.
+emitted = sorted(f for f in files if f.startswith(EMITTED_PREFIX))
+
 ours = [
     f for f in files
     if f not in INHERITED and f not in LICENCE_FILES
+    and not f.startswith(EMITTED_PREFIX)
     and (Path(f).suffix in SOURCE_SUFFIXES or f in OUR_SCRIPTS_WITHOUT_SUFFIX)
 ]
 
@@ -275,6 +308,8 @@ for relative in files:
     path = Path(relative)
     if relative in INHERITED or relative in LICENCE_FILES or relative in headered:
         continue
+    if relative.startswith(EMITTED_PREFIX):
+        continue  # check 5, which asks the opposite question
     if path.suffix in CLAIM_SCAN_EXEMPT_SUFFIXES or path.name in CLAIM_SCAN_EXEMPT_NAMES:
         continue
     try:
@@ -303,6 +338,7 @@ for relative in files:
 unheadered = [
     f for f in files
     if f not in INHERITED and f not in LICENCE_FILES and f not in headered
+    and not f.startswith(EMITTED_PREFIX)
     and Path(f).suffix not in CLAIM_SCAN_EXEMPT_SUFFIXES
     and Path(f).name not in CLAIM_SCAN_EXEMPT_NAMES
 ]
@@ -356,6 +392,65 @@ if not (relicensed or claimed or lost_notice):
         f"none of the {len(INHERITED)} inherited files is relicensed, claimed "
         f"or stripped of its notice"
     )
+
+# 5. The emitted C is emitted, is BSD-2-Clause, and claims nobody it should not.
+#
+# The rule for our own files is "carry our header"; nobody typed these, so that
+# rule cannot apply. This one asks the opposite three questions instead, and
+# each of them can go red on its own:
+#
+#   - is the compiler's "generated, do not edit" line at the top?  A hand
+#     written .c filed here would have none, and that is the one way this
+#     directory could quietly stop being emitted output;
+#   - does any SPDX identifier in it say something other than BSD-2-Clause?
+#   - does any copyright line name a holder outside the library's?
+#
+# The set is also checked for being non-empty: `ribbon.c` calls into these
+# files, so an empty directory here would mean the build is fed from somewhere
+# this gate is not looking.
+if not emitted:
+    failures.append(
+        f"{EMITTED_PREFIX}: not one tracked file — the ribbon arithmetic is "
+        f"emitted there (NOTICE, ribbon-flang/README.md), and an empty "
+        f"directory means either a lost submodule or a build fed from "
+        f"somewhere this gate cannot see"
+    )
+else:
+    emitted_bad = []
+    for relative in emitted:
+        text = read(relative)
+        if EMITTED_MARKER not in "\n".join(text.split("\n")[:6]):
+            emitted_bad.append(
+                f"{relative}: no `{EMITTED_MARKER}` in the opening lines — this "
+                f"directory holds the output of the flang compiler and nothing "
+                f"else. A file written by hand belongs beside ribbon.c, where "
+                f"check 2 will ask it for our header."
+            )
+            continue
+        for identifier in SPDX_LINE.findall(text):
+            if identifier != "BSD-2-Clause":
+                emitted_bad.append(
+                    f"{relative}: says `SPDX-License-Identifier: {identifier}` — "
+                    f"the library it is printed from is BSD-2-Clause, and so is "
+                    f"everything it prints. A different identifier means the "
+                    f"submodule moved somewhere NOTICE does not describe."
+                )
+                break
+        for line in COPYRIGHT_LINE.findall(text):
+            if not any(holder in line for holder in EMITTED_HOLDERS):
+                emitted_bad.append(
+                    f"{relative}: carries a copyright line naming nobody the "
+                    f"library names — `{line.strip()[:70]}`. NOTICE records who "
+                    f"holds this code; a third name in it is a change of fact."
+                )
+                break
+    if emitted_bad:
+        failures.extend(emitted_bad)
+    else:
+        passed.append(
+            f"all {len(emitted)} emitted files are emitted, BSD-2-Clause, and "
+            f"claim only the library's holders"
+        )
 
 # 4. The licence files still say what the checks above assume.
 license_text = read("LICENSE")

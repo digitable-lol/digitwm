@@ -313,3 +313,33 @@ doing nothing: the tag is frozen, nothing behind it is developed any more, and
 a pin is a patch. Order of work: port one policy at a time, each with its own
 `conformance.flang`, and drop the pin on the day all ten and the whole
 scenarios are across.
+
+### What actually happened, 3 September 2026
+
+All ten policies are across, and not one of them came here. They live in
+[flang-ribbon](https://github.com/digitable-lol/flang-ribbon), a library of its
+own with its own CI; `ribbon-flang/flang-ribbon` pins it by fingerprint, the C
+it is emitted to is committed in `ribbon-flang/out-c/`, and the ten
+`ribbon_policy_*` of `ribbon.c` are wrappers over it. What that buys and what
+it costs is in [../ribbon-flang/README.md](../ribbon-flang/README.md).
+
+**The proposal above held, in both halves.** Nothing was retired: the
+conformance run on the frozen tag still runs, and it now says **450** checks —
+the two extra are a new whole-layout scenario, not a concession. What changed is
+which code answers it: `layout-probe` now reports numbers that came out of
+flang, and the models compare against those. Two independent statements of one
+policy, in two languages, compared against a live binary — which is more than
+either had alone, and is why the models are not now redundant.
+
+The port was proved the way this directory prefers: by running both. The
+library's own run against the pre-flang `ribbon.c` covers **526 871** inputs
+with **0** discrepancies and three byte-identical answer streams; digitwm
+repeats it from its own side, against the same pinned `ribbon.c` and the same
+grid, in `sh tools/check-ribbon-flang.sh`. Two of the losses named above did
+not happen either: whole scenarios never moved, and `derive.mjs` is still here
+with its field table, because the models are still here.
+
+**What is still open.** The pin on `fts-pered-udaleniem` is still a pin — the
+models are FTS, and the toolkit behind that tag is frozen. Moving the models
+themselves to flang is a separate piece of work from moving the arithmetic, and
+only the second one is done.

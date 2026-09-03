@@ -164,6 +164,44 @@ rejected. Third-party software is installed by the target system's package
 manager. Only configuration, templates and the install/verify scripts live
 here, under **BSD-2-Clause**.
 
+## Арифметика ленты напечатана, а не написана / The ribbon arithmetic is emitted
+
+`ribbon-flang/out-c/` — **вывод компилятора**, а не чей-то исходник и не
+вендоринг. Десять функций `ribbon_policy_*` в `ribbon.c` перестали быть
+рукописной арифметикой: они зовут четыре модуля, напечатанные компилятором
+flang из библиотеки **`digitable-lol/flang-ribbon`**, подключённой подмодулем
+`ribbon-flang/flang-ribbon` на закреплённом отпечатке.
+
+Лицензия у библиотеки — **BSD-2-Clause**, правообладатель **Marat Zimnurov**;
+рантайм, который она печатает вместе с модулями, несёт заголовок
+`SPDX-FileCopyrightText: 2026 Digitable (Marat Zimnurov)`. Трёх лицензий дерева
+это не меняет: BSD-2-Clause здесь та же самая, что в `LICENSE`. Меняется
+авторство, и поэтому граница записана: файл, который никто не набирал руками,
+нельзя спрашивать по правилу «неси наш заголовок».
+
+Спрашивается по обратному правилу, и это проверка 5 в
+`tools/check-licensing.py`: у каждого файла в шапке стоит строка компилятора
+«Сгенерировано flang»; ни один не называет другого идентификатора лицензии,
+кроме BSD-2-Clause; ни один не называет третьего правообладателя. Рукописный
+`.c`, положенный в этот каталог, строки компилятора не имеет и роняет
+проверку — это и есть единственный способ, которым каталог мог бы незаметно
+перестать быть напечатанным.
+
+Почему вывод компилятора вообще лежит под контролем версий — в
+`ribbon-flang/README.md`; коротко: digitwm собирается компилятором C, `yacc` и
+тремя библиотеками X, и добавить в этот список компилятор flang значило бы
+сменить договор с тем, кто собирает.
+
+`ribbon-flang/out-c/` is **compiler output**: the ten `ribbon_policy_*` of
+`ribbon.c` now call four modules emitted by the flang compiler out of
+**`digitable-lol/flang-ribbon`**, a submodule pinned by fingerprint. The
+library is **BSD-2-Clause**, copyright **Marat Zimnurov**; the runtime it
+prints carries `Digitable (Marat Zimnurov)`. The tree still holds three
+licences — this BSD-2-Clause is the one in `LICENSE` — but the authorship is
+someone else's, so the boundary is written down here and enforced by check 5 of
+`tools/check-licensing.py`, which demands the compiler's own "generated" line
+and refuses any other identifier or holder.
+
 ## Почему LICENSE и LICENSE.upstream разделены / Why the two licence files
 
 Файл `LICENSE` содержит только дословный текст BSD 2-Clause и одну строку

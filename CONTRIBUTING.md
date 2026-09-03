@@ -26,7 +26,17 @@ upstream commits kept intact. Two things follow, and they are not negotiable.
 - **Do not add a dependency.** `x11`, `xft`, `xrandr`, a C compiler and `yacc`
   are the whole list, and NetBSD is reachable exactly because of that. In
   particular, nothing under `fts/` may become a runtime dependency: **FTS runs
-  in CI, never inside the window manager.**
+  in CI, never inside the window manager.** The flang compiler is not on the
+  list either, and that is the whole reason `ribbon-flang/out-c/` is committed
+  rather than emitted during the build.
+- **Do not edit `ribbon-flang/out-c/`.** It is what the flang compiler printed
+  out of the pinned `ribbon-flang/flang-ribbon` submodule, and a hand edit
+  there is a defect, not a change: `make -C ribbon-flang emit` begins with
+  `rm -rf out-c` and will wipe it without a word. `make -C ribbon-flang verify`
+  re-emits into a temporary directory and diffs, so a tree that has drifted
+  from its submodule is found rather than discovered later. The argument for
+  keeping compiler output under version control at all is in
+  [ribbon-flang/README.md](ribbon-flang/README.md).
 
 ## The order a layout change is made in
 
@@ -43,9 +53,17 @@ layout is made in **one commit**, in this order:
    on one surface only fails the build.
 3. **A worked example on the new boundary**, in both surfaces. A rule with no
    example is a rule nobody has read out loud.
-4. **The C**, in `ribbon_policy_*`. These functions take numbers, return a
-   number, touch no state and call no X function — the probe calls them
-   directly, and that is what makes the comparison mean anything.
+4. **The arithmetic**, and it no longer lives here: it is in the flang library
+   [flang-ribbon](https://github.com/digitable-lol/flang-ribbon), which
+   `ribbon-flang/flang-ribbon` pins by fingerprint. Change the behaviour there,
+   re-run its own comparison against the reference, then move the fingerprint
+   here, re-emit (`make -C ribbon-flang`) and put both in **one commit**. The
+   ten `ribbon_policy_*` in `ribbon.c` stay what they are — wrappers that hand
+   numbers over and take a number back — and the probe still calls them
+   directly, which is what makes the comparison mean anything.
+   `sh tools/check-ribbon-flang.sh` answers the question the change raises:
+   does the ribbon still answer what it answered before flang, byte for byte,
+   over the library's own grid of 526 871 inputs.
 5. **A vector** in `fts/vectors/<name>.json`, on the boundary the change is
    about. It should fail before step 4 and pass after it; if it passes before,
    it is not testing the change.

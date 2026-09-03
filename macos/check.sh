@@ -58,10 +58,31 @@ sh "$root/macos/fakex.sh" "$work/fakex"
 inc="-I$work/fakex -I$root -I$root/macos"
 warn="-Wall -Wextra -Werror"
 
+# Рантайм напечатанного зовёт pthread_create и fmod. На маке обе в libSystem,
+# и линкер их берёт сам; здесь, на Linux, - нет. Проверка идёт на Linux,
+# поэтому имена названы, а на маке эта строка пуста и ничего не меняет.
+case $(uname -s) in
+Darwin)	FLANGLIBS= ;;
+*)	FLANGLIBS="-lm -lpthread" ;;
+esac
+
 # 1. Лента - та же самая, дословно, и собранная без единой функции X11.
 printf 'лента (ribbon.c) без Xlib:      '
 (cd "$root" && $CC -Wall -Werror=implicit-function-declaration -O2 -g \
     -D_GNU_SOURCE $inc -c ribbon.c -o "$work/ribbon.o")
+echo "собралась"
+
+# 1а. Арифметика ленты - напечатанное из flang (ribbon-flang/README.md).
+# Собирается БЕЗ $inc: заглушка заголовков X11 ей не нужна, calmwm.h не нужен,
+# ничего нашего не нужно вовсе - и это не экономия строки, а то самое, ради
+# чего библиотека вынесена. Заголовки она берёт из своего же каталога.
+printf 'арифметика (flang, напечатано): '
+flangobjs=""
+for m in viewport geometry placement strut flang_runtime; do
+	(cd "$root/ribbon-flang/out-c" && $CC -std=c99 -Wall -O2 -g \
+	    -c "$m.c" -o "$work/$m.o")
+	flangobjs="$flangobjs $work/$m.o"
+done
 echo "собралась"
 
 # 2. Часть (а) macOS-порта. -Werror - потому что это наш код, а не чужой.
@@ -80,7 +101,8 @@ printf 'харнесс: wsicheck.c:            '
 (cd "$root" && $CC -Wall -O2 -g -D_GNU_SOURCE $inc -c strlcat.c \
     -o "$work/strlcat.o")
 $CC -o "$root/macos/wsicheck" "$work/ribbon.o" "$work/wsi_core.o" \
-    "$work/wsi_fake.o" "$work/wsicheck.o" "$work/strlcpy.o" "$work/strlcat.o"
+    "$work/wsi_fake.o" "$work/wsicheck.o" "$work/strlcpy.o" "$work/strlcat.o" \
+    $flangobjs $FLANGLIBS
 echo "собрался"
 
 # Часть (б): то, что стоит между лентой и человеком, - последовательность
@@ -118,7 +140,7 @@ printf 'харнесс: runcheck.c:            '
 $CC -o "$root/macos/runcheck" "$work/ribbon.o" "$work/wsi_core.o" \
     "$work/wsi_fake.o" "$work/wsi_conf.o" "$work/confpath.o" "$work/wsi_run.o" \
     "$work/runcheck.o" "$work/xmalloc.o" "$work/strlcpy.o" "$work/strlcat.o" \
-    "$work/reallocarray.o"
+    "$work/reallocarray.o" $flangobjs $FLANGLIBS
 echo "собрался"
 
 # И полная сборка двоичного файла - того самого, с настоящим main(), - со
@@ -133,7 +155,8 @@ printf 'digitwm целиком (mac-цель, кроме двух .m):  '
 $CC -o "$work/digitwm-fake" "$work/wsi_main.o" "$work/ribbon.o" \
     "$work/wsi_core.o" "$work/wsi_conf.o" "$work/confpath.o" "$work/wsi_run.o" \
     "$work/wsi_fake.o" "$work/runfakes.o" "$work/xmalloc.o" \
-    "$work/strlcpy.o" "$work/strlcat.o" "$work/reallocarray.o"
+    "$work/strlcpy.o" "$work/strlcat.o" "$work/reallocarray.o" \
+    $flangobjs $FLANGLIBS
 echo "слинковался"
 printf '  и отвечает: '
 "$work/digitwm-fake" -k | head -1

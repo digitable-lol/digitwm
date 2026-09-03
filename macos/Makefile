@@ -60,6 +60,24 @@ FRAMEWORKS=	-framework ApplicationServices \
 		-framework Carbon \
 		-framework Security
 
+# Арифметика ленты - напечатанное из flang, а не наш исходник; довод целиком
+# в ../ribbon-flang/README.md. Собирается БЕЗ ${INCS}: заглушка заголовков X11
+# ей не нужна, calmwm.h не нужен, ничего нашего не нужно вовсе - заголовки она
+# берёт из своего же каталога относительным #include. Отдельные правила, а не
+# ${INCS} ко всему, - чтобы это было видно, а не подразумевалось.
+#
+# libm и pthread, которых просит рантайм печати, на маке лежат в libSystem, и
+# линкер берёт их сам: строки с -lm тут нет и не должно быть.
+FLANGDIR=	../ribbon-flang/out-c
+FLANGOBJS=	${OBJDIR}/viewport.o \
+		${OBJDIR}/geometry.o \
+		${OBJDIR}/placement.o \
+		${OBJDIR}/strut.o \
+		${OBJDIR}/flang_runtime.o
+FLANGHDRS=	${FLANGDIR}/viewport.h ${FLANGDIR}/geometry.h \
+		${FLANGDIR}/placement.h ${FLANGDIR}/strut.h \
+		${FLANGDIR}/flang_runtime.h
+
 OBJS=		${OBJDIR}/ribbon.o \
 		${OBJDIR}/confpath.o \
 		${OBJDIR}/xmalloc.o \
@@ -71,7 +89,8 @@ OBJS=		${OBJDIR}/ribbon.o \
 		${OBJDIR}/wsi_run.o \
 		${OBJDIR}/wsi_main.o \
 		${OBJDIR}/wsi_ax.o \
-		${OBJDIR}/wsi_key.o
+		${OBJDIR}/wsi_key.o \
+		${FLANGOBJS}
 
 HDRS=		../calmwm.h ../queue.h ../wsi.h ../confpath.h \
 		wsi_platform.h wsi_core.h wsi_conf.h wsi_key.h wsi_run.h
@@ -85,8 +104,23 @@ ${OBJDIR}/stamp:
 	sh fakex.sh ${OBJDIR}/fakex
 	touch ${OBJDIR}/stamp
 
-${OBJDIR}/ribbon.o: ../ribbon.c ${HDRS} ${OBJDIR}/stamp
+${OBJDIR}/ribbon.o: ../ribbon.c ${HDRS} ${FLANGHDRS} ${OBJDIR}/stamp
 	${CC} ${CFLAGS} ${INCS} -c ../ribbon.c -o $@
+
+${OBJDIR}/viewport.o: ${FLANGDIR}/viewport.c ${FLANGHDRS} ${OBJDIR}/stamp
+	${CC} ${CFLAGS} -c ${FLANGDIR}/viewport.c -o $@
+
+${OBJDIR}/geometry.o: ${FLANGDIR}/geometry.c ${FLANGHDRS} ${OBJDIR}/stamp
+	${CC} ${CFLAGS} -c ${FLANGDIR}/geometry.c -o $@
+
+${OBJDIR}/placement.o: ${FLANGDIR}/placement.c ${FLANGHDRS} ${OBJDIR}/stamp
+	${CC} ${CFLAGS} -c ${FLANGDIR}/placement.c -o $@
+
+${OBJDIR}/strut.o: ${FLANGDIR}/strut.c ${FLANGHDRS} ${OBJDIR}/stamp
+	${CC} ${CFLAGS} -c ${FLANGDIR}/strut.c -o $@
+
+${OBJDIR}/flang_runtime.o: ${FLANGDIR}/flang_runtime.c ${FLANGDIR}/flang_runtime.h ${OBJDIR}/stamp
+	${CC} ${CFLAGS} -c ${FLANGDIR}/flang_runtime.c -o $@
 
 # Порядок поиска файла настроек - один на две сборки, и это тот же файл,
 # который компилирует ../Makefile. Разъехаться им теперь негде: копии нет.

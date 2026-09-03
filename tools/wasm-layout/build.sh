@@ -97,7 +97,76 @@ cat > "$work/inc/stdio.h" <<'EOF'
 #ifndef FAKE_STDIO_H
 #define FAKE_STDIO_H
 #include <stdarg.h>
+#include <stddef.h>
 typedef struct _FILE FILE;
+extern FILE *stdout;
+extern FILE *stderr;
+extern FILE *fopen(const char *, const char *);
+extern int fclose(FILE *);
+extern int fflush(FILE *);
+extern int fprintf(FILE *, const char *, ...);
+extern int snprintf(char *, size_t, const char *, ...);
+extern int vsnprintf(char *, size_t, const char *, va_list);
+#endif
+EOF
+
+# Заголовки НАПЕЧАТАННОЙ арифметики. Тот же вымысел и по той же причине:
+# libc здесь нет, а объявления нужны, чтобы файл собрался. Что из этого
+# ДЕЙСТВИТЕЛЬНО зовётся на пути раскладки, написано в shim.c; остальное
+# остаётся неопределённым именем, и компоновщик его пропускает
+# (--allow-undefined), потому что вызвать его нечему.
+#
+# Проверки чисел - макросами через встроенные clang: у wasm для них есть
+# инструкции, и функции звать незачем.
+cat > "$work/inc/math.h" <<'EOF'
+#ifndef FAKE_MATH_H
+#define FAKE_MATH_H
+extern double fmod(double, double);
+extern double floor(double);
+extern double fabs(double);
+#define isnan(x) __builtin_isnan(x)
+#define isinf(x) __builtin_isinf(x)
+#define isfinite(x) __builtin_isfinite(x)
+#define signbit(x) __builtin_signbit(x)
+#define NAN (__builtin_nanf(""))
+#define INFINITY (__builtin_inff())
+#endif
+EOF
+cat > "$work/inc/time.h" <<'EOF'
+#ifndef FAKE_TIME_H
+#define FAKE_TIME_H
+typedef long time_t;
+extern time_t time(time_t *);
+#endif
+EOF
+cat > "$work/inc/errno.h" <<'EOF'
+#ifndef FAKE_ERRNO_H
+#define FAKE_ERRNO_H
+extern int fl_fake_errno;
+#define errno fl_fake_errno
+#define ERANGE 34
+#endif
+EOF
+
+# Рантайм печати пишет свой замер времени через SIGPROF безусловно - не под
+# `#ifdef`, - и потому просит эти имена даже там, где POSIX нет. Он их не
+# ЗОВЁТ: замер включается переменной среды FLANG_TIME_OUT, а getenv здесь
+# всегда отвечает NULL. Объявления нужны только компилятору, поэтому они
+# подставляются -include и живут отдельным файлом, а не подмешиваются в
+# чужой заголовок.
+cat > "$work/inc/fl-wasm-libc.h" <<'EOF'
+#ifndef FL_WASM_LIBC_H
+#define FL_WASM_LIBC_H
+typedef int sig_atomic_t;
+struct sigaction { void (*sa_handler)(int); unsigned long sa_mask; int sa_flags; };
+struct timeval { long tv_sec; long tv_usec; };
+struct itimerval { struct timeval it_interval, it_value; };
+extern int sigemptyset(unsigned long *);
+extern int sigaction(int, const struct sigaction *, struct sigaction *);
+extern int setitimer(int, const struct itimerval *, struct itimerval *);
+#define SA_RESTART 0x10000000
+#define SIGPROF 27
+#define ITIMER_PROF 2
 #endif
 EOF
 cat > "$work/inc/stdlib.h" <<'EOF'
@@ -105,6 +174,17 @@ cat > "$work/inc/stdlib.h" <<'EOF'
 #define FAKE_STDLIB_H
 #include <stddef.h>
 extern void free(void *);
+extern void *malloc(size_t);
+extern void *calloc(size_t, size_t);
+extern void abort(void);
+extern void exit(int);
+extern int atexit(void (*)(void));
+extern int atoi(const char *);
+extern char *getenv(const char *);
+extern double strtod(const char *, char **);
+extern long strtol(const char *, char **, int);
+extern unsigned long strtoul(const char *, char **, int);
+extern unsigned long long strtoull(const char *, char **, int);
 #endif
 EOF
 cat > "$work/inc/string.h" <<'EOF'
@@ -115,6 +195,7 @@ extern int strcmp(const char *, const char *);
 extern size_t strlen(const char *);
 extern void *memset(void *, int, size_t);
 extern void *memcpy(void *, const void *, size_t);
+extern int memcmp(const void *, const void *, size_t);
 #endif
 EOF
 cat > "$work/inc/err.h" <<'EOF'
@@ -131,15 +212,35 @@ printf 'ribbon.c в WebAssembly: '
 (cd "$root" && $CC $wasmflags -I"$work/inc" -c ribbon.c -o "$work/ribbon.o")
 echo "собралась"
 
+# Арифметика ленты - напечатанное из flang (ribbon-flang/README.md). Она
+# собирается ЗДЕСЬ, во freestanding wasm32 без libc и без единого заголовка
+# системы, и это не побочность: библиотека, которая не собирается там, где нет
+# ни ОС, ни libc, была бы библиотекой только на словах. Рантайм печати сам
+# знает про wasm - под ним он берёт границы теневого стека у компоновщика
+# вместо getrlimit, - и весь POSIX у него под `#ifdef`, кроме одного замера
+# времени, который выключен переменной среды.
+printf 'арифметика (flang) в WebAssembly: '
+flangobjs=""
+for m in viewport geometry placement strut flang_runtime; do
+	(cd "$root/ribbon-flang/out-c" && $CC $wasmflags -I"$work/inc" \
+	    -include "$work/inc/fl-wasm-libc.h" -c "$m.c" -o "$work/$m.o")
+	flangobjs="$flangobjs $work/$m.o"
+done
+echo "собралась"
+
+# -fno-builtin у механики: в ней написаны fmod, floor, memcpy и подобные, и
+# без этого ключа компилятор узнал бы тело fmod и заменил бы его вызовом
+# fmod - то есть вызовом самого себя.
 printf 'механика для страницы:   '
-(cd "$root" && $CC $wasmflags -I"$work/inc" -I"$root" -c \
+(cd "$root" && $CC $wasmflags -fno-builtin -I"$work/inc" -I"$root" -c \
     tools/wasm-layout/shim.c -o "$work/shim.o")
 echo "собралась"
 
 printf 'сборка модуля:           '
+# shellcheck disable=SC2086
 $CC --target=wasm32 -nostdlib -Wl,--no-entry -Wl,--export-dynamic \
 	-Wl,--allow-undefined -Wl,--export-memory -Wl,--initial-memory=2097152 \
-	-o "$here/layout.wasm" "$work/ribbon.o" "$work/shim.o"
+	-o "$here/layout.wasm" "$work/ribbon.o" "$work/shim.o" $flangobjs
 echo "layout.wasm готов"
 
 size=$(wc -c < "$here/layout.wasm")

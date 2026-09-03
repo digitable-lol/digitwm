@@ -152,7 +152,19 @@ done
 }
 
 # 4. Десять политик - отдельно, с -Werror и без единого заголовка X11.
-cat > "$work/shim.h" <<'EOF'
+#
+# ЧТО ЗДЕСЬ ИЗМЕНИЛОСЬ И ПОЧЕМУ. Раньше проход требовал от выкушенных политик
+# ровно одного неопределённого имени - Conf, - и это значило «политики есть
+# чистая арифметика». Арифметики в них больше нет: она приезжает напечатанной
+# из flang (ribbon-flang/README.md), а здесь остались обёртки. Ослабить проход
+# до «ну, теперь имён больше» значило бы выбросить его: список, который никто
+# не пересчитывает, зарастает.
+#
+# Поэтому утверждение стало ТОЧНЕЕ, а не мягче: список неопределённых имён
+# выписан поимённо и сверяется целиком. В нём Conf, десять точек входа
+# библиотеки, две строки клея этого файла и fl_number - и НИЧЕГО больше. Любое
+# новое имя - вызов, добавленный в политику по дороге, - роняет проход.
+cat > "$work/shim.h" <<EOF
 #ifndef SHIM_H
 #define SHIM_H
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
@@ -167,6 +179,14 @@ cat > "$work/shim.h" <<'EOF'
 #define RIBBON_RULE_FLOAT	2
 struct conf_shim { int ribbonwidth[RIBBON_NPRESET]; };
 extern struct conf_shim Conf;
+#include "$root/ribbon-flang/out-c/viewport.h"
+#include "$root/ribbon-flang/out-c/geometry.h"
+#include "$root/ribbon-flang/out-c/placement.h"
+#include "$root/ribbon-flang/out-c/strut.h"
+/* Две строки клея. В ribbon.c они static; здесь - объявления, потому что
+   выкусываются только сами политики, и клей остаётся снаружи. */
+fl_ctx *ribbon_flang_ctx(void);
+int ribbon_flang_int(const char *, fl_status, fl_value, const fl_error *, int);
 int ribbon_policy_offset(int, int, int, int, int, int);
 int ribbon_policy_voffset(int, int, int, int, int, int);
 int ribbon_policy_width(int, int, int, int);
@@ -202,16 +222,61 @@ printf 'десять политик отдельной единицей: '
 }
 echo "собрались (-Wall -Wextra -Werror, ни одного заголовка X11)"
 
-undef=$(nm -u "$work/policy.o" | awk '{print $NF}' | LC_ALL=C sort | tr '\n' ' ')
+expect="Conf fl_number geometry_shirina_kolonki_po_presetu geometry_vysota_okna \
+placement_fokus_posle_zakrytiya placement_kuda_polozhit_okno ribbon_flang_ctx \
+ribbon_flang_int strut_dolya_pary strut_polosa_vstrechaet_oblast \
+strut_skolko_otnyat viewport_smeschenie viewport_smeschenie_po_stopke \
+viewport_smeschenie_posle_smeny_okna"
+expect=$(printf '%s' "$expect" | tr -s ' \n' '\n\n' | grep -v '^$' | LC_ALL=C sort | tr '\n' ' ')
+expect=${expect% }
+
+# __stack_chk_fail приходит от -fstack-protector дистрибутива, а не от кода,
+# и на разных машинах то есть, то нет. Он не имя политики и здесь не считается.
+undef=$(nm -u "$work/policy.o" | awk '{print $NF}' | grep -v '^__' \
+    | LC_ALL=C sort | tr '\n' ' ')
 undef=${undef% }
-if [ "$undef" != "Conf" ]; then
-	echo "Политики перестали быть чистой арифметикой." >&2
-	echo "Неопределённые имена: $undef (ожидалось только Conf)" >&2
+if [ "$undef" != "$expect" ]; then
+	echo "Политики просят не то, что им положено." >&2
+	echo "  ждали: $expect" >&2
+	echo "  видим: $undef" >&2
+	echo "Политика - это передача чисел библиотеке и обратно. Всё, что" >&2
+	echo "сверх Conf, точек входа библиотеки и двух строк клея, - лишнее." >&2
 	exit 1
 fi
-echo "  неопределённых имён: Conf - и больше ничего"
+echo "  неопределённых имён: Conf, десять точек входа библиотеки и две строки клея"
+
+# 5. Сама арифметика - четыре напечатанных модуля - не знает про digitwm
+# ничего. Это и есть та часть, которую любой порт унесёт с собой дословно, и
+# теперь она унесётся вместе с библиотекой, а не с этим деревом: у неё нет
+# ни Conf, ни имени из wsi.h, ни имени из calmwm.h.
+printf 'арифметика (напечатанное из flang): '
+for m in viewport geometry placement strut; do
+	(cd "$root/ribbon-flang/out-c" && $CC -std=c99 -Wall -Wextra -Werror \
+	    -pedantic -O2 -c "$m.c" -o "$work/$m.o") || {
+		echo "НЕ СОБРАЛАСЬ ($m.c)"
+		exit 1
+	}
+done
+echo "собралась (-Wall -Wextra -Werror -pedantic)"
+
+# По одному файлу за раз: nm над несколькими печатает ещё и строки-заголовки
+# с именем файла, и они прошли бы за неопределённые имена.
+lib_undef=
+for m in viewport geometry placement strut; do
+	more=$(nm -u "$work/$m.o" | awk '{print $NF}' | grep -v '^__' \
+	    | grep -vE '^(fl_[a-z_]+|strcmp|fmod)$' || true)
+	[ -n "$more" ] && lib_undef="$lib_undef $more"
+done
+lib_undef=$(printf '%s' "$lib_undef" | tr ' ' '\n' | grep -v '^$' | LC_ALL=C sort -u | tr '\n' ' ')
+if [ -n "$lib_undef" ]; then
+	echo "Напечатанная арифметика просит имена сверх своего рантайма: $lib_undef" >&2
+	echo "Библиотека, которая знает про хозяина, перестала быть библиотекой." >&2
+	exit 1
+fi
+echo "  вне своего рантайма, strcmp и fmod не просит ничего - ни Conf, ни wsi.h"
 
 echo
 echo "Лента не знает про X11 ничего; всё, что она просит у оконной системы,"
-echo "записано в wsi.h. Цена переноса - механика, а не арифметика."
+echo "записано в wsi.h. Цена переноса - механика, а не арифметика, и самой"
+echo "арифметики здесь больше нет: она приезжает из flang-ribbon."
 echo "См. doc/portability.ru.md."

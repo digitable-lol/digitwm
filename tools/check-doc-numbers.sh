@@ -106,7 +106,7 @@ both "строк в ribbon.c (таблица)" "$ribbon_lines" \
 	'wc -l ribbon.c'
 both "строк в ribbon.c (ответ)" "$ribbon_lines" \
 	'.*but \([0-9][0-9]*\) lines of `ribbon\.c`.*' \
-	'.*а \([0-9][0-9]*\) строки `ribbon\.c`.*' \
+	'.*а \([0-9][0-9]*\) строк[аиы]\{0,1\} `ribbon\.c`.*' \
 	'wc -l ribbon.c'
 both "строк в probe.c (харнесс)" "$probe_lines" \
 	'.*`probe\.c` (\([0-9][0-9]*\) lines,.*' \

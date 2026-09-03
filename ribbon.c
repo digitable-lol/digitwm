@@ -43,6 +43,15 @@
  * compared vector by vector in CI through "layout-probe".  Everything that
  * needs more than numbers - the loop over columns, the X calls - is
  * deliberately kept out of them.
+ *
+ * The arithmetic inside those ten is no longer written here.  It comes from
+ * flang-ribbon, a library of pure total functions in the flang language,
+ * emitted to C ahead of time into ribbon-flang/out-c/ and linked in; the ten
+ * functions below are the wrappers.  What that buys, what it costs and what
+ * proves the ribbon still answers the same numbers is in
+ * ribbon-flang/README.md.  The FTS models did not go away and are not
+ * redundant: they are a second, independent statement of the same policy,
+ * and CI still compares them against this binary vector by vector.
  */
 
 #include <sys/types.h>
@@ -58,6 +67,18 @@
 
 #include "calmwm.h"
 
+/*
+ * The ten ribbon_policy_* below are emitted C, not hand-written: the flang
+ * compiler prints them out of the library in ribbon-flang/flang-ribbon.  The
+ * paths are relative to this file, so no -I is needed - which is the whole
+ * reason four build sites (Makefile, macos/Makefile, macos/check.sh,
+ * tools/no-x-build.sh) needed no new include flag.
+ */
+#include "ribbon-flang/out-c/viewport.h"
+#include "ribbon-flang/out-c/geometry.h"
+#include "ribbon-flang/out-c/placement.h"
+#include "ribbon-flang/out-c/strut.h"
+
 static void		 ribbon_col_free(struct ribbon *, struct ribbon_col *);
 static void		 ribbon_col_del(struct client_ctx *);
 static int		 ribbon_win_away(struct client_ctx *);
@@ -70,46 +91,114 @@ static void		 ribbon_activate(struct ribbon_col *);
 static void		 ribbon_warp(struct ribbon *);
 
 /*
+ * ---------------------------------------------------------------------
+ * The ten policies below are no longer written here.  They are emitted C,
+ * printed by the flang compiler out of digitable-lol/flang-ribbon, and the
+ * functions in this file are the wrappers that hand them ints and take ints
+ * back.  Why, and what it costs, is in ribbon-flang/README.md; the short of
+ * it is that the arithmetic used to exist in two hand-written copies - here
+ * and in fts/ - free to drift, and now it exists once, in a language that
+ * proves its own termination and re-checks its promises at run time.
+ *
+ * What did NOT move: everything below the policies.  The loop over columns,
+ * the malloc, the wsi.h contract - see the README's "what stayed with the
+ * host".  A library that knows about client_show is half a window manager.
+ *
+ * THE ARENA.  Each call resets one static arena and builds a context over
+ * it, instead of malloc'ing a fresh one: measured on this machine, 347 ns
+ * per call against 393 ns with a fresh arena, and 6 ns for the hand-written
+ * C that used to be here.  Fifty-six times slower and it does not matter -
+ * a whole relayout of a busy ribbon is a few hundred calls, so a fraction of
+ * a millisecond, against X round-trips that cost more than that each.  It
+ * would matter in a program that redraws on a timer; digitwm computes a
+ * layout when a window appears, closes, moves or the monitor changes.
+ *
+ * This is single-threaded and says so out loud: digitwm has one thread, and
+ * one static arena shared by ten functions is only safe while that is true.
+ *
+ * WHEN THE EMITTED CODE REFUSES.  It can, and honestly: postconditions are
+ * re-evaluated on every return, and a violated one comes back as
+ * FLANG_PROPERTY rather than a number.  Over the 526 871 inputs of the
+ * library's own run - and of tools/check-ribbon-flang.sh here - that has
+ * never happened, and the inputs there are far nastier than a ribbon can
+ * produce.  If it ever does, the wrapper says so on stderr and answers with
+ * the value named beside each call: 0 where the answer is a coordinate or a
+ * claim on a region (show the start, take nothing), the declared minimum
+ * where it is a size, and the fall-through place for insertion.  Every one
+ * of those is a value the policy itself returns on some input - nothing new
+ * is invented - and every one errs towards "do less".
+ */
+
+static fl_arena		 ribbon_arena;
+static int		 ribbon_arena_live;
+
+static fl_ctx *
+ribbon_flang_ctx(void)
+{
+	static fl_ctx	 ctx;
+
+	if (ribbon_arena_live)
+		fl_arena_reset(&ribbon_arena);
+	else {
+		fl_arena_init(&ribbon_arena);
+		ribbon_arena_live = 1;
+	}
+	fl_ctx_init(&ctx, &ribbon_arena);
+
+	return &ctx;
+}
+
+/*
+ * The one place an fl_value becomes an int.  A refusal is loud - a silently
+ * wrong layout is worse than a noisy one - and never fatal: a window manager
+ * that exits takes the session with it.
+ */
+static int
+ribbon_flang_int(const char *who, fl_status st, fl_value v, const fl_error *e,
+    int instead)
+{
+	if ((st == FL_OK) && (v.tag == FL_NUMBER))
+		return (int)v.as.number;
+
+	warnx("ribbon: %s refused (%s: %s); using %d", who,
+	    (e != NULL && e->code != NULL) ? e->code : "?",
+	    (e != NULL && e->message != NULL) ? e->message : "-", instead);
+
+	return instead;
+}
+
+/*
  * Offset of the viewport once the focused column must be visible.
  *
  * The gap doubles as the margin kept between the focused column and the edge
  * of the viewport, so that scrolling leaves a hint of the neighbour rather
  * than butting the column against the border.  It is dropped when the column
  * is too wide to afford it.
+ *
+ * flang: viewport.flang, «Смещение».
  */
 int
 ribbon_policy_offset(int vw, int cl, int cw, int off, int gap, int len)
 {
-	int	 margin, max;
+	fl_ctx		*ctx = ribbon_flang_ctx();
+	fl_value	 r;
+	fl_error	 e;
+	fl_status	 st;
 
-	margin = gap;
-	if ((cw + margin) > vw)
-		margin = 0;
+	st = viewport_smeschenie(ctx, fl_number(vw), fl_number(cl),
+	    fl_number(cw), fl_number(off), fl_number(gap), fl_number(len),
+	    &r, &e);
 
-	if (cw >= vw)
-		off = cl;
-	else if ((cl - margin) < off)
-		off = cl - margin;
-	else if ((cl + cw + margin) > (off + vw))
-		off = cl + cw + margin - vw;
-
-	max = len - vw;
-	if (max < 0)
-		max = 0;
-	if (off > max)
-		off = max;
-	if (off < 0)
-		off = 0;
-
-	return off;
+	return ribbon_flang_int("offset", st, r, &e, 0);
 }
 
 /*
  * Offset of the viewport down the canvas once the focused window must be
  * visible.  Same policy as ribbon_policy_offset(), turned on its side: the
  * canvas has to behave the same way down as across or it is not one canvas
- * but two unrelated things sharing a name.  Hence the delegation rather than
- * a second copy of the arithmetic - a copy would be free to drift.
+ * but two unrelated things sharing a name.  The delegation is now inside the
+ * library - «Смещение по стопке» calls «Смещение» - and the reason is what it
+ * always was: a copy would be free to drift.
  *
  * What differs is the unit, and that is a matter for the caller: across, the
  * viewport follows the focused column; down, it follows the focused window of
@@ -120,11 +209,22 @@ ribbon_policy_offset(int vw, int cl, int cw, int off, int gap, int len)
  * "layout-probe stack-offset" is what the conformance harness compares that
  * model against, and a model written in heights has to be answered by a
  * function that reads in heights.
+ *
+ * flang: viewport.flang, «Смещение по стопке».
  */
 int
 ribbon_policy_voffset(int vh, int wy, int wh, int off, int gap, int canvas)
 {
-	return ribbon_policy_offset(vh, wy, wh, off, gap, canvas);
+	fl_ctx		*ctx = ribbon_flang_ctx();
+	fl_value	 r;
+	fl_error	 e;
+	fl_status	 st;
+
+	st = viewport_smeschenie_po_stopke(ctx, fl_number(vh), fl_number(wy),
+	    fl_number(wh), fl_number(off), fl_number(gap), fl_number(canvas),
+	    &r, &e);
+
+	return ribbon_flang_int("voffset", st, r, &e, 0);
 }
 
 /*
@@ -132,36 +232,34 @@ ribbon_policy_voffset(int vh, int wy, int wh, int off, int gap, int canvas)
  * viewport; the gap is taken off first so that two half-width columns and
  * the gap between them come to exactly one viewport.  Full width is the
  * whole viewport, gap and all, since nothing sits beside it.
+ *
+ * Both properties of the model hold - width no larger than the viewport,
+ * width no smaller than the minimum - as long as the viewport itself is not
+ * narrower than the minimum.  When it is, the minimum wins and the column
+ * simply scrolls.
+ *
+ * The one policy of the ten that reads configuration, and therefore the one
+ * that does not map one to one: the library has no Conf, so the table of
+ * four shares travels as four arguments.  Clamping the preset to the table
+ * moved into the library with the rest.
+ *
+ * flang: geometry.flang, «Ширина колонки по пресету».
  */
 int
 ribbon_policy_width(int vw, int preset, int gap, int minw)
 {
-	int	 pct, w, max;
+	fl_ctx		*ctx = ribbon_flang_ctx();
+	fl_value	 r;
+	fl_error	 e;
+	fl_status	 st;
 
-	if (preset < 0)
-		preset = 0;
-	if (preset >= RIBBON_NPRESET)
-		preset = RIBBON_NPRESET - 1;
+	st = geometry_shirina_kolonki_po_presetu(ctx, fl_number(vw),
+	    fl_number(preset), fl_number(gap), fl_number(minw),
+	    fl_number(Conf.ribbonwidth[0]), fl_number(Conf.ribbonwidth[1]),
+	    fl_number(Conf.ribbonwidth[2]), fl_number(Conf.ribbonwidth[3]),
+	    &r, &e);
 
-	pct = Conf.ribbonwidth[preset];
-	if (pct >= 100)
-		w = vw;
-	else
-		w = ((vw - gap) * pct) / 100;
-
-	/*
-	 * Both properties of the model hold - width no larger than the
-	 * viewport, width no smaller than the minimum - as long as the
-	 * viewport itself is not narrower than the minimum.  When it is,
-	 * the minimum wins and the column simply scrolls.
-	 */
-	max = MAX(vw, minw);
-	if (w > max)
-		w = max;
-	if (w < minw)
-		w = minw;
-
-	return w;
+	return ribbon_flang_int("width", st, r, &e, minw);
 }
 
 /*
@@ -174,7 +272,7 @@ ribbon_policy_width(int vw, int preset, int gap, int minw)
  * ("height is at least the minimum", fts/window-height.fts), and answering with
  * less would break the model's own property.  So the stack runs past the bottom
  * edge instead - nwin windows of minh plus the gaps.  That is the same
- * collision ribbon_policy_width() has, and it is now resolved the same way: by
+ * collision ribbon_policy_width() has, and it is resolved the same way: by
  * scrolling.  The stack is part of a canvas taller than the viewport, and
  * ribbon_policy_voffset() brings whatever sits below the edge back into it.
  * Measured at 1280x800, gap 8, minh 60: 11 windows fit exactly, 12 make a
@@ -188,51 +286,49 @@ ribbon_policy_width(int vw, int preset, int gap, int minw)
  * property "height is at least the minimum" whenever the viewport was shorter
  * than ribbonminh; MAX(vh, minh) is what the rest of the function does, and
  * what ribbon_policy_width() does with a viewport narrower than its minimum.
+ *
+ * flang: geometry.flang, «Высота окна».
  */
 int
 ribbon_policy_height(int vh, int nwin, int idx, int gap, int minh)
 {
-	int	 total, base, h;
+	fl_ctx		*ctx = ribbon_flang_ctx();
+	fl_value	 r;
+	fl_error	 e;
+	fl_status	 st;
 
-	if (nwin <= 0)
-		return MAX(vh, minh);
+	st = geometry_vysota_okna(ctx, fl_number(vh), fl_number(nwin),
+	    fl_number(idx), fl_number(gap), fl_number(minh), &r, &e);
 
-	total = vh - (gap * (nwin - 1));
-	base = total / nwin;
-
-	h = base;
-	if (idx == (nwin - 1))
-		h = total - (base * (nwin - 1));
-
-	if (h > vh)
-		h = vh;
-	if (h < minh)
-		h = minh;
-
-	return h;
+	return ribbon_flang_int("height", st, r, &e, minh);
 }
 
 /*
- * Where a newly mapped window goes.  The conditions are deliberately
- * non-overlapping: the FTS model runs every rule whose condition holds and
- * lets the last one win, so overlapping conditions there would be a trap.
+ * Where a newly mapped window goes.
+ *
+ * The conditions overlap - a dock that also asks for fullscreen matches two
+ * of them with different answers - and the order resolves it: the rules stand
+ * in increasing precedence, and the last one whose condition holds wins.  The
+ * comment that used to stand here claimed the conditions were deliberately
+ * non-overlapping; that claim was wrong, and fts/README.md says where it was
+ * caught.
+ *
+ * flang: placement.flang, «Куда положить окно».
  */
 int
 ribbon_policy_insert(int hasfocus, int transient, int dialog, int dock,
     int full, int rule)
 {
-	if (rule == RIBBON_RULE_FLOAT)
-		return RIBBON_PLACE_FLOAT;
-	if (dock)
-		return RIBBON_PLACE_FLOAT;
-	if (dialog || transient)
-		return RIBBON_PLACE_FLOAT;
-	if (full)
-		return RIBBON_PLACE_FULL;
-	if ((rule == RIBBON_RULE_STACK) && hasfocus)
-		return RIBBON_PLACE_STACK;
+	fl_ctx		*ctx = ribbon_flang_ctx();
+	fl_value	 r;
+	fl_error	 e;
+	fl_status	 st;
 
-	return RIBBON_PLACE_COLUMN;
+	st = placement_kuda_polozhit_okno(ctx, fl_number(hasfocus),
+	    fl_number(transient), fl_number(dialog), fl_number(dock),
+	    fl_number(full), fl_number(rule), &r, &e);
+
+	return ribbon_flang_int("insert", st, r, &e, RIBBON_PLACE_COLUMN);
 }
 
 /*
@@ -243,16 +339,21 @@ ribbon_policy_insert(int hasfocus, int transient, int dialog, int dock,
  *
  * Ends touching count as meeting: a strut ending exactly where a region begins
  * shares that one pixel column with it.
+ *
+ * flang: strut.flang, «Полоса встречает область».
  */
 int
 ribbon_policy_span(int span0, int span1, int pos, int len)
 {
-	if (span1 < span0)
-		return 0;
-	if (len <= 0)
-		return 0;
+	fl_ctx		*ctx = ribbon_flang_ctx();
+	fl_value	 r;
+	fl_error	 e;
+	fl_status	 st;
 
-	return ((span0 <= (pos + len - 1)) && (span1 >= pos));
+	st = strut_polosa_vstrechaet_oblast(ctx, fl_number(span0),
+	    fl_number(span1), fl_number(pos), fl_number(len), &r, &e);
+
+	return ribbon_flang_int("span", st, r, &e, 0);
 }
 
 /*
@@ -268,26 +369,21 @@ ribbon_policy_span(int span0, int span1, int pos, int len)
  * 68.  Nothing can be taken twice, and nothing can take more than the region
  * has - a strut deeper than the whole region leaves it empty rather than
  * negative.
+ *
+ * flang: strut.flang, «Сколько отнять».
  */
 int
 ribbon_policy_reserve(int strut, int screen, int pos, int len, int far)
 {
-	int	 n;
+	fl_ctx		*ctx = ribbon_flang_ctx();
+	fl_value	 r;
+	fl_error	 e;
+	fl_status	 st;
 
-	if (strut <= 0)
-		return 0;
+	st = strut_skolko_otnyat(ctx, fl_number(strut), fl_number(screen),
+	    fl_number(pos), fl_number(len), fl_number(far), &r, &e);
 
-	if (far)
-		n = (pos + len) - (screen - strut);
-	else
-		n = strut - pos;
-
-	if (n < 0)
-		n = 0;
-	if (n > len)
-		n = len;
-
-	return n;
+	return ribbon_flang_int("reserve", st, r, &e, 0);
 }
 
 /*
@@ -311,25 +407,26 @@ ribbon_policy_reserve(int strut, int screen, int pos, int len, int far)
  *
  * Both arguments arrive from ribbon_policy_reserve() and are therefore never
  * negative and never larger than the region on their own; the arithmetic here
- * does not depend on that, but the reasoning about it does.
+ * does not depend on that, but the reasoning about it does.  The library adds
+ * a function this file has no counterpart for - «Пара вместе», which sums both
+ * halves and carries the theorem neither half can state alone: two panels
+ * together never take more of a region than it has.  Nothing here calls it;
+ * it is checked inside the library, on its own.
+ *
+ * flang: strut.flang, «Доля пары».
  */
 int
 ribbon_policy_pair(int near, int far, int len, int want_far)
 {
-	if (len < 0)
-		len = 0;
-	if (near < 0)
-		near = 0;
-	if (far < 0)
-		far = 0;
+	fl_ctx		*ctx = ribbon_flang_ctx();
+	fl_value	 r;
+	fl_error	 e;
+	fl_status	 st;
 
-	if ((near + far) <= len)
-		return want_far ? far : near;
+	st = strut_dolya_pary(ctx, fl_number(near), fl_number(far),
+	    fl_number(len), fl_number(want_far), &r, &e);
 
-	if (near > len)
-		near = len;
-
-	return want_far ? (len - near) : near;
+	return ribbon_flang_int("pair", st, r, &e, 0);
 }
 
 /*
@@ -337,39 +434,40 @@ ribbon_policy_pair(int near, int far, int len, int want_far)
  * the number of columns before the close, last says the column was the
  * rightmost, only says the window was the last one in it - that is, that the
  * column goes away with it.
+ *
+ * flang: placement.flang, «Фокус после закрытия».
  */
 int
 ribbon_policy_close(int idx, int ncol, int last, int only)
 {
-	int	 n;
+	fl_ctx		*ctx = ribbon_flang_ctx();
+	fl_value	 r;
+	fl_error	 e;
+	fl_status	 st;
 
-	if (!only)
-		return idx;
+	st = placement_fokus_posle_zakrytiya(ctx, fl_number(idx),
+	    fl_number(ncol), fl_number(last), fl_number(only), &r, &e);
 
-	n = ncol - 1;
-	if (n <= 0)
-		return 0;
-	if (last || (idx >= n))
-		return n - 1;
-
-	return idx;
+	return ribbon_flang_int("close", st, r, &e, 0);
 }
 
-/* Offset after the viewport changed size under it. */
+/*
+ * Offset after the viewport changed size under it.
+ *
+ * flang: viewport.flang, «Смещение после смены окна».
+ */
 int
 ribbon_policy_output(int vw, int off, int len)
 {
-	int	 max;
+	fl_ctx		*ctx = ribbon_flang_ctx();
+	fl_value	 r;
+	fl_error	 e;
+	fl_status	 st;
 
-	max = len - vw;
-	if (max < 0)
-		max = 0;
-	if (off > max)
-		off = max;
-	if (off < 0)
-		off = 0;
+	st = viewport_smeschenie_posle_smeny_okna(ctx, fl_number(vw),
+	    fl_number(off), fl_number(len), &r, &e);
 
-	return off;
+	return ribbon_flang_int("output", st, r, &e, 0);
 }
 
 struct ribbon *

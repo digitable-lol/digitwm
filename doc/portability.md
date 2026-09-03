@@ -24,11 +24,12 @@ The script puts a 13-line stub where the X11 headers go and builds the whole of
 
 | What | How much | Measured by |
 |---|---|---|
-| lines in `ribbon.c` | 1542 | `wc -l ribbon.c` |
+| lines in `ribbon.c` | 1640 | `wc -l ribbon.c` |
 | X11 names the resulting `ribbon.o` requires | **zero** | `sh tools/no-x-build.sh` |
 | what the ribbon does ask of the window system | **11 operations**, every one declared in `wsi.h` | `sh tools/no-x-build.sh` |
 | the ten policies as their own translation unit | build with `-Wall -Wextra -Werror` and **not one X11 header** | `sh tools/no-x-build.sh` |
-| undefined symbols of that unit | one: `Conf` | `sh tools/no-x-build.sh` |
+| undefined symbols of that unit | `Conf`, the library's ten entry points and two lines of glue — checked name by name | `sh tools/no-x-build.sh` |
+| the arithmetic itself (`ribbon-flang/out-c/`) | builds with `-Wall -Wextra -Werror -pedantic` and asks for **nothing** outside its own runtime — no `Conf`, no `wsi.h` | `sh tools/no-x-build.sh` |
 
 Every number in this document that the tree can produce is checked against the
 tree by `sh tools/check-doc-numbers.sh`: it runs the commands named in the
@@ -43,11 +44,11 @@ tree produces. What the tree prints today is below, and each number names the
 command that prints it.
 
 **The models against the live window manager.** `node fts/harness/conformance.mjs
---fts ../fts --wm ./cwm` prints `проверок: 448` and not one mismatch. Those 448
-are 2 language surfaces × (10 field checks + 201 scalar vectors) + 2 × 13
+--fts ../fts --wm ./cwm` prints `проверок: 450` and not one mismatch. Those 450
+are 2 language surfaces × (10 field checks + 201 scalar vectors) + 2 × 14
 whole-layout scenarios. The vectors are counted in the tree rather than asserted:
-`jq -s 'map(length)|add' fts/vectors/*.json` gives **214**, of which
-`jq 'length' fts/vectors/layout.json` gives **13** scenarios and the remaining
+`jq -s 'map(length)|add' fts/vectors/*.json` gives **215**, of which
+`jq 'length' fts/vectors/layout.json` gives **14** scenarios and the remaining
 **201** are scalar.
 
 **A build with no X11 at all, against the X11-linked one.** The same `ribbon.c`
@@ -100,7 +101,7 @@ One place is still open, and it is the one that costs something. Two more were
 closed by the platform seam: `ribbon.o` now requires **zero** X11 names
 (`sh tools/no-x-build.sh`).
 
-**1. Border width inside the geometry.** `ribbon_place()`, `ribbon.c:748-749`:
+**1. Border width inside the geometry.** `ribbon_place()`, `ribbon.c:846-847`:
 
 ```c
 cc->geom.w = MAX(1, col->w - (cc->bwidth * 2));
@@ -374,10 +375,10 @@ Two traps:
 ## The answer
 
 **This is a port, not a new product — and here is what proves it.** What a macOS
-build would share is not "the idea of a ribbon" but 1542 lines of `ribbon.c` and
+build would share is not "the idea of a ribbon" but 1640 lines of `ribbon.c` and
 1172 lines of `probe.c` (`wc -l ribbon.c probe.c`), which build without a single
-X11 header and answer with the same numbers on the **214 vectors** of
-`fts/vectors/` — 448 checks, `conformance.mjs` — and on **500 random cases**
+X11 header and answer with the same numbers on the **215 vectors** of
+`fts/vectors/` — 450 checks, `conformance.mjs` — and on **500 random cases**
 besides (`tools/wasm-layout/check.mjs --cases 500`). Zero lines of arithmetic
 need rewriting.
 

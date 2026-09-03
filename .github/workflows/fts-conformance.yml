@@ -42,8 +42,17 @@ jobs:
   conformance:
     runs-on: ubuntu-latest
     steps:
+      # Полная история и подмодуль. История - потому что
+      # tools/check-ribbon-flang.sh берёт эталон из пришпиленного коммита
+      # (`git show bfd5d85:ribbon.c`), и мелкий клон его не содержит.
+      # Подмодуль - потому что `make -C ribbon-flang verify` перепечатывает из
+      # него и сравнивает с деревом; на саму сборку оконного менеджера
+      # подмодуль не нужен вовсе, напечатанное лежит в дереве.
       - name: Забрать digitwm
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
 
       - name: Библиотеки для сборки оконного менеджера
         run: |
@@ -66,6 +75,17 @@ jobs:
       - name: Лента не берёт у X11 ни одного имени, контракт в wsi.h полон
         run: sh tools/no-x-build.sh
 
+      # Главная проверка этой правки: арифметика ленты больше не написана в
+      # ribbon.c, она приезжает напечатанной из flang. Вопрос ровно один -
+      # отвечает ли лента ТЕМИ ЖЕ числами, - и отвечает на него не «тесты
+      # прошли», а два потока байт и cmp на сетке в 526 871 вход. Отрицательный
+      # контроль идёт тем же прогоном: копия напечатанного портится, и
+      # требуется красное.
+      #
+      # Компилятор flang этому шагу не нужен: напечатанное лежит в дереве.
+      - name: Лента отвечает как до flang - 526 871 вход, побайтно
+        run: sh tools/check-ribbon-flang.sh
+
       - name: Проба раскладки отвечает без дисплея
         run: ./cwm -C 'layout-probe layout viewport=1280x800 gap=8 border=1 columns=1,3,1 presets=0,2,3 focus=1'
 
@@ -78,6 +98,22 @@ jobs:
 
       - name: Сторож порядка умеет краснеть
         run: sh tools/check-config-order.sh --selfcheck
+
+      # Напечатанное в дереве и подмодуль не разошлись. Здесь - и только
+      # здесь - нужен компилятор flang: один двоичный файл, которому нужен
+      # только cc. Шаг стоит отдельно от сборки затем, чтобы его падение
+      # читалось как «дерево разошлось с библиотекой», а не как «не собралось».
+      - name: Компилятор flang
+        run: |
+          git clone --depth 1 https://github.com/digitable-lol/flang.git "$RUNNER_TEMP/flang"
+          make -C "$RUNNER_TEMP/flang/bootstrap" -j4
+          echo "$RUNNER_TEMP/flang/bootstrap" >> "$GITHUB_PATH"
+
+      - name: Библиотека проверяется своими примерами
+        run: make -C ribbon-flang check
+
+      - name: Напечатанное в дереве - это то, что печатает подмодуль
+        run: make -C ribbon-flang verify
 
       - uses: actions/setup-node@v4
         with:
@@ -176,8 +212,17 @@ jobs:
     env:
       FLANG_HOME: ${{ runner.temp }}/flang
     steps:
+      # Полная история и подмодуль. История - потому что
+      # tools/check-ribbon-flang.sh берёт эталон из пришпиленного коммита
+      # (`git show bfd5d85:ribbon.c`), и мелкий клон его не содержит.
+      # Подмодуль - потому что `make -C ribbon-flang verify` перепечатывает из
+      # него и сравнивает с деревом; на саму сборку оконного менеджера
+      # подмодуль не нужен вовсе, напечатанное лежит в дереве.
       - name: Забрать digitwm
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
 
       - name: Библиотеки для сборки оконного менеджера
         run: |

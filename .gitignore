@@ -11,6 +11,13 @@ cwm
 
 tools/__pycache__/
 
+# Черновики печати арифметики ленты. Сама печать (ribbon-flang/out-c/) в дереве
+# лежит и лежать должна - довод в ribbon-flang/README.md, - а вот каталоги, в
+# которые `make -C ribbon-flang emit` и `verify` печатают промежуточное, нет.
+# Оба стираются сами; строки здесь - на случай прерванного прогона.
+ribbon-flang/.emit/
+ribbon-flang/.verify/
+
 # Продукт сборки WebAssembly: собирается tools/wasm-layout/build.sh, и
 # собранный в дерево не кладётся - иначе он молча разойдётся с исходником.
 tools/wasm-layout/layout.wasm

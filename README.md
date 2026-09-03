@@ -15,7 +15,10 @@ who arrived from cwm.
 A C compiler, `make` (BSD or GNU), `yacc` or `bison`, `pkg-config`, and the
 headers of `x11`, `xft` and `xrandr`. That is the whole list: nothing under
 `fts/` is a runtime dependency, so Node.js is needed neither to build nor to
-run.
+run — and the flang compiler is not on the list either, although the ribbon
+arithmetic is written in flang. It is emitted to C ahead of time and the
+emitted C is committed, in `ribbon-flang/out-c/`. The reasoning, and the price,
+are in [ribbon-flang/README.md](ribbon-flang/README.md).
 
 ```sh
 make
@@ -58,6 +61,7 @@ These need no X display and run against the tree you have just built:
 ```sh
 make
 sh tools/no-x-build.sh                          # ribbon.c compiles without Xlib, the seam is wsi.h
+sh tools/check-ribbon-flang.sh                  # the ribbon answers as it did before flang: 526871 inputs, byte for byte
 node fts/harness/invariants.mjs --wm ./cwm      # the two promises, on the built binary
 node fts/harness/hotplug.mjs    --wm ./cwm      # a monitor leaving and coming back
 python3 tools/check-licensing.py                # the licence gate CI runs on every push
@@ -80,7 +84,8 @@ the model first, the C fourth.
 
 | | |
 |---|---|
-| `ribbon.c` | the ribbon: columns, stacks, the viewport, insertion, focus. It names no X11 — the eleven things it asks of the window system are declared in `wsi.h` |
+| `ribbon.c` | the ribbon: columns, stacks, the viewport, insertion, focus. It names no X11 — the eleven things it asks of the window system are declared in `wsi.h`. The ten scalar policies in it are wrappers: the arithmetic itself comes from `ribbon-flang/` |
+| `ribbon-flang/` | the ribbon arithmetic in flang — a pinned submodule of [flang-ribbon](https://github.com/digitable-lol/flang-ribbon) and the C it is emitted to. `out-c/` is compiler output under version control, and its README says why |
 | `probe.c` | `layout-probe`: the layout policy answered without opening a display |
 | `calmwm.c`, `client.c`, `screen.c`, `xevents.c`, `group.c`, `kbfunc.c`, `menu.c`, `search.c` | from cwm: clients, screens, events, groups, key bindings, menus |
 | `conf.c`, `parse.y` | defaults and the configuration parser |
