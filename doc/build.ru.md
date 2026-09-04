@@ -100,24 +100,27 @@ exec cwm                      # только оконный менеджер
 
 ## Как проверить правку
 
-Инструментарий FTS клонируется из репозитория языка и по тегу: своего
-репозитория у него больше нет, а прежний адрес отвечает «Repository not
-found». `fts-pered-udaleniem` — его состояние на день, когда его вынесли из
-дерева языка; тег заморожен, а на `main` там его нет. Почему так —
+Спеки проверяет компилятор flang — один двоичный файл, которому нужен только
+`cc`; он же исполняет обе сверки с живым оконным менеджером. Node остался ровно
+у двух харнессов; почему именно у них — в их шапках и
 в [`fts/README.ru.md`](../fts/README.ru.md).
 
 ```sh
 make                                    # сначала оно обязано собраться
 
-git clone --branch fts-pered-udaleniem https://github.com/digitable-lol/flang ../fts
-(cd ../fts && npm ci && npm run build)
+git clone --depth 1 https://github.com/digitable-lol/flang ../flang
+make -C ../flang/bootstrap -j4
+PATH=$PWD/../flang/bootstrap:$PATH
 
-for m in fts/*.fts; do node ../fts/dist/src/cli.js check "$m" >/dev/null; done
-for m in fts/*.fts; do node ../fts/dist/src/cli.js test  "$m" >/dev/null; done
+for m in fts/flang/*.flang; do flang check "$m" --proof; done
+for m in fts/flang/*.flang; do flang test  "$m"; done
 
-node fts/harness/surfaces.mjs    --fts ../fts
-node fts/harness/conformance.mjs --fts ../fts --wm ./cwm
-node fts/harness/selftest.mjs    --fts ../fts --wm ./cwm
+sh tools/check-flang-en-views.sh
+sh tools/check-flang-en-views.sh --selfcheck
+flang io fts/flang/conformance.flang
+flang io fts/flang/layout.flang
+sh tools/check-flang-mutants.sh
+
 node fts/harness/invariants.mjs  --wm ./cwm
 node fts/harness/invariants.mjs  --wm ./cwm --selfcheck
 node fts/harness/hotplug.mjs     --wm ./cwm

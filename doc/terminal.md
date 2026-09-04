@@ -374,18 +374,18 @@ gets for free, and the ones that have to be written.
 
 `probe.c` builds without X11 — verified here. So the terminal build gets its own
 `layout-probe`, and **the very vectors that run today** run through it: 201
-scalar vectors over ten models in `fts/vectors/*.json` plus 13 layout scenarios
-in `layout.json` — 214 in all, counted in the tree with
-`jq -s 'map(length)|add' fts/vectors/*.json`. Run against both language surfaces
-they make the 448 checks that `conformance.mjs` prints. The requirement is hard:
+scalar vectors over ten specs in `fts/flang/conformance.flang` plus 14 layout
+scenarios in `fts/flang/layout.flang` — 215 in all, counted in the tree with
+`grep -c '^    вариант «' fts/flang/conformance.flang`. They make the 215
+comparisons the two plans print. The requirement is hard:
 
 ```
-the terminal build must answer all 214 vectors with the same numbers as the
+the terminal build must answer all 215 vectors with the same numbers as the
 X11 build.  One mismatch = the arithmetic has forked = route A is broken.
 ```
 
-This is not new work: `fts/harness/conformance.mjs` is already built this way
-and only needs a path to the utility.
+This is not new work: both plans are already built this way and only need a path
+to the binary.
 
 ### To be written: five checks that do not exist yet
 
@@ -442,9 +442,9 @@ thing (graphics) it can do while we are only planning it. Hence three possible
 answers, and the choice is the owner's:
 
 **(a) Write our own — justified by exactly one argument.** In digitwm the layout
-numbers are not buried in code: ten policies are described by FTS models on two
-surfaces, and CI proves the code agrees with the models over 214 vectors — the
-448 checks of `conformance.mjs`. A
+numbers are not buried in code: ten policies are described by flang specs, and
+CI proves the code agrees with them over 215 vectors — the 215 comparisons of
+`conformance.flang` and `layout.flang`. A
 multiplexer built on `ribbon.c` inherits all of that for free — one arithmetic,
 one conformance suite, two kinds of surface. tuios has a policy of its own
 (visible already in the presets: 33/50/55/67/90 against our 33/50/67/100), and

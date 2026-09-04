@@ -205,7 +205,7 @@ ribbon_policy_offset(int vw, int cl, int cw, int off, int gap, int len)
  * it, because a stack of ten windows fits no viewport and a promise about the
  * whole stack could not be kept.
  *
- * Its own name and its own FTS model (fts/stack-offset.fts) all the same:
+ * Its own name and its own FTS model (fts/flang/stack-offset.flang) all the same:
  * "layout-probe stack-offset" is what the conformance harness compares that
  * model against, and a model written in heights has to be answered by a
  * function that reads in heights.
@@ -269,7 +269,7 @@ ribbon_policy_width(int vw, int preset, int gap, int minw)
  * share clears the minimum height.
  *
  * Once it does not, the minimum wins: it is a declared property of the model
- * ("height is at least the minimum", fts/window-height.fts), and answering with
+ * ("height is at least the minimum", fts/flang/window-height.flang), and answering with
  * less would break the model's own property.  So the stack runs past the bottom
  * edge instead - nwin windows of minh plus the gaps.  That is the same
  * collision ribbon_policy_width() has, and it is resolved the same way: by

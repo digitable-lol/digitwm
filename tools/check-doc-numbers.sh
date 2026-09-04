@@ -191,60 +191,54 @@ fi
 
 # ----------------------------------------------------------------------- векторы
 
-if command -v jq >/dev/null 2>&1; then
-	vec_total=$(jq -s 'map(length)|add' fts/vectors/*.json)
-	vec_layout=$(jq 'length' fts/vectors/layout.json)
-	vec_pair=$(jq 'length' fts/vectors/strut-pair.json)
-else
-	vec_total=$(python3 -c 'import json,glob,sys; print(sum(len(json.load(open(f))) for f in sorted(glob.glob("fts/vectors/*.json"))))')
-	vec_layout=$(python3 -c 'import json; print(len(json.load(open("fts/vectors/layout.json"))))')
-	vec_pair=$(python3 -c 'import json; print(len(json.load(open("fts/vectors/strut-pair.json"))))')
-fi
-vec_scalar=$((vec_total - vec_layout))
+# Векторы живут там, где их гоняют: скалярные - в списке «Пробы» плана
+# `conformance.flang`, целые сценарии - в списке «Сценарии» плана
+# `layout.flang`. Файлов `fts/vectors/*.json` больше нет: их читал только
+# `conformance.mjs`, и вместе с ним они ушли.
+vec_scalar=$(grep -c '^    вариант «' fts/flang/conformance.flang)
+vec_layout=$(grep -c '^    запись «Сценарий»' fts/flang/layout.flang)
+vec_total=$((vec_scalar + vec_layout))
 
-# Моделей столько же, сколько политик: пара .fts на каждую, плюс перевод.
-models=$(ls fts/*.fts | grep -vc '\.en\.fts$')
-say "моделей fts/*.fts (без переводов)" "$policies" "$models" \
-	'по модели на политику - иначе «10 сверок полей» в документе ни на чём не стоит'
+# Спек столько же, сколько политик, и каждая доезжает до сверки: считаются не
+# файлы каталога (там есть и общее деление, и сами планы), а строки `использует`
+# плана конформанса. Спека, не попавшая в план, - это ровно та дыра, из-за
+# которой «10 политик, 10 спек» стояло бы ни на чём.
+models=$(grep -c '^  использует «' fts/flang/conformance.flang)
+say "спек, доезжающих до сверки" "$policies" "$models" \
+	'по спеке на политику, и каждая в плане - иначе «десять спек» ни на чём не стоит'
 
-# 448 в документе разложено формулой; здесь считается та же формула из чисел
-# дерева, а не переписывается результат.
-checks=$((2 * (models + vec_scalar) + 2 * vec_layout))
-
-both "векторов в fts/vectors" "$vec_total" \
-	'.*gives \*\*\([0-9][0-9]*\)\*\*, of which.*' \
-	'.*даёт \*\*\([0-9][0-9]*\)\*\*, из них.*' \
-	"jq -s 'map(length)|add' fts/vectors/*.json"
-both "векторов в fts/vectors (ответ)" "$vec_total" \
-	'.*\*\*\([0-9][0-9]*\) vectors\*\* of `fts\/vectors\/`.*' \
-	'.*\*\*\([0-9][0-9]*\) векторах\*\* `fts\/vectors\/`.*' \
-	"jq -s 'map(length)|add' fts/vectors/*.json"
-both "сценариев в layout.json" "$vec_layout" \
-	'.*gives \*\*\([0-9][0-9]*\)\*\* scenarios.*' \
-	'.*даёт \*\*\([0-9][0-9]*\)\*\* сценариев.*' \
-	"jq 'length' fts/vectors/layout.json"
+both "векторов всего" "$vec_total" \
+	'.*That is \*\*\([0-9][0-9]*\)\*\* comparisons.*' \
+	'.*Это \*\*\([0-9][0-9]*\)\*\* сверок.*' \
+	'201 из conformance.flang плюс 14 из layout.flang'
+both "векторов всего (ответ)" "$vec_total" \
+	'.*\*\*\([0-9][0-9]*\) vectors\*\* of `fts\/flang\/`.*' \
+	'.*\*\*\([0-9][0-9]*\) векторах\*\* `fts\/flang\/`.*' \
+	'201 из conformance.flang плюс 14 из layout.flang'
 both "скалярных векторов" "$vec_scalar" \
-	'.*remaining \*\*\([0-9][0-9]*\)\*\* are scalar.*' \
-	'.*остальные \*\*\([0-9][0-9]*\)\*\*.*' \
-	'214 минус 13, обе половины сняты jq'
-both "проверок конформанса" "$checks" \
-	'.*prints `проверок: \([0-9][0-9]*\)`.*' \
-	'.*печатает `проверок: \([0-9][0-9]*\)`.*' \
-	'2 x (моделей + скалярных) + 2 x сценариев'
-both "проверок конформанса (ответ)" "$checks" \
-	'.*[^0-9]\([0-9][0-9]*\) checks, `conformance\.mjs`.*' \
-	'.*это \([0-9][0-9]*\) проверок `conformance\.mjs`.*' \
-	'2 x (моделей + скалярных) + 2 x сценариев'
-both "векторов в strut-pair.json" "$vec_pair" \
-	'.*10 examples, \([0-9][0-9]*\) vectors.*' \
-	'.*10 примеров, \([0-9][0-9]*\) векторов.*' \
-	"jq 'length' fts/vectors/strut-pair.json"
+	".*gives \*\*\([0-9][0-9]*\)\*\* scalar.*" \
+	".*даёт \*\*\([0-9][0-9]*\)\*\* скалярный.*" \
+	"grep -c '^    вариант «' fts/flang/conformance.flang"
+both "сценариев целой раскладки" "$vec_layout" \
+	'.*gives \*\*\([0-9][0-9]*\)\*\* whole-layout scenarios.*' \
+	'.*даёт \*\*\([0-9][0-9]*\)\*\* сценариев целой раскладки.*' \
+	"grep -c '^    запись «Сценарий»' fts/flang/layout.flang"
+both "сверок в итоговом абзаце" "$vec_total" \
+	'.*— \([0-9][0-9]*\) checks, `conformance\.flang`.*' \
+	'.*это \([0-9][0-9]*\) сверок.*`conformance\.flang`.*' \
+	'по одной сверке на вектор'
 
-pair_examples=$(grep -cE '^[[:space:]]*пример «' fts/strut-pair.fts)
-both "примеров в fts/strut-pair.fts" "$pair_examples" \
-	'.*: \([0-9][0-9]*\) examples, [0-9][0-9]* vectors.*' \
-	'.*: \([0-9][0-9]*\) примеров, [0-9][0-9]* векторов.*' \
-	"grep -c 'пример' fts/strut-pair.fts"
+# Примеры спеки И ЕСТЬ её векторы - это главное, что изменил переезд, и
+# документ говорит об этом числом. Проверяется оно с обеих сторон: столько
+# примеров в спеке и столько же её векторов в плане конформанса.
+pair_examples=$(grep -cE '^[[:space:]]*пример «' fts/flang/strut-pair.flang)
+pair_vectors=$(grep -c '^    вариант «Пара полос»' fts/flang/conformance.flang)
+say "примеров strut-pair и её векторов в плане" "$pair_examples" "$pair_vectors" \
+	'примеры спеки и есть её векторы'
+both "примеров в strut-pair.flang" "$pair_examples" \
+	'.*: \([0-9][0-9]*\) examples, which are its [0-9][0-9]* vectors.*' \
+	'.*: \([0-9][0-9]*\) примеров, они же её [0-9][0-9]* векторов.*' \
+	"grep -c 'пример' fts/flang/strut-pair.flang"
 
 # --------------------------------------------------------------- прочее из дерева
 
@@ -254,7 +248,7 @@ both "проценты пресетов из conf_init()" "$widths" \
 	'.*держит \([0-9/]*\) константами.*' \
 	'sed по c->ribbonwidth[] в conf.c'
 
-for h in conformance selftest surfaces invariants hotplug; do
+for h in invariants hotplug probe; do
 	if [ -f "fts/harness/$h.mjs" ]; then
 		oks=$((oks + 1))
 	else
@@ -262,7 +256,7 @@ for h in conformance selftest surfaces invariants hotplug; do
 		echo "FAIL  документ называет харнесс fts/harness/$h.mjs, которого в дереве нет" >&2
 	fi
 done
-printf 'ok    --  %-46s %s\n' "пять харнессов, названных в документе, на месте" "5"
+printf 'ok    --  %-46s %s\n' "три файла харнесса, что остались, на месте" "3"
 
 # ---------------------------------------------------------------------- итог
 

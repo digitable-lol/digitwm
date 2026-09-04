@@ -73,9 +73,10 @@ conformance harness makes, and a way to see what a change did to a layout
 without starting a session. `make macos-check` checks the portable half of the
 macOS layer and needs no macOS.
 
-The rest of what CI runs — `surfaces.mjs`, `conformance.mjs`, `selftest.mjs` and
-the models under `fts/` themselves — needs the FTS toolkit, cloned by tag from
-the language repository. Those commands are in [doc/build.md](doc/build.md), and
+The rest of what CI runs — the specs under `fts/flang/`, both comparisons
+against the live window manager and the two Node harnesses that stayed — needs
+the flang compiler, cloned from the language repository and built by one `make`.
+Those commands are in [doc/build.md](doc/build.md), and
 `.github/workflows/fts-conformance.yml` runs them in that order. The order in
 which a change to the layout is made is in [CONTRIBUTING.md](CONTRIBUTING.md):
 the model first, the C fourth.

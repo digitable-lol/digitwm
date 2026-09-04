@@ -22,8 +22,19 @@
  * Ответ даёт тот самый двоичный файл, который потом ставится в систему:
  * `cwm -C "layout-probe ..."` не открывает дисплея и не трогает окон, но
  * считает раскладку кодом оконного менеджера, а не второй его копией.
- * Оболочка не участвует: аргумент уходит массивом, поэтому кавычки-ёлочки в
- * имени утилиты доживают до `probe_name()` в целости.
+ *
+ * ПОЧЕМУ ЭТОТ ФАЙЛ ЕЩЁ ЗДЕСЬ. Сам по себе он ничего не проверяет - это разбор
+ * вывода `layout-probe` для двух харнессов, которые на flang не переехали:
+ * `invariants.mjs` и `hotplug.mjs`. Всё, что звало probe ради СВЕРКИ СО
+ * СПЕКОЙ, уехало в `fts/flang/conformance.flang` и `fts/flang/layout.flang`,
+ * и вместе с ним отсюда ушли `probeScalar()` и `probeLayout()`: спека теперь
+ * сама печатает то, что печатает probe, и сравниваются два потока байт.
+ *
+ * ЧТО ДОЛЖНО СЛУЧИТЬСЯ, ЧТОБЫ УШЁЛ И ЭТОТ. Он уйдёт последним - вместе с
+ * двумя своими читателями. Разбор здесь нужен потому, что те двое сверяют
+ * вывод probe САМ С СОБОЙ (два состояния ленты, два состояния мониторов), а
+ * не со спекой: печатать нечего, читать приходится. Что мешает переезду
+ * именно их - сказано в шапках `invariants.mjs` и `hotplug.mjs`.
  */
 
 import { execFileSync } from "node:child_process"
@@ -40,28 +51,6 @@ function run(wm, command) {
 		throw new Error(`layout-probe отказал: ${detail || error}`)
 	}
 	return stdout
-}
-
-/** Одна скалярная утилита: `ok <имя> <число>`. */
-export function probeScalar(wm, utility, args) {
-	const command = `layout-probe ${quote(utility)} ${args.join(" ")}`
-	const stdout = run(wm, command)
-	const line = stdout.trim().split("\n").pop() ?? ""
-	const parts = line.trim().split(/\s+/)
-	if (parts[0] !== "ok" || parts.length !== 3) {
-		throw new Error(`не разобран ответ layout-probe: ${JSON.stringify(line)}`)
-	}
-	const value = Number(parts[2])
-	if (!Number.isInteger(value)) throw new Error(`layout-probe вернул не целое: ${line}`)
-	return value
-}
-
-/**
- * Целый сценарий.  Возвращает разобранный вывод: вьюпорт, длина и смещение
- * ленты, колонки и геометрия каждого окна в координатах ленты и экрана.
- */
-export function probeLayout(wm, args) {
-	return parseLayout(run(wm, `layout-probe layout ${args.join(" ")}`))
 }
 
 /**
@@ -203,9 +192,4 @@ function numbers(parts, count) {
 		throw new Error(`ожидалось ${count} целых, получено ${parts.join(" ")}`)
 	}
 	return values
-}
-
-/* Имя со пробелами уходит в ёлочках - в них FTS пишет имена утилит. */
-function quote(name) {
-	return /\s/.test(name) ? `«${name}»` : name
 }

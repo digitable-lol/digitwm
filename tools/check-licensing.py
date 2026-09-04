@@ -287,11 +287,10 @@ else:
 # that prose, the FTS models, the vectors and the config templates are *not*
 # marked with a header — 87 of our 137 files carry none, and LICENSE covers them.
 # That is a decision about where the licence is written down, not a decision to
-# stop caring what those files say. Nothing checked it, so the 22 `.fts` and
-# `.flang` models — our authorship, the specification the C is checked against,
-# and in `fts/flang/output-change.flang` a policy written a second time, which
-# is exactly the file another project would want to copy — could carry anyone's
-# terms and pass in silence:
+# stop caring what those files say. Nothing checked it, so the `.flang` specs —
+# our authorship, the specification the C is checked against, and exactly the
+# files another project would want to copy — could carry anyone's terms and pass
+# in silence:
 #
 #     // Copyright (c) 2026 Some Other Corp. All rights reserved.
 #     // SPDX-License-Identifier: LicenseRef-Proprietary

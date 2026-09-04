@@ -125,9 +125,9 @@ until it exists.
 
 *Result you can see:* `sh tools/no-x-build.sh` still green — it fails and names
 the line if an Xlib call reaches the arithmetic — and the CI set from
-[build.md](build.md) unchanged: `node fts/harness/conformance.mjs --fts ../fts
---wm ./cwm` puts the ten policies against `layout-probe` on 214 vectors and
-prints 448 checks, not one mismatch.
+[build.md](build.md) unchanged: `flang io fts/flang/conformance.flang` and
+`flang io fts/flang/layout.flang` put the ten policies against `layout-probe` on
+215 vectors, not one mismatch.
 
 ### Stage 3 — the conformance harness, on the Mac, with no window server
 
@@ -309,9 +309,10 @@ all, so the private symbols we need are declared ourselves, as AeroSpace does.
 
 - the arithmetic contains no X11 — `sh tools/no-x-build.sh`, which fails and
   names the line if an Xlib call reaches the policies;
-- the policies and `layout-probe` agree on **214 vectors** — `node
-  fts/harness/conformance.mjs --fts ../fts --wm ./cwm` prints 448 checks and not
-  one mismatch — so the layout the Mac will get is the layout proven here;
+- the policies and `layout-probe` agree on **215 vectors** — `flang io
+  fts/flang/conformance.flang` and `flang io fts/flang/layout.flang` print 201
+  and 14, not one mismatch — so the layout the Mac will get is the layout proven
+  here;
 - `layout-probe` builds with no window server anywhere, from `probe.c`'s 1084
   lines;
 - the AX code agrees with **our idea of** the Accessibility API — `sh

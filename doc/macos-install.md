@@ -288,9 +288,10 @@ displays:
 
 Twelve of twelve. Note the `-1996`: that is a window on the monitor to the
 **left** of the main one. Negative coordinates are ordinary for this port and
-are handled in signed arithmetic, but no vector in this tree has ever tested
-one (`fts/vectors/layout.json`, `macos/runcheck.c` — every origin in them is
-non-negative).
+are handled in signed arithmetic. One scenario does test one — «монитор слева
+от главного» in `fts/flang/layout.flang`, whose viewport starts at `-1996` —
+and everything else in the tree (`macos/runcheck.c`, the two harnesses) still
+stands at a non-negative origin.
 
 For comparison, the same `-N` on a GitHub macOS runner, where there is neither
 a person nor a real window: the grant is given there, but **two calls of the
@@ -529,12 +530,12 @@ them. **3 displays** and **10 windows** found; the first window at `-1996,31`.
   nobody;
 - **the flicker, in milliseconds, and the cost of one round trip** into a live
   application — the meter `tools/macos-flicker/` has never been run on a Mac;
-- **negative coordinates in the checks.** A window at `-1996` works, but no
-  vector in the tree sets a negative origin: `layout-probe outputs` parses only
-  `WxH+X+Y` (`probe.c:816`, two mandatory `+`), and every display in
-  `macos/runcheck.c`, `macos/wsicheck.c`, `fts/vectors/*.json` and the
-  harnesses stands to the right and below. That is a hole in the checks, not in
-  the code.
+- **negative coordinates in the checks.** A window at `-1996` works, and one
+  layout scenario does start there, but no MONITOR in the tree does:
+  `layout-probe outputs` parses only `WxH+X+Y` (`probe.c:816`, two mandatory
+  `+`), so every display in `macos/runcheck.c`, `macos/wsicheck.c` and in the
+  hotplug harness stands to the right and below. That is a hole in the checks,
+  not in the code.
 
 **And one thing that is now known as a failure rather than as an unknown:** hot
 keys register and do not act. The `-v` flag takes it apart; see above.

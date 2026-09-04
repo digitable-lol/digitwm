@@ -518,7 +518,7 @@ conf_ignore(struct conf *c, const char *name)
  * cwmrc: "stack", "float" and "none" are what a person means, and
  * RIBBON_RULE_* is what ribbon_policy_insert() takes.  Nothing new is
  * counted here - the three names are the three constants that policy has
- * always accepted, and that fts/insertion.fts already describes.
+ * always accepted, and that fts/flang/insertion.flang already describes.
  *
  * Returns 0 for a place that is none of the three, so that the parser can
  * point at the offending line instead of quietly storing a rule the user

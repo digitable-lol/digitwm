@@ -59,20 +59,19 @@ Seven decisions drive the layout, and none of them is buried in C:
 
 | Decision | C function | FTS model |
 |---|---|---|
-| how far the viewport scrolls along the ribbon after a focus change | `ribbon_policy_offset` | [`fts/scroll-offset.fts`](../fts/scroll-offset.fts) |
-| how far it scrolls down the canvas after a focus change | `ribbon_policy_voffset` | [`fts/stack-offset.fts`](../fts/stack-offset.fts) |
-| how wide a column is | `ribbon_policy_width` | [`fts/column-width.fts`](../fts/column-width.fts) |
-| how tall window *n* of *m* in a column is | `ribbon_policy_height` | [`fts/window-height.fts`](../fts/window-height.fts) |
-| where a new window goes | `ribbon_policy_insert` | [`fts/insertion.fts`](../fts/insertion.fts) |
-| what takes focus when a window closes | `ribbon_policy_close` | [`fts/focus-after-close.fts`](../fts/focus-after-close.fts) |
-| what happens to the offset when the monitor changes | `ribbon_policy_output` | [`fts/output-change.fts`](../fts/output-change.fts) |
+| how far the viewport scrolls along the ribbon after a focus change | `ribbon_policy_offset` | [`fts/flang/scroll-offset.flang`](../fts/flang/scroll-offset.flang) |
+| how far it scrolls down the canvas after a focus change | `ribbon_policy_voffset` | [`fts/flang/stack-offset.flang`](../fts/flang/stack-offset.flang) |
+| how wide a column is | `ribbon_policy_width` | [`fts/flang/column-width.flang`](../fts/flang/column-width.flang) |
+| how tall window *n* of *m* in a column is | `ribbon_policy_height` | [`fts/flang/window-height.flang`](../fts/flang/window-height.flang) |
+| where a new window goes | `ribbon_policy_insert` | [`fts/flang/insertion.flang`](../fts/flang/insertion.flang) |
+| what takes focus when a window closes | `ribbon_policy_close` | [`fts/flang/focus-after-close.flang`](../fts/flang/focus-after-close.flang) |
+| what happens to the offset when the monitor changes | `ribbon_policy_output` | [`fts/flang/output-change.flang`](../fts/flang/output-change.flang) |
 
-**The models are the source of truth, and CI proves the code agrees with
-them.** Each exists on two surfaces — `name.fts` in Russian, `name.en.fts` in
-English — which are not translations of each other but two spellings compiled to
-one canonical document. The same vectors go through the code FTS generates and
-through the live window manager, and a mismatch in a single vector fails the
-build naming the utility, the surface and the vector. See
+**The specs are the source of truth, and CI proves the code agrees with
+them.** Each is one file, and the second language surface is a view of the
+obligation labelled `en:` beside the main one — not a second file. The same
+vectors go through the spec and through the live window manager, and a mismatch
+in a single vector fails the build naming the utility and the vector. See
 [`fts/README.md`](../fts/README.md).
 
 **FTS never runs inside the window manager.** It runs in CI. digitwm builds with

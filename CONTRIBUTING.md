@@ -44,15 +44,16 @@ The layout policy exists twice — as C and as an FTS model on two surfaces — 
 CI compares them vector by vector. So a change to any number that drives the
 layout is made in **one commit**, in this order:
 
-1. **The model first**, in `fts/<name>.fts`. It is the source of truth, and
-   writing the rule first is what forces the question "what is the rule" to be
-   answered before "how do I code it".
-2. **The other surface**, `fts/<name>.en.fts`. They are not translations of one
-   another but two spellings of one document, and `surfaces.mjs` compares them
-   skeleton to skeleton — numbers, operators, the order of rules. A change made
-   on one surface only fails the build.
-3. **A worked example on the new boundary**, in both surfaces. A rule with no
-   example is a rule nobody has read out loud.
+1. **The spec first**, in `fts/flang/<name>.flang`. It is the source of truth,
+   and writing the rule first is what forces the question "what is the rule" to
+   be answered before "how do I code it".
+2. **The other surface**, in the same file: every `обеспечивает` obligation
+   carries a view labelled `en:` beside it, and the two say the same thing word
+   for word. `sh tools/check-flang-en-views.sh` compares them; a change made on
+   one view only fails the build.
+3. **A worked example on the new boundary**, in the spec. A rule with no example
+   is a rule nobody has read out loud — and here an example is also a vector:
+   the same numbers the live window manager is asked in step 5.
 4. **The arithmetic**, and it no longer lives here: it is in the flang library
    [flang-ribbon](https://github.com/digitable-lol/flang-ribbon), which
    `ribbon-flang/flang-ribbon` pins by fingerprint. Change the behaviour there,
@@ -64,20 +65,23 @@ layout is made in **one commit**, in this order:
    `sh tools/check-ribbon-flang.sh` answers the question the change raises:
    does the ribbon still answer what it answered before flang, byte for byte,
    over the library's own grid of 526 871 inputs.
-5. **A vector** in `fts/vectors/<name>.json`, on the boundary the change is
-   about. It should fail before step 4 and pass after it; if it passes before,
-   it is not testing the change.
+5. **A vector** in the list of `fts/flang/conformance.flang` (or, for a whole
+   layout, of `fts/flang/layout.flang`), on the boundary the change is about. It
+   should fail before step 4 and pass after it; if it passes before, it is not
+   testing the change.
 6. **The documentation**, in both languages. `doc/*.md` and `doc/*.ru.md` must
    say the same thing: **a difference in facts is worse than a missing
    translation.**
 
 Then run what CI runs — the list is in [doc/build.md](doc/build.md).
 
-Fields the caller computes (`even-share`, `left-slack`, and the rest) are
-declared in exactly one place, `fts/harness/derive.mjs`, and the harness checks
-the models against that table. No `if`, no `min`, no `max` and no threshold may
-move out of a model into `derive.mjs`: the branching and the bounds *are* the
-policy.
+There are no fields for the caller to compute any more. FTS had no way to
+subtract one field from another, so `even-share`, `left-slack` and the rest were
+computed outside the model by `fts/harness/derive.mjs` and handed over as
+fields; in flang they are expressions inside the spec, and the table died with
+the harness. The rule it guarded still holds and now needs no guard: no `if`, no
+`min`, no `max` and no threshold may live outside the spec, because the
+branching and the bounds *are* the policy.
 
 ## Changing something the models do not describe
 
