@@ -344,7 +344,7 @@ screen_apply_strut(struct screen_ctx *sc, struct geom geom)
 	 * Two panels facing each other cannot take more than there is.  Each
 	 * half of the pair is decided on its own and neither can see the
 	 * overrun, so the pair gets a policy of its own - see
-	 * ribbon_policy_pair() and fts/strut-pair.fts.  Both answers are taken
+	 * ribbon_policy_pair() and fts/flang/strut-pair.flang.  Both answers are taken
 	 * from the granted pair before either is written back: the policy
 	 * needs the pair as it was asked for, not half of an update.
 	 */

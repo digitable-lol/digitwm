@@ -98,7 +98,8 @@ C». Один и тот же `ribbon.c` с одной и той же sha256 ст
 которой заведён.
 
 Сверх этого прежние проверки дерева отвечают тем же, чем отвечали:
-`fts/harness/conformance.mjs` — 450 сверок против живого двоичного файла;
+`fts/flang/conformance.flang` и `fts/flang/layout.flang` — 215 сверок против
+живого двоичного файла;
 `fts/harness/invariants.mjs` — 320 сценариев, 612 вставок, 5771 окно;
 `tools/wasm-layout/check.mjs` — 500 случайных случаев, 4386 окон.
 

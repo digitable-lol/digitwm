@@ -39,17 +39,20 @@ the foot of that script.
 
 Agreement is not only a matter of compiling, and two runs measure two different
 things. Neither of them is "2871 vectors": that number was a conformance count
-taken before `fts/strut-pair.fts` existed, plus a random run no command in this
+taken before `fts/flang/strut-pair.flang` existed, plus a random run no command in this
 tree produces. What the tree prints today is below, and each number names the
 command that prints it.
 
-**The models against the live window manager.** `node fts/harness/conformance.mjs
---fts ../fts --wm ./cwm` prints `проверок: 450` and not one mismatch. Those 450
-are 2 language surfaces × (10 field checks + 201 scalar vectors) + 2 × 14
-whole-layout scenarios. The vectors are counted in the tree rather than asserted:
-`jq -s 'map(length)|add' fts/vectors/*.json` gives **215**, of which
-`jq 'length' fts/vectors/layout.json` gives **14** scenarios and the remaining
-**201** are scalar.
+**The specs against the live window manager.** `flang io fts/flang/conformance.flang`
+prints `векторов 201` and not one mismatch; `flang io fts/flang/layout.flang`
+prints `сценариев 14` and not one differing byte. That is **215** comparisons,
+one per vector, and the vectors are counted in the tree rather than asserted:
+`grep -c '^    вариант «' fts/flang/conformance.flang` gives **201** scalar
+vectors and `grep -c '^    запись «Сценарий»' fts/flang/layout.flang` gives
+**14** whole-layout scenarios. The count fell from the 450 the Node harness
+printed, and nothing was lost with it: 450 counted every vector twice, once per
+language surface, plus 10 checks that the model's fields matched a table in the
+harness. There is one surface now, and no table.
 
 **A build with no X11 at all, against the X11-linked one.** The same `ribbon.c`
 compiled to WebAssembly and `layout-probe` out of a `cwm` linked against Xlib,
@@ -91,9 +94,9 @@ Separately: **the conformance harness ports for free.** `probe.c` (1172 lines,
 `wc -l probe.c`) builds against the same stub and requires no X11 name at all —
 only `ribbon_*`, `Conf`, `xcalloc`, `xstrdup` and libc. So
 `ribbon.o + probe.o + xmalloc.o` is `layout-probe` on any system, with no window
-server. The FTS models, the vectors and all five harnesses — `conformance.mjs`,
-`selftest.mjs`, `surfaces.mjs`, `invariants.mjs`, `hotplug.mjs` — prove the
-layout on macOS exactly as they do here.
+server. The specs, the vectors that live inside them and both remaining
+harnesses — `invariants.mjs` and `hotplug.mjs` — prove the layout on macOS
+exactly as they do here.
 
 ## Where Xlib did leak into the arithmetic
 
@@ -133,12 +136,13 @@ And one leak the other way — arithmetic that ended up outside the policy:
 **4. The clamp on a facing pair of panels — CLOSED.** It was `screen.c:323-335`:
 two panels opposite each other cannot take more than there is; the decision is
 about the pair, while each half of the pair is decided by its own policy, and
-the rule had no model. It is now `ribbon_policy_pair()` and the model
-`fts/strut-pair.fts` on both surfaces: 10 examples, 30 vectors, a mutation in
-`selftest.mjs`. Ten policies, ten models. A port has nothing left to derive.
+the rule had no model. It is now `ribbon_policy_pair()` and the spec
+`fts/flang/strut-pair.flang`: 30 examples, which are its 30 vectors, and a
+mutation in `tools/check-flang-mutants.sh`. Ten policies, ten specs. A port has
+nothing left to derive.
 
 **5. `ribbon_policy_width()` reads `Conf.ribbonwidth[preset]`** — so it is not a
-function of its arguments alone. The model `fts/column-width.fts` keeps
+function of its arguments alone. The spec `fts/flang/column-width.flang` keeps
 33/50/67/100 as constants and says so in its own header: conformance covers the
 default set, not one overridden in `cwmrc`.
 
@@ -378,7 +382,8 @@ Two traps:
 build would share is not "the idea of a ribbon" but 1640 lines of `ribbon.c` and
 1172 lines of `probe.c` (`wc -l ribbon.c probe.c`), which build without a single
 X11 header and answer with the same numbers on the **215 vectors** of
-`fts/vectors/` — 450 checks, `conformance.mjs` — and on **500 random cases**
+`fts/flang/` — 215 checks, `conformance.flang` and `layout.flang` — and on
+**500 random cases**
 besides (`tools/wasm-layout/check.mjs --cases 500`). Zero lines of arithmetic
 need rewriting.
 

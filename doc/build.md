@@ -99,24 +99,27 @@ in [ribbon.md](ribbon.md).
 
 ## Checking a change
 
-The FTS toolkit is cloned from the language repository by tag: it has no
-repository of its own any more, and the old address answers `Repository not
-found`. `fts-pered-udaleniem` is its state on the day it was moved out of the
-language tree; the tag is frozen, and `main` there does not carry it. Why that
-is so is in [`fts/README.md`](../fts/README.md).
+The specs are checked by the flang compiler, one binary that needs nothing but
+`cc`; the same binary runs both comparisons against the live window manager.
+Node is left with exactly two harnesses; why those two stayed is in their own
+headers and in [`fts/README.md`](../fts/README.md).
 
 ```sh
 make                                    # it has to compile first
 
-git clone --branch fts-pered-udaleniem https://github.com/digitable-lol/flang ../fts
-(cd ../fts && npm ci && npm run build)
+git clone --depth 1 https://github.com/digitable-lol/flang ../flang
+make -C ../flang/bootstrap -j4
+PATH=$PWD/../flang/bootstrap:$PATH
 
-for m in fts/*.fts; do node ../fts/dist/src/cli.js check "$m" >/dev/null; done
-for m in fts/*.fts; do node ../fts/dist/src/cli.js test  "$m" >/dev/null; done
+for m in fts/flang/*.flang; do flang check "$m" --proof; done
+for m in fts/flang/*.flang; do flang test  "$m"; done
 
-node fts/harness/surfaces.mjs    --fts ../fts
-node fts/harness/conformance.mjs --fts ../fts --wm ./cwm
-node fts/harness/selftest.mjs    --fts ../fts --wm ./cwm
+sh tools/check-flang-en-views.sh
+sh tools/check-flang-en-views.sh --selfcheck
+flang io fts/flang/conformance.flang
+flang io fts/flang/layout.flang
+sh tools/check-flang-mutants.sh
+
 node fts/harness/invariants.mjs  --wm ./cwm
 node fts/harness/invariants.mjs  --wm ./cwm --selfcheck
 node fts/harness/hotplug.mjs     --wm ./cwm

@@ -57,20 +57,19 @@ node fts/harness/invariants.mjs --wm ./cwm
 
 | Решение | Функция C | Модель FTS |
 |---|---|---|
-| на сколько уезжает вьюпорт вдоль ленты после смены фокуса | `ribbon_policy_offset` | [`fts/scroll-offset.fts`](../fts/scroll-offset.fts) |
-| на сколько уезжает вьюпорт вниз по полотну после смены фокуса | `ribbon_policy_voffset` | [`fts/stack-offset.fts`](../fts/stack-offset.fts) |
-| какой ширины колонка | `ribbon_policy_width` | [`fts/column-width.fts`](../fts/column-width.fts) |
-| какой высоты окно *n* из *m* в колонке | `ribbon_policy_height` | [`fts/window-height.fts`](../fts/window-height.fts) |
-| куда попадает новое окно | `ribbon_policy_insert` | [`fts/insertion.fts`](../fts/insertion.fts) |
-| кому достаётся фокус после закрытия | `ribbon_policy_close` | [`fts/focus-after-close.fts`](../fts/focus-after-close.fts) |
-| что делать со смещением при смене монитора | `ribbon_policy_output` | [`fts/output-change.fts`](../fts/output-change.fts) |
+| на сколько уезжает вьюпорт вдоль ленты после смены фокуса | `ribbon_policy_offset` | [`fts/flang/scroll-offset.flang`](../fts/flang/scroll-offset.flang) |
+| на сколько уезжает вьюпорт вниз по полотну после смены фокуса | `ribbon_policy_voffset` | [`fts/flang/stack-offset.flang`](../fts/flang/stack-offset.flang) |
+| какой ширины колонка | `ribbon_policy_width` | [`fts/flang/column-width.flang`](../fts/flang/column-width.flang) |
+| какой высоты окно *n* из *m* в колонке | `ribbon_policy_height` | [`fts/flang/window-height.flang`](../fts/flang/window-height.flang) |
+| куда попадает новое окно | `ribbon_policy_insert` | [`fts/flang/insertion.flang`](../fts/flang/insertion.flang) |
+| кому достаётся фокус после закрытия | `ribbon_policy_close` | [`fts/flang/focus-after-close.flang`](../fts/flang/focus-after-close.flang) |
+| что делать со смещением при смене монитора | `ribbon_policy_output` | [`fts/flang/output-change.flang`](../fts/flang/output-change.flang) |
 
 **Источник правды — модели, а совпадение кода с ними доказывает CI.** Каждая
-существует на двух поверхностях: `имя.fts` по-русски и `имя.en.fts`
-по-английски, — и это не перевод одного в другое, а два написания, которые
-компилируются в один канонический документ. Одни и те же векторы идут через
-код, порождённый из модели, и через живой оконный менеджер, а расхождение хоть
-в одном валит сборку, называя утилиту, поверхность и вектор. См.
+существует одним файлом, а вторая языковая поверхность — вид обещания с
+меткой `en:` рядом с основным, а не второй файл. Одни и те же векторы идут
+через спеку и через живой оконный менеджер, а расхождение хоть в одном валит
+сборку, называя утилиту и вектор. См.
 [`fts/README.ru.md`](../fts/README.ru.md).
 
 **FTS никогда не исполняется внутри оконного менеджера.** Он исполняется в CI.

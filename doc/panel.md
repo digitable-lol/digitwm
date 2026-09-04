@@ -129,9 +129,9 @@ inside a gap you have already given away costs nothing more.
 
 Both decisions - "does it reach" and "how much does it take" - are the pure
 functions `ribbon_policy_span()` and `ribbon_policy_reserve()`, and each has an
-FTS model of its own: [`fts/strut-span.fts`](../fts/strut-span.fts) and
-[`fts/strut-reserve.fts`](../fts/strut-reserve.fts) on both surfaces, 38
-vectors checked against the live binary through `layout-probe`. **For a day and
+spec of its own: [`fts/flang/strut-span.flang`](../fts/flang/strut-span.flang) and
+[`fts/flang/strut-reserve.flang`](../fts/flang/strut-reserve.flang), 38 vectors
+checked against the live binary through `layout-probe`. **For a day and
 a half they were missing**, and that is worth saying plainly: commit `585bf4d`
 put both functions straight into C, bypassing `fts/`, which put the numbers of
 the strip back where the project had walked away from - into code, where they
@@ -257,9 +257,9 @@ far one is left with 300, and no work area is left at all.
 Which one gives is a **decision**, not a consequence. Until 2026-08-09 it
 lived as a line in `screen.c` with no name, no model and no vector: the only
 ribbon arithmetic without a contract (`doc/portability.md`, item 4 of the
-leaks). It is now `ribbon_policy_pair()` and the model `fts/strut-pair.fts` on
-both surfaces — 10 examples, 30 vectors, and a mutation in `selftest.mjs` that
-catches exactly a change of winner. Behaviour did not move by a pixel: the
+leaks). It is now `ribbon_policy_pair()` and the spec `fts/flang/strut-pair.flang` —
+30 examples, which are its 30 vectors, and a mutation in
+`tools/check-flang-mutants.sh` that catches exactly a change of winner. Behaviour did not move by a pixel: the
 same numbers were taken on `origin/main` and on the branch with the policy, and
 they agree completely. That is the point — the number did not change, it became
 named and proved.

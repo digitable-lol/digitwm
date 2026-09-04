@@ -7,10 +7,10 @@ down the canvas after a focus change, how wide a column is, how tall a window in
 goes, what takes focus when a window closes, what happens to the offset when
 the monitor changes size, whether the strip a panel claims reaches this
 monitor at all, how much it takes off it, and what two facing panels are left
-with when together they ask for more than there is. Each is an
-[FTS](https://github.com/digitable-lol/flang/tree/fts-pered-udaleniem)
-model here, on both surfaces, with checked properties and worked examples on
-the boundaries.
+with when together they ask for more than there is. Each is a
+[flang](https://github.com/digitable-lol/flang) spec here — one file, with
+checked promises and worked examples on the boundaries, and the examples are
+the vectors.
 
 | Model | C function | `layout-probe` utility |
 |---|---|---|
@@ -33,58 +33,72 @@ reading could catch that, so the correspondence is now guarded by a check — th
 `ribbon_policy_*` names of `ribbon.c` are matched against the file names of the
 models, and an eleventh policy without a model goes red by itself.
 
-`name.fts` is the Russian surface and `name.en.fts` the English one. They are
-not translations of each other: one parser, one canonical document, and CI
-proves it by comparing the two canonical JSONs field by field.
+There is one file per policy, `fts/flang/<name>.flang`, and the second language
+surface is not a second file: every `обеспечивает` promise carries a view
+labelled `en:` beside it. The compiler does not compare the two — it reads the
+label as part of the name — so `sh tools/check-flang-en-views.sh` does, pair by
+pair, and shows on `--selfcheck` that it can go red.
 
-**FTS never runs inside the window manager.** It runs in CI. digitwm builds
-with a C compiler, `yacc` and three X libraries on Linux, FreeBSD and NetBSD;
-nothing here adds a runtime dependency on Node.
+**The specs never run inside the window manager.** They run in CI. digitwm
+builds with a C compiler, `yacc` and three X libraries on Linux, FreeBSD and
+NetBSD; nothing here adds a runtime dependency on flang or on Node.
 
 ## Running it
 
-The clone is of the language repository, and it must be by tag. The toolkit has
-no repository of its own any more: the old address answers `Repository not
-found`, which is why the checks below never ran — the clone failed before any of
-them. The toolkit itself is kept in `digitable-lol/flang` under the tag
-`fts-pered-udaleniem`: the state on 16 August 2026, the day the old FTS project
-was moved out of the language tree. It is not on that repository's `main` —
-what lives there now is a language whose compiler is written in itself and which
-does not read `.fts` at all. The tag is frozen and does not move, so everyone
-builds the same toolkit.
+One binary and one `make`. The flang compiler is written in itself; `bootstrap`
+is its seed in C and needs nothing but `cc`. There is no pin any more: the
+compiler is taken from `main`, so a divergence between the tree and the live
+language shows up on the day it happens.
 
 ```sh
-git clone --branch fts-pered-udaleniem https://github.com/digitable-lol/flang ../fts
-(cd ../fts && npm ci && npm run build)
+git clone --depth 1 https://github.com/digitable-lol/flang ../flang
+make -C ../flang/bootstrap -j4
+PATH=$PWD/../flang/bootstrap:$PATH
 make
 
-for m in fts/*.fts; do node ../fts/dist/src/cli.js check "$m" >/dev/null; done
-for m in fts/*.fts; do node ../fts/dist/src/cli.js test  "$m" >/dev/null; done
+for m in fts/flang/*.flang; do flang check "$m" --proof; done
+for m in fts/flang/*.flang; do flang test  "$m"; done
 
-node fts/harness/surfaces.mjs   --fts ../fts
-node fts/harness/conformance.mjs --fts ../fts --wm ./cwm
-node fts/harness/selftest.mjs    --fts ../fts --wm ./cwm
+sh tools/check-flang-en-views.sh
+sh tools/check-flang-en-views.sh --selfcheck
+flang io fts/flang/conformance.flang
+flang io fts/flang/layout.flang
+sh tools/check-flang-mutants.sh
 
 node fts/harness/invariants.mjs --wm ./cwm
 node fts/harness/invariants.mjs --wm ./cwm --selfcheck
+node fts/harness/hotplug.mjs    --wm ./cwm
+node fts/harness/hotplug.mjs    --wm ./cwm --selfcheck
 ```
 
-`conformance.mjs` is the bridge. One set of vectors from `fts/vectors/` goes
-two ways — through the TypeScript `fts generate` emits, and through
-`cwm -C "layout-probe ..."`, which answers with the very code the window
-manager runs — and a mismatch in a single vector fails the build naming the
-utility, the surface and the vector. It also replays whole scenarios: the
-loop over columns is written out in JavaScript, every number in it comes from
-a model, and the result is compared with `layout-probe layout` line by line.
+`conformance.flang` is the bridge, and it answers the question `flang test`
+cannot. The examples of a spec are a snapshot taken off the binary once; here
+the two counts run today and apart — 201 vectors go through the spec and
+through `cwm -C "layout-probe ..."`, which answers with the very code the
+window manager runs, and a mismatch in a single vector fails the build naming
+the utility, the vector and both numbers.
 
-`selftest.mjs` breaks one constant in a copy of the models and requires the
-harness to notice. A green harness that cannot go red proves nothing.
+`layout.flang` does the same for whole scenarios, and does it harder than the
+Node harness did. Instead of parsing the probe's output into a structure and
+comparing a hand-written list of fields, the spec **prints the same text the
+probe prints**, and the two byte streams are compared whole: 14 scenarios,
+every column, every window, on the ribbon and on the screen. A field nobody
+remembered to compare is no longer possible.
+
+`sh tools/check-flang-mutants.sh` is the negative control, and it corrupts the
+answer of C rather than the spec. Corrupting the spec proves nothing here: the
+examples of a spec ARE the vectors, so any such corruption is caught earlier, by
+`flang test`, on the spec's own examples. What the comparison stands for is the
+other direction — a divergence arriving from the C side — and that is what is
+faked, by substituting `cwm` with a shell wrapper that adds one to a number. Ten
+utilities in one run, six kinds of layout line, sixteen corruptions, each of
+which must be noticed AND named.
 
 `invariants.mjs` answers a different question. The two promises the ribbon is
 built on — *opening a window alters no window already on the ribbon*, and *the
 focused column always lies wholly inside the viewport horizontally, and the
 focused window of it vertically* — are statements about
-the relation between two states of the ribbon, and no scalar model can hold
+the relation between two states of the ribbon, and no scalar spec can hold
 one. The probe therefore runs `ribbon_insert()`, the call the MapRequest
 handler makes, and prints the state before and after it; the harness compares
 the two over 320 generated ribbons (612 insertions, 5 771 windows in the
@@ -103,47 +117,53 @@ an existing column — `insert=stack` — must recompute the heights inside *tha
 column, or the new window would have nowhere to go; what is checked then is the
 weaker statement that nothing outside that one column moves.
 
-## What the caller computes, and why
+## What the caller used to compute, and no longer does
 
-An FTS condition compares one field against a constant or against a
-percentage of one field. It cannot add two fields. So the caller computes the
-differences and passes them as fields — `left-slack`, `right-slack`,
-`scroll-limit` and so on. The line this directory holds:
+An FTS condition compared one field against a constant or against a percentage
+of one field; it could not add two fields. So the caller computed the
+differences and passed them as fields — `left-slack`, `right-slack`,
+`scroll-limit` and so on — and `fts/harness/derive.mjs` was the single table
+saying which fields exist, in which order, and how each is computed.
 
-- derived fields are linear combinations of the raw inputs, nothing else;
-- no `if`, no `min`, no `max`, no threshold ever moves out of a model into
-  `derive.mjs`. The branching, the bounds and the constants are the policy,
-  and the policy is the model.
+In flang they are expressions inside the spec. `scroll-offset` and
+`stack-offset` had thirteen fields each and have six; every spec's input now
+equals the input of `layout-probe` character for character, and the table died
+with the harness that held it. The rule it guarded still holds and needs no
+guard any more: no `if`, no `min`, no `max` and no threshold lives outside the
+spec, because the branching and the bounds are the policy, and the policy is
+the spec.
 
-`derive.mjs` is the single table that says which fields exist, in which order,
-and how each is computed. The harness checks the models against it, so a field
-renamed in one place and not the other fails CI instead of silently feeding
-the model something else.
+## Where the language does not reach
 
-## The two places where the language does not reach
+Two places the FTS surface could not reach are gone. **Integer division** is
+now `«Деление нацело»` in `integer-division.flang` — the C99 rule word for
+word, truncation towards zero — so `column-width` answers with C's integer and
+not with an exact fraction, and `window-height` divides the column by the
+number of windows itself. **The `rule` field**, which the English FTS surface
+turned into a rule declaration, is just a parameter name now.
 
-**Integer division.** FTS multiplies a field by a constant; it has neither
-integer division nor a remainder, and both are exact rational arithmetic
-rather than C's truncation.
+Three places remain, and all three were measured rather than assumed.
 
-- `column-width` computes `33 percent of inner-width`, an exact fraction. C
-  computes `(vw - gap) * 33 / 100` and truncates. The harness truncates the
-  model's answer on one named line and refuses to let the concession hide
-  anything: the fraction has to sit inside the same unit as C's integer, or
-  the vector fails. The model carries an example with the fraction spelled
-  out — `419.76000000000005` where C answers `419` — so that the gap is
-  visible in the specification and not only in the harness.
-- `window-height` divides the column by the number of windows, and the number
-  of windows is a field. No difference can stand in for that, so the caller
-  passes `even-share` and `remainder`. The decision that stays in the model is
-  the one that matters: *the remainder goes to the last window*, and the
-  bounds around it.
+**`число` cannot be narrowed to `нат`.** The specs declare their inputs as
+`нат` — the domain is named by the type — and nothing in flang 0.7.10 turns a
+computed `число` back into one: not a condition (`если значение не меньше 0 то
+значение` in a function returning `нат` is FLANG_TYPE), not a precondition
+(`требует значение не меньше 0` — the same refusal), not addition (`нат плюс
+нат` is `число`). The one crossing the compiler accepts is a **record field** of
+the declared type, and that one it does not check at all: `-7` goes into a `нат`
+field in silence. `layout.flang` needs the crossing — it feeds a computed column
+edge back into `«Смещение ленты после фокуса»` — and `«Мера»` there is it,
+clamping negatives to zero itself, since nobody else will.
 
-**Names on the English surface.** Reserved English phrases are rewritten into
-Russian by the start of the line, without regard to context, so a field named
-`rule` turns `rule is number` into a rule declaration and the parse fails with
-`FTS_NATURAL_FIELD`. The field `rule` of `layout-probe` is therefore spelled
-`config-rule` in the model.
+**The `en:` view is not compared with the main one.** The label is part of the
+promise's name, so a view weakened to `результат не меньше -5` beside a main
+`не меньше 0` passes `flang check` in silence. `tools/check-flang-en-views.sh`
+is what compares them.
+
+**The kernel has no "not less than a term".** Eight rules, and that shape is
+not among them, so "width is at least the minimum" and "height is at least the
+minimum" stay grids of examples rather than proofs no matter how the branches
+are reordered.
 
 ## Domain of the models
 
@@ -277,9 +297,9 @@ bootstrap/flang io    fts/flang/conformance.flang
 Answers: `4 claims: 2 proved, 2 grid`; `11 examples, 11 passed, 0 failed`;
 `model and cwm agree: 10 vectors, zero divergences` (10 orders, exit 0).
 
-The vectors are the same `fts/vectors/output-change.json`, and the utility is
-called by its Russian name in quotes exactly as `conformance.mjs` calls it —
-the name is part of the model. The check also goes red: a copy of the model
+The vectors were the same `fts/vectors/output-change.json` (the file still
+existed then), and the utility is called by its Russian name in quotes exactly
+as `conformance.mjs` called it — the name is part of the spec. The check also goes red: a copy of the model
 with `+1` in one branch exits 1 and names **5 vectors out of 10**, with both
 numbers on each.
 
@@ -409,8 +429,47 @@ The first matters most: that input has been sitting in
 properties. In `fts/flang/` all three promises carry the condition they were
 silently resting on.
 
-**What is still open.** The pin on `fts-pered-udaleniem` is still a pin: the
-`.fts` files are not deleted, `derive.mjs` and the whole Node harness read
-them, and there is no reason to retire 450 working checks. Whole scenarios
-(`layout-probe layout`, the two insertion invariants) did not move to flang.
-They are next, not the models.
+**What was still open that day.** The pin on `fts-pered-udaleniem` was still a
+pin: the `.fts` files were not deleted, `derive.mjs` and the whole Node harness
+read them, and there was no reason to retire 450 working checks. Whole
+scenarios (`layout-probe layout`, the two insertion invariants) had not moved.
+They were next, not the models — and the first half of that is what the next
+section is about.
+
+### The harness is gone too, the same day
+
+Of 2 385 lines of Node in `fts/harness/`, **1 216 are left** — `invariants.mjs`,
+`hotplug.mjs` and the `layout-probe` parser they share; 1 189 of them are the
+code that was already there, and the other 27 are the headers saying why each
+stayed. The `.fts` files, the `fts/vectors/*.json` and the frozen tag are gone
+with the rest.
+
+| file | was | now | what happened |
+|---|---:|---:|---|
+| `surfaces.mjs` | 142 | 0 | there is one file per spec; the `en:` view is guarded by `tools/check-flang-en-views.sh`, 32 lines of `awk` |
+| `derive.mjs` | 353 | 0 | derived fields became expressions; the table had nothing left to hold |
+| `conformance.mjs` | 471 | 0 | replaced by `conformance.flang` (scalars) and `layout.flang` (whole scenarios) |
+| `selftest.mjs` | 223 | 0 | replaced by `tools/check-flang-mutants.sh`, which corrupts C's answer instead of the spec |
+| `invariants.mjs` | 618 | 639 | stays: it is about the relation between two states of the ribbon, and no spec describes the ribbon as a value |
+| `hotplug.mjs` | 367 | 382 | stays: three states of several ribbons at once, same reason |
+| `probe.mjs` | 211 | 195 | stays for those two; `probeScalar()` and `probeLayout()` went with their callers |
+
+**Coverage did not shrink, and the count fell anyway.** 450 became 215 because
+450 counted every vector twice — once per language surface — plus ten checks
+that a model's fields matched a table in the harness. There is one surface now,
+and no table. What is compared is the same 201 scalar vectors and the same
+whole scenarios, and the scenarios are compared harder: byte for byte against
+the probe's own output instead of field by field against a list written by
+hand.
+
+**One thing had to change in the specs to make it possible.** `«Деление
+нацело»` was written out twice, in `column-width.flang` and in
+`window-height.flang`, and the copy was deliberate — a spec should read on its
+own. It also made the two specs unusable together: any program importing both
+fails with `FLANG_DUPLICATE_NAME`, and both `conformance.flang` and
+`layout.flang` need both. The copy is now one file, `integer-division.flang`.
+
+**What is still open.** `invariants.mjs` and `hotplug.mjs` are still Node, and
+the reason is not the harness but the missing spec: nothing here describes the
+ribbon, or a set of ribbons across outputs, as a value. Until something does,
+there is no promise for those checks to belong to. Their headers say so.
