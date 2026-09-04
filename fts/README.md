@@ -343,3 +343,74 @@ with its field table, because the models are still here.
 models are FTS, and the toolkit behind that tag is frozen. Moving the models
 themselves to flang is a separate piece of work from moving the arithmetic, and
 only the second one is done.
+
+### The models are across, 4 September 2026
+
+All ten models now also live in `fts/flang/`, one file per model. The forecast
+under "What a full move costs" has been checked by running it rather than by
+reading it; where it held and where it did not is below.
+
+**2 270 lines instead of 3 740.** "Roughly half" was the forecast; six tenths
+is the answer, and the difference is not the language but the headers: the
+"what changed against FTS and why" section runs thirty to seventy lines per
+file, and dropping it would trade reading for counting. The policy itself
+shrank harder than forecast: `scroll-offset` is 302 lines against 600,
+`stack-offset` 308 against 616, and in both the seventeen rules fold into four
+lines of arithmetic and one clamp.
+
+**One field fewer for every derived one.** `scroll-offset` and `stack-offset`
+had thirteen each and now have six — all seven that went were differences
+computed by `derive.mjs`. Every model's input now equals the input of
+`layout-probe` character for character.
+
+**The kernel takes 11 promises of 25.** The forecast said "11 of 22", and the
+count of proved ones matches exactly; the total is 25 because the port added
+three — two `«Деление нацело»` equalities and "a strut of zero depth takes
+nothing". In the ledger that is 22 proved claims out of 50 (every promise has
+an `en:` variant, and the variant counts separately).
+
+| model | promises | taken by the kernel |
+|---|---|---|
+| `insertion`, `strut-span` | 2 | 2 — the answer is built from literals |
+| `strut-reserve` | 3 | 3 |
+| `focus-after-close` | 2 | 1 — the second is taken FROM THE `нат` TYPE |
+| `output-change`, `scroll-offset`, `stack-offset` | 2, 3, 3 | 1 each |
+| `column-width`, `window-height`, `strut-pair` | 3, 3, 2 | 0 |
+
+The reason for the zeros is named and measured: the kernel has eight rules,
+among them "not greater than a term" and no "not LESS than a term" at all.
+"Width is at least the minimum" and "height is at least the minimum" are goals
+of exactly that shape, and no reordering of branches will take them.
+`strut-pair` fails for another reason: its body is arithmetic in `пусть`
+bindings rather than a tree of branches, and the kernel does not step inside a
+`пусть`.
+
+**The harness's only concession is no longer needed.** `truncate: true` on
+`column-width` was there because FTS has no integer division and the model
+answered with an exact fraction. `«Деление нацело»` repeats the C99 rule word
+for word — truncation towards zero — and the model answers with the same
+integer as `ribbon_policy_width()` on all nineteen vectors and on eighty random
+inputs beyond them.
+
+**★ The port found three false properties.** Under FTS a property is checked
+only against the model's own examples; the vectors go past it. In flang a
+promise is checked by the runtime after every return, examples included — and
+three properties fell:
+
+| model | `.fts` property | input where it is false | live cwm answers |
+|---|---|---|---|
+| `strut-pair` | "Nothing more than the whole region is given up" | `region-length=-10` — **a project vector** | 0, and `0 ≤ −10` is false |
+| `strut-reserve` | "Nothing less than zero is taken" | `region-length=-5` | −5 |
+| `window-height` | "Height is positive" | `viewport-height=0, min-height=0` | 0 |
+
+The first matters most: that input has been sitting in
+`fts/vectors/strut-pair.json` since 3 September and nobody caught it, because
+`conformance.mjs` compares NUMBERS over the vectors and never asks about
+properties. In `fts/flang/` all three promises carry the condition they were
+silently resting on.
+
+**What is still open.** The pin on `fts-pered-udaleniem` is still a pin: the
+`.fts` files are not deleted, `derive.mjs` and the whole Node harness read
+them, and there is no reason to retire 450 working checks. Whole scenarios
+(`layout-probe layout`, the two insertion invariants) did not move to flang.
+They are next, not the models.
